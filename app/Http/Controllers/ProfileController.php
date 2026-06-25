@@ -33,6 +33,23 @@ class ProfileController extends Controller
 
         $emailChanged = $validated['email'] !== $user->email;
 
+        if ($emailChanged) {
+    // Generate new verification token
+           $token = Str::random(64);
+           \App\Models\EmailVerificationToken::create([
+              'user_id' => $user->id,
+              'token' => $token,
+              'email' => $validated['email'],
+              'expires_at' => now()->addHours(24),
+    ]);
+
+    // Send verification email
+         Mail::queue(new \App\Mail\VerifyEmailMailable($user, $token));
+
+    // #156: Flash message about verification
+    session()->flash('warning', 'Please verify your new email address. Check your inbox for a verification link.');
+}
+
         $user->update([
             'full_name' => $validated['full_name'],
             'email' => $validated['email'],

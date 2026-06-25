@@ -66,3 +66,30 @@ Route::get('/forum', function () {
     return "Forum page (other module)";
 })->name('forum.index');
 
+// Group Management (#143-#149)
+Route::get('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'index'])
+    ->name('groups.index');
+Route::get('/groups/create', [\App\Http\Controllers\Admin\GroupController::class, 'create'])
+    ->name('groups.create');
+Route::post('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'store'])
+    ->name('groups.store');
+Route::get('/groups/{group}/edit', [\App\Http\Controllers\Admin\GroupController::class, 'edit'])
+    ->name('groups.edit');
+Route::put('/groups/{group}', [\App\Http\Controllers\Admin\GroupController::class, 'update'])
+    ->name('groups.update');
+Route::delete('/groups/{group}', [\App\Http\Controllers\Admin\GroupController::class, 'destroy'])
+    ->name('groups.destroy');
+Route::get('/groups/{group}/members', [\App\Http\Controllers\Admin\GroupController::class, 'showMembers'])
+    ->name('groups.members');
+Route::put('/groups/{group}/members', [\App\Http\Controllers\Admin\GroupController::class, 'updateMembers'])
+    ->name('groups.update-members');
+Route::post('/groups/bulk-assign', [\App\Http\Controllers\Admin\GroupController::class, 'bulkAssign'])
+    ->name('groups.bulk-assign');
+
+// Email Verification Routes (#150-#157)
+Route::get('/verify-email', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'show'])->name('verify-email');
+Route::get('/verify-email/verify', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'verify'])->name('verify-email.verify');
+
+Route::middleware('auth')->group(function () {
+    Route::post('/verify-email/resend', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'resend'])->name('verify-email.resend');
+});

@@ -143,6 +143,17 @@
     </style>
 </head>
 <body>
+    <!-- #157: EMAIL VERIFICATION WARNING -->
+@if (Auth::user()->email_verified_at === null)
+    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+        <strong>⚠️ Your email is not verified</strong><br>
+        <p style="margin: 0.5rem 0 0 0;">
+            <a href="{{ route('verify-email') }}" style="color: #ffc107; text-decoration: none; font-weight: 600;">
+                Click here to verify your email →
+            </a>
+        </p>
+    </div>
+@endif
     <nav class="navbar">
         <div class="navbar-brand">Studdit</div>
         <div class="navbar-menu">
@@ -167,6 +178,7 @@
                 <div class="action-buttons">
                     <a href="{{ route('admin.users-index') }}">User Management</a>
                     <a href="{{ route('admin.statistics') }}">View Statistics</a>
+                    <a href="{{ route('groups.index') }}" class="link-btn">Group Management</a>
                 </div>
             </div>
         @else
