@@ -1,9 +1,9 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Auth\WarningAcknowledgementController;
-use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
 
 // ============================================
 // GUEST ROUTES (No authentication needed)
@@ -13,7 +13,7 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-// LOGIN ROUTES (#51-#58)
+// LOGIN ROUTES
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'authenticate']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
@@ -28,7 +28,7 @@ Route::middleware('auth')->group(function () {
         return view('dashboard');
     })->name('dashboard');
 
-    // WARNING ACKNOWLEDGEMENT (#80)
+    // WARNING ACKNOWLEDGEMENT
     Route::get('/warning-acknowledgement', [WarningAcknowledgementController::class, 'show'])
         ->name('warning-acknowledgement');
     Route::post('/warning-acknowledgement', [WarningAcknowledgementController::class, 'acknowledge'])
@@ -66,7 +66,7 @@ Route::get('/forum', function () {
     return "Forum page (other module)";
 })->name('forum.index');
 
-// Group Management (#143-#149)
+// Group Management
 Route::get('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'index'])
     ->name('groups.index');
 Route::get('/groups/create', [\App\Http\Controllers\Admin\GroupController::class, 'create'])
@@ -86,7 +86,7 @@ Route::put('/groups/{group}/members', [\App\Http\Controllers\Admin\GroupControll
 Route::post('/groups/bulk-assign', [\App\Http\Controllers\Admin\GroupController::class, 'bulkAssign'])
     ->name('groups.bulk-assign');
 
-// Email Verification Routes (#150-#157)
+// Email Verification Routes
 Route::get('/verify-email', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'show'])->name('verify-email');
 Route::get('/verify-email/verify', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'verify'])->name('verify-email.verify');
 
