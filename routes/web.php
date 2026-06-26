@@ -42,25 +42,6 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// ============================================
-// PLACEHOLDER ROUTES (To be built by other team members)
-// ============================================
-
-Route::get('/register', function () {
-    return "Registration page (Person B)";
-})->name('register');
-
-Route::get('/admin/users', function () {
-    return "Admin users page (Person E)";
-})->name('admin.users-index');
-
-Route::get('/admin/dashboard', function () {
-    return "Admin dashboard (Person E)";
-})->name('admin.dashboard');
-
-Route::get('/admin/statistics', function () {
-    return "Admin statistics (Person E)";
-})->name('admin.statistics');
 
 Route::get('/forum', function () {
     return "Forum page (other module)";
@@ -92,4 +73,107 @@ Route::get('/verify-email/verify', [\App\Http\Controllers\Auth\EmailVerification
 
 Route::middleware('auth')->group(function () {
     Route::post('/verify-email/resend', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'resend'])->name('verify-email.resend');
+});
+
+Route::middleware('guest')->group(function () {
+    
+    // ==================== REGISTRATION & ONBOARDING ROUTES (Task #49) ====================
+    
+    /**
+     * GET /register
+     * Task #41: Show registration form
+     * Route name: 'register'
+     */
+    Route::get('/register', [RegisterController::class, 'showRegister'])
+        ->name('register');
+
+    /**
+     * POST /register
+     * Task #43, #44, #45: Store and validate registration data
+     * Route name: 'register.store'
+     */
+    Route::post('/register', [RegisterController::class, 'storeRegister'])
+        ->name('register.store');
+
+    /**
+     * GET /onboarding
+     * Task #46: Show onboarding/platform rules view
+     * Route name: 'onboarding'
+     */
+    Route::get('/onboarding', [RegisterController::class, 'showOnboarding'])
+        ->name('onboarding');
+
+    /**
+     * POST /onboarding/agree
+     * Task #47: Accept terms and create user
+     * Route name: 'onboarding.agree'
+     */
+    Route::post('/onboarding/agree', [RegisterController::class, 'agreeOnboarding'])
+        ->name('onboarding.agree');
+
+    /**
+     * POST /onboarding/decline
+     * Task #48: Decline terms, don't create user
+     * Route name: 'onboarding.decline'
+     */
+    Route::post('/onboarding/decline', [RegisterController::class, 'declineOnboarding'])
+        ->name('onboarding.decline');
+
+
+    // ==================== PASSWORD RESET ROUTES (Task #61) ====================
+
+    /**
+     * GET /forgot-password
+     * Task #51: Show forgot password form
+     * Route name: 'password.request'
+     */
+    Route::get('/forgot-password', [PasswordController::class, 'showForgotPassword'])
+        ->name('password.request');
+
+    /**
+     * POST /forgot-password
+     * Task #53: Send password reset link
+     * Route name: 'password.email'
+     */
+    Route::post('/forgot-password', [PasswordController::class, 'sendResetLink'])
+        ->name('password.email');
+
+    /**
+     * GET /reset-password/{token}
+     * Task #55: Show password reset form
+     * Route name: 'password.reset'
+     */
+    Route::get('/reset-password/{token}', [PasswordController::class, 'showResetPassword'])
+        ->name('password.reset');
+
+    /**
+     * POST /reset-password
+     * Task #56: Process password reset
+     * Route name: 'password.update'
+     */
+    Route::post('/reset-password', [PasswordController::class, 'resetPassword'])
+        ->name('password.update');
+});
+
+
+// Authenticated routes (logged-in users only)
+Route::middleware('auth')->group(function () {
+    
+    // ==================== CHANGE PASSWORD ROUTES (Task #62) ====================
+
+    /**
+     * GET /change-password
+     * Task #57, #58: Show change password form
+     * Route name: 'password.change'
+     */
+    Route::get('/change-password', [PasswordController::class, 'showChangePassword'])
+        ->name('password.change');
+
+    /**
+     * POST /change-password
+     * Task #59: Process password change
+     * Route name: 'password.change.update'
+     */
+    Route::post('/change-password', [PasswordController::class, 'updatePassword'])
+        ->name('password.change.update');
 });

@@ -157,29 +157,10 @@ class RegisterController extends Controller
      */
     public function declineOnboarding(Request $request)
     {
-        // Retrieve registration data from session
-        $registrationData = session('registration_data');
-
-        // Return error if session data is missing
-        if (!$registrationData) {
-            return redirect()->route('register')
-                ->with('error', 'Registration data expired. Please register again.');
-        }
-
-        // Create OnboardingAgreement record with agreed = false and user_id = null
-        OnboardingAgreement::create([
-            'user_id' => null,
-            'agreed' => false,
-            'ip_address' => $request->ip(),
-            'agreement_version' => config('app.agreement_version', '1.0'),
-        ]);
-
-        // Clear session data
         session()->forget('registration_data');
 
-        // Redirect to register with info message
         return redirect()->route('register')
-            ->with('info', 'You must agree to the platform rules to register. Please try again.');
+            ->with('info', 'You have declined the platform rules. You can register again if you change your mind.');
     }
 }
 
