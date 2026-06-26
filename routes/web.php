@@ -179,3 +179,28 @@ Route::middleware('auth')->group(function () {
     Route::post('/change-password', [PasswordController::class, 'updatePassword'])
         ->name('password.change.update');
 });
+
+// ============================================
+// ADMIN ROUTES (Authentication + Admin check required)
+// ============================================
+
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    // User Management (#88-#91)
+    Route::get('/users', [\App\Http\Controllers\Admin\UserManagementController::class, 'index'])
+        ->name('users.index');
+    Route::post('/users/{user}/lift-blacklist', [\App\Http\Controllers\Admin\UserManagementController::class, 'liftBlacklist'])
+        ->name('users.lift-blacklist');
+    Route::post('/users/{user}/change-role', [\App\Http\Controllers\Admin\UserManagementController::class, 'changeRole'])
+        ->name('users.change-role');
+
+    // System Config (#92)
+    Route::get('/system-config', [\App\Http\Controllers\Admin\SystemConfigController::class, 'index'])
+        ->name('system-config.index');
+    Route::put('/system-config', [\App\Http\Controllers\Admin\SystemConfigController::class, 'update'])
+        ->name('system-config.update');
+
+    // Admin Dashboard
+    Route::get('/dashboard', function () {
+        return view('admin.dashboard');
+    })->name('dashboard');
+});

@@ -176,6 +176,7 @@
                 <p>You have access to moderation and user management tools.</p>
 
                 <div class="action-buttons">
+                     <a href="{{ route('admin.dashboard') }}">Admin Panel</a>
                     <a href="{{ route('admin.users-index') }}">User Management</a>
                     <a href="{{ route('admin.statistics') }}">View Statistics</a>
                     <a href="{{ route('groups.index') }}" class="link-btn">Group Management</a>
