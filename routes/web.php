@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Auth\WarningAcknowledgementController;
@@ -25,7 +26,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::middleware('auth')->group(function () {
     // DASHBOARD (#79)
     Route::get('/dashboard', function () {
-        return view('dashboard');
+        return view('auth.dashboard');
     })->name('dashboard');
 
     // WARNING ACKNOWLEDGEMENT
