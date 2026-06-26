@@ -15,11 +15,23 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call([
+            RoleSeeder::class,
+        ]);
+
+        \App\Models\Group::create([
+        'group_name' => 'Default Group',
+        'description' => 'Default test group',
+    ]);
+
         // User::factory(10)->create();
 
         User::factory()->create([
-            'name' => 'Test User',
+            'full_name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        
+
     }
 }

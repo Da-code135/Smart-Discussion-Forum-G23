@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class BlacklistRecord extends Model
 {
+    protected $fillable = ['user_id', 'reason', 'expires_at', 'lifted_at', 'lifted_by'];
+    
      public function user()
     {
         return $this->belongsTo(User::class);

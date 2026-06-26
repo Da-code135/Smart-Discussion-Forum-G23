@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('groups_created_by', function (Blueprint $table) {
-            //
-        });
+        Schema::table('groups', function (Blueprint $table) {
+        $table->dropForeign(['created_by']);
+    });
     }
 };
