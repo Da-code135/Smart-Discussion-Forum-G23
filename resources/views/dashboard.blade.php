@@ -203,7 +203,7 @@
             <div class="stat-card">
                 <div class="stat-label">Last Active</div>
                 <div class="stat-value">
-                    {{ Auth::user()->last_active_at ? Auth::user()->last_active_at->format('M d, Y H:i') : 'Never' }}
+                    {{ Auth::user()->last_active_at ? Auth::user()->last_active_at->format('M d, Y H:i') : 'Never'}}
                 </div>
             </div>
         </div>
