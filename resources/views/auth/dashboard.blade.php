@@ -24,9 +24,10 @@
             <p>You have access to moderation and user management tools.</p>
 
             <div class="action-buttons">
+                <a href="{{ route('admin.dashboard') }}">Admin Panel</a>
                 <a href="{{ route('admin.users-index') }}">User Management</a>
                 <a href="{{ route('admin.statistics') }}">View Statistics</a>
-                <a href="{{ route('groups.index') }}">Group Management</a>
+                <a href="{{ route('groups.index') }}" class="link-btn">Group Management</a>
             </div>
         </div>
     @else
@@ -34,22 +35,6 @@
             <h2>Forum Dashboard</h2>
             <p>Welcome to {{ config('app.name') }}! Start exploring or create a new topic.</p>
 
-    <div class="dashboard-content">
-        <h1>Welcome, {{ Auth::user()->full_name }}!</h1>
-        <p class="user-role">Role: <strong>{{ Auth::user()->role->role_name }}</strong></p>
-
-        <!-- #79: ROLE-BASED RENDERING -->
-        @if (Auth::user()->role->role_name === 'Administrator')
-            <div class="role-section">
-                <h2>Administrator Dashboard</h2>
-                <p>You have access to moderation and user management tools.</p>
-
-                <div class="action-buttons">
-                     <a href="{{ route('admin.dashboard') }}">Admin Panel</a>
-                    <a href="{{ route('admin.users-index') }}">User Management</a>
-                    <a href="{{ route('admin.statistics') }}">View Statistics</a>
-                    <a href="{{ route('groups.index') }}" class="link-btn">Group Management</a>
-                </div>
             <div class="action-buttons">
                 <a href="{{ route('forum.index') }}">Enter Forum</a>
                 <a href="{{ route('profile.edit') }}">View Profile</a>
