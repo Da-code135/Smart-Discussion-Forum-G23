@@ -29,17 +29,17 @@ class LoginController extends Controller
         // #55: RATE LIMITING CHECK (before anything else)
         $key = 'login-attempts:' . $request->input('email') . '|' . $request->ip();
         $maxAttempts = 5;
-        $lockoutMinutes = 15;
+        $lockoutSeconds = 30;
 
-        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
-            $seconds = RateLimiter::availableIn($key);
-            throw ValidationException::withMessages([
-                'email' => "Too many login attempts. Try again in {$seconds} seconds.",
-            ]);
-        }
+  if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+    $seconds = RateLimiter::availableIn($key);
 
-        // Increment attempt counter
-        RateLimiter::hit($key, $lockoutMinutes * 60);
+    throw ValidationException::withMessages([
+        'email' => "Too many login attempts. Try again in {$seconds} seconds.",
+    ]);
+}
+
+ RateLimiter::hit($key, $lockoutSeconds);
 
         // #52: VALIDATE EMAIL & PASSWORD FORMAT
         $validated = $request->validate([
