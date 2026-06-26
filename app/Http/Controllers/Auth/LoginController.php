@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
 use App\Models\BlacklistRecord;
+use App\Models\Warning;
 
 class LoginController extends Controller
 {
@@ -39,7 +40,7 @@ class LoginController extends Controller
     ]);
 }
 
- 
+
 
         // #52: VALIDATE EMAIL & PASSWORD FORMAT
         $validated = $request->validate([
@@ -54,7 +55,7 @@ class LoginController extends Controller
         if (!$user || !Hash::check($request->input('password'), $user->password)) {
             // Increment failed attempts
             RateLimiter::hit($key, $lockoutSeconds);
-            
+
             throw ValidationException::withMessages([
                 'password' => 'These credentials do not match our records.',
             ]);
@@ -77,16 +78,23 @@ class LoginController extends Controller
         }
 
         // #54: WARNED GATE - Check account_status === 'warned'
-        if ($user->account_status === 'warned' && !$warnings->is_acknowledged) {
-            // Log them in but redirect to warning acknowledgement first
-            Auth::login($user, $request->boolean('remember'));
-            session()->regenerate();
-            $user->update(['last_active_at' => now()]);
+        if ($user->account_status === 'warned') {
+            // Check for unacknowledged warnings
+            $warnings = Warning::where('user_id', $user->id)
+                ->where('is_acknowledged', false)
+                ->first();
 
-            // Clear rate limiter on successful login
-            RateLimiter::clear($key);
+            if ($warnings) {
+                // Log them in but redirect to warning acknowledgement first
+                Auth::login($user, $request->boolean('remember'));
+                session()->regenerate();
+                $user->update(['last_active_at' => now()]);
 
-            return redirect()->route('warning-acknowledgement');
+                // Clear rate limiter on successful login
+                RateLimiter::clear($key);
+
+                return redirect()->route('warning-acknowledgement');
+            }
         }
 
         // #52: Auth::login() with remember me
@@ -104,7 +112,7 @@ class LoginController extends Controller
         // #52: Redirect by role
         $role = $user->role->role_name;
         if ($role === 'Administrator') {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route('dashboard');
         } else {
             return redirect()->route('dashboard');
         }

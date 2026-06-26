@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Auth\WarningAcknowledgementController;
+use App\Http\Controllers\Auth\PasswordController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -77,9 +78,9 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware('guest')->group(function () {
-    
+
     // ==================== REGISTRATION & ONBOARDING ROUTES (Task #49) ====================
-    
+
     /**
      * GET /register
      * Task #41: Show registration form
@@ -159,7 +160,7 @@ Route::middleware('guest')->group(function () {
 
 // Authenticated routes (logged-in users only)
 Route::middleware('auth')->group(function () {
-    
+
     // ==================== CHANGE PASSWORD ROUTES (Task #62) ====================
 
     /**
