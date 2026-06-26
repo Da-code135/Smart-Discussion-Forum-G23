@@ -39,7 +39,7 @@ class LoginController extends Controller
     ]);
 }
 
- RateLimiter::hit($key, $lockoutSeconds);
+ 
 
         // #52: VALIDATE EMAIL & PASSWORD FORMAT
         $validated = $request->validate([
@@ -53,6 +53,8 @@ class LoginController extends Controller
         // #52: CHECK IF USER EXISTS & PASSWORD MATCHES
         if (!$user || !Hash::check($request->input('password'), $user->password)) {
             // Increment failed attempts
+            RateLimiter::hit($key, $lockoutSeconds);
+            
             throw ValidationException::withMessages([
                 'password' => 'These credentials do not match our records.',
             ]);
@@ -66,7 +68,8 @@ class LoginController extends Controller
                 ->first();
 
             if ($blacklistRecord) {
-                $expiryDate = $blacklistRecord->expiry_date->format('M d, Y');
+                 RateLimiter::hit($key, $lockoutSeconds);
+                $expiryDate = $blacklistRecord->expires_at->format('M d, Y');
                 throw ValidationException::withMessages([
                     'email' => "Your account is blacklisted until {$expiryDate}.",
                 ]);
@@ -74,9 +77,9 @@ class LoginController extends Controller
         }
 
         // #54: WARNED GATE - Check account_status === 'warned'
-        if ($user->account_status === 'warned' && !$user->is_acknowledged) {
+        if ($user->account_status === 'warned' && !$warnings->is_acknowledged) {
             // Log them in but redirect to warning acknowledgement first
-            Auth::login($user, $request->input('remember'));
+            Auth::login($user, $request->boolean('remember'));
             session()->regenerate();
             $user->update(['last_active_at' => now()]);
 
