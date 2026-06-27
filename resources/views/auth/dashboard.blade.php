@@ -35,12 +35,21 @@
     </section>
 @endif
 
-{{-- Inactivity / Account Warning --}}
-@if ($user->account_status === 'warned')
-    <section class="mb-4">
-        <div class="alert alert-error alert-banner" role="alert">
-            <span class="material-symbols-outlined">warning</span>
-            <p style="margin: 0;">You have been inactive. Engage soon to avoid a warning.</p>
+<div class="dashboard-content">
+    <h1>Welcome, {{ Auth::user()->full_name }}!</h1>
+    <p class="user-role">Role: <strong>{{ Auth::user()->role->role_name }}</strong></p>
+
+    {{-- Role-Based Rendering --}}
+    @if (Auth::user()->role->role_name === 'Administrator')
+        <div class="role-section">
+            <h2>Administrator Dashboard</h2>
+            <p>You have access to moderation and user management tools.</p>
+
+            <div class="action-buttons">
+                <a href="{{ route('admin.users-index') }}">User Management</a>
+                <a href="{{ route('admin.statistics') }}">View Statistics</a>
+                <a href="{{ route('groups.index') }}">Group Management</a>
+            </div>
         </div>
     </section>
 @endif
