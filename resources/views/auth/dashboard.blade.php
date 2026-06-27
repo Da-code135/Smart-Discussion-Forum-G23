@@ -59,7 +59,7 @@
     <section class="mb-4">
         <div class="bento-card profile-form-card">
             <h2 class="headline-sm" style="font-size: 1.25rem; margin-bottom: 0.5rem;">Administrator Dashboard</h2>
-            <p class="text-muted" style="margin-bottom: 1rem;">You have access to moderation and user management tools.</p>
+            <p class="text-muted" style="margin-bottom: 1rem;">You have access to moderatiogitn and user management tools.</p>
             <div class="admin-actions">
                 <a href="{{ route('admin.users.index') }}" class="btn btn-primary">User Management</a>
                 <a href="{{ route('admin.groups.index') }}" class="btn btn-primary">Group Management</a>
