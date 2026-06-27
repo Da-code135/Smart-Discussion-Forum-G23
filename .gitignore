@@ -25,4 +25,36 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+/Senior Software Engineer.amd
+/boost.json
+/.mcp.json
+/.qoder/rules/advanced-queries.md
+/.qoder/rules/architecture.md
+/.qoder/rules/blade-views.md
+/.qoder/rules/caching.md
+/.qoder/rules/collections.md
+/.qoder/rules/config.md
+/.qoder/rules/db-performance.md
+/.qoder/rules/eloquent.md
+/.qoder/rules/error-handling.md
+/.qoder/rules/events-notifications.md
+/.qoder/rules/http-client.md
+/.qoder/rules/mail.md
+/.qoder/rules/migrations.md
+/.qoder/rules/queue-jobs.md
+/.qoder/rules/routing.md
+/.qoder/rules/scheduling.md
+/.qoder/rules/security.md
+/.qoder/skills/laravel-best-practices/SKILL.md
+/.qoder/skills/tailwindcss-development/SKILL.md
+/.qoder/rules/style.md
+/.qoder/rules/testing.md
+/.qoder/rules/validation.md
+/.qoder/
+/CODEREVIEW.md
+/Smart-discussion-forum G-23.pdf
 stitch designs/
+/AUTHENTICATION_GAPS.md
+/AUTHENTICATION_IMPLEMENTATION_PLAN.md
+/FULL_CODEBASE_REVIEW.md
+/PHASE_1_3_COMPLETE.md

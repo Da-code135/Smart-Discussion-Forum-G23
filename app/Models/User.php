@@ -56,4 +56,24 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Group::class);
     }
+
+    public function warnings()
+    {
+        return $this->hasMany(Warning::class);
+    }
+
+    public function blacklistRecords()
+    {
+        return $this->hasMany(BlacklistRecord::class);
+    }
+
+    public function emailVerificationTokens()
+    {
+        return $this->hasMany(EmailVerificationToken::class);
+    }
+
+    public function onboardingAgreements()
+    {
+        return $this->hasMany(OnboardingAgreement::class);
+    }
 }

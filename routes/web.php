@@ -93,9 +93,11 @@ Route::middleware('guest')->group(function () {
      * POST /register
      * Task #43, #44, #45: Store and validate registration data
      * Route name: 'register.store'
+     * Rate limited: 3 registrations per minute to prevent spam
      */
     Route::post('/register', [RegisterController::class, 'storeRegister'])
-        ->name('register.store');
+        ->name('register.store')
+        ->middleware('throttle:3,60'); // 3 requests per 60 minutes
 
     /**
      * GET /onboarding
