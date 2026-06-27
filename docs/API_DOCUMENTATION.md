@@ -16,11 +16,20 @@ This document provides comprehensive documentation for the Smart Discussion Foru
 
 1. [Authentication Flow](#authentication-flow)
 2. [API Endpoints](#api-endpoints)
-   - [Login](#post-apiv1login)
-   - [Logout](#post-apiv1logout)
-   - [Get Current User](#get-apiv1me)
-   - [Update Profile](#post-apiv1profile)
-   - [Change Password](#post-apiv1passwordchange)
+   - [Public Endpoints](#public-endpoints)
+     - [Register](#post-apiv1register)
+     - [Login](#post-apiv1login)
+     - [Forgot Password](#post-apiv1passwordforgot)
+     - [Reset Password](#post-apiv1passwordreset)
+   - [Protected Endpoints](#protected-endpoints)
+     - [Logout](#post-apiv1logout)
+     - [Get Current User](#get-apiv1me)
+     - [Update Profile](#post-apiv1profile)
+     - [Change Password](#post-apiv1passwordchange)
+     - [Delete Account](#delete-apiv1account)
+     - [Email Verification](#post-apiv1emailverify)
+     - [Resend Verification](#post-apiv1emailresend)
+     - [Token Management](#token-management)
 3. [Error Responses](#error-responses)
 4. [Rate Limiting](#rate-limiting)
 5. [Security Headers](#security-headers)
@@ -48,14 +57,121 @@ Authorization: Bearer your-token-here
 
 ### Token Lifecycle
 
-- Tokens do not expire by default
+- Tokens expire after 30 days (43,200 minutes)
 - Tokens are invalidated on logout
 - Each login creates a new token
 - Users can have multiple active tokens
+- Tokens can be refreshed before expiration
+- Users can view and revoke their active tokens
 
 ---
 
 ## API Endpoints
+
+### API Endpoints Summary
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/v1/register` | ❌ | Register new user account |
+| POST | `/api/v1/login` | ❌ | Login and get API token |
+| POST | `/api/v1/password/forgot` | ❌ | Request password reset link |
+| POST | `/api/v1/password/reset` | ❌ | Reset password with token |
+| POST | `/api/v1/logout` | ✅ | Logout and revoke token |
+| GET | `/api/v1/me` | ✅ | Get current user data |
+| POST | `/api/v1/profile` | ✅ | Update profile information |
+| POST | `/api/v1/password/change` | ✅ | Change password |
+| DELETE | `/api/v1/account` | ✅ | Delete account permanently |
+| POST | `/api/v1/email/verify` | ✅ | Verify email address |
+| POST | `/api/v1/email/resend` | ✅ | Resend verification email |
+| GET | `/api/v1/tokens` | ✅ | List all active tokens |
+| POST | `/api/v1/token/refresh` | ✅ | Refresh current token |
+| DELETE | `/api/v1/tokens/{id}` | ✅ | Revoke specific token |
+
+---
+
+### Public Endpoints
+
+These endpoints do not require authentication.
+
+---
+
+### POST /api/v1/register
+
+Register a new user account and receive an API token.
+
+**Authentication**: Not required (public endpoint)
+
+**Rate Limit**: 3 requests per 60 minutes
+
+#### Request
+
+```http
+POST /api/v1/register
+Content-Type: application/json
+
+{
+  "full_name": "John Doe",
+  "email": "john@example.com",
+  "password": "Password123",
+  "password_confirmation": "Password123"
+}
+```
+
+#### Request Parameters
+
+| Parameter             | Type   | Required | Description                          |
+|-----------------------|--------|----------|--------------------------------------|
+| full_name             | string | Yes      | User's full name (max 100 chars)     |
+| email                 | string | Yes      | User email address (must be unique)  |
+| password              | string | Yes      | Password (min 8 chars)               |
+| password_confirmation | string | Yes      | Must match password                  |
+
+#### Success Response (201 Created)
+
+```json
+{
+  "message": "Registration successful",
+  "token": "1|abc123def456...",
+  "user": {
+    "id": 1,
+    "full_name": "John Doe",
+    "email": "john@example.com",
+    "account_status": "active",
+    "role": "Student",
+    "group": "Default Group",
+    "email_verified_at": null,
+    "last_active_at": null
+  }
+}
+```
+
+#### Error Responses
+
+**422 Validation Error**
+```json
+{
+  "message": "The email has already been taken.",
+  "errors": {
+    "email": ["The email has already been taken."]
+  }
+}
+```
+
+**500 Server Error - Missing Role/Group**
+```json
+{
+  "message": "Required role or group not found in database. Please contact administrator."
+}
+```
+
+**429 Too Many Requests**
+```json
+{
+  "message": "Too many requests. Please try again later."
+}
+```
+
+---
 
 ### POST /api/v1/login
 
@@ -150,6 +266,118 @@ Content-Type: application/json
   "message": "The email field must be a valid email address.",
   "errors": {
     "email": ["The email field must be a valid email address."]
+  }
+}
+```
+
+---
+
+### POST /api/v1/password/forgot
+
+Request a password reset link via email.
+
+**Authentication**: Not required (public endpoint)
+
+#### Request
+
+```http
+POST /api/v1/password/forgot
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+```
+
+#### Request Parameters
+
+| Parameter | Type   | Required | Description              |
+|-----------|--------|----------|--------------------------|
+| email     | string | Yes      | User email address       |
+
+#### Success Response (200 OK)
+
+```json
+{
+  "message": "Password reset link sent to your email"
+}
+```
+
+**Note**: For security, this endpoint returns success even if the email doesn't exist.
+
+#### Error Responses
+
+**422 Validation Error**
+```json
+{
+  "message": "The email field must be a valid email address.",
+  "errors": {
+    "email": ["The email field must be a valid email address."]
+  }
+}
+```
+
+---
+
+### POST /api/v1/password/reset
+
+Reset password using the token received via email.
+
+**Authentication**: Not required (public endpoint)
+
+#### Request
+
+```http
+POST /api/v1/password/reset
+Content-Type: application/json
+
+{
+  "token": "reset-token-from-email",
+  "email": "user@example.com",
+  "password": "NewPassword123",
+  "password_confirmation": "NewPassword123"
+}
+```
+
+#### Request Parameters
+
+| Parameter             | Type   | Required | Description                          |
+|-----------------------|--------|----------|--------------------------------------|
+| token                 | string | Yes      | Reset token from email               |
+| email                 | string | Yes      | User email address                   |
+| password              | string | Yes      | New password (min 8 chars)           |
+| password_confirmation | string | Yes      | Must match password                  |
+
+#### Password Requirements
+
+- Minimum 8 characters
+- Must contain uppercase letters
+- Must contain lowercase letters
+- Must contain numbers
+
+#### Success Response (200 OK)
+
+```json
+{
+  "message": "Password reset successfully"
+}
+```
+
+#### Error Responses
+
+**400 Bad Request - Invalid Token**
+```json
+{
+  "message": "Unable to reset password"
+}
+```
+
+**422 Validation Error**
+```json
+{
+  "message": "The password must be at least 8 characters.",
+  "errors": {
+    "password": ["The password must be at least 8 characters."]
   }
 }
 ```
@@ -407,6 +635,300 @@ Content-Type: application/json
 
 ---
 
+### DELETE /api/v1/account
+
+Permanently delete the authenticated user's account and all associated data.
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+```http
+DELETE /api/v1/account
+Authorization: Bearer your-token-here
+Content-Type: application/json
+
+{
+  "password": "YourPassword123"
+}
+```
+
+#### Request Parameters
+
+| Parameter | Type   | Required | Description              |
+|-----------|--------|----------|--------------------------|
+| password  | string | Yes      | Current password for verification |
+
+#### Success Response (200 OK)
+
+```json
+{
+  "message": "Account deleted successfully"
+}
+```
+
+**Note**: This action is irreversible. All user data including warnings, blacklist records, and tokens will be permanently deleted.
+
+#### Error Responses
+
+**401 Unauthorized**
+```json
+{
+  "message": "Unauthenticated."
+}
+```
+
+**403 Forbidden - Invalid Password**
+```json
+{
+  "message": "Invalid password"
+}
+```
+
+**422 Validation Error**
+```json
+{
+  "message": "The password field is required.",
+  "errors": {
+    "password": ["The password field is required."]
+  }
+}
+```
+
+---
+
+### POST /api/v1/email/verify
+
+Verify email address using the token received via email.
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+```http
+POST /api/v1/email/verify
+Authorization: Bearer your-token-here
+Content-Type: application/json
+
+{
+  "token": "verification-token-from-email",
+  "email": "user@example.com"
+}
+```
+
+#### Request Parameters
+
+| Parameter | Type   | Required | Description              |
+|-----------|--------|----------|--------------------------|
+| token     | string | Yes      | Verification token from email |
+| email     | string | Yes      | User email address       |
+
+#### Success Response (200 OK)
+
+```json
+{
+  "message": "Email verified successfully"
+}
+```
+
+#### Error Responses
+
+**400 Bad Request - Invalid or Expired Token**
+```json
+{
+  "message": "Invalid or expired verification token"
+}
+```
+
+**422 Validation Error**
+```json
+{
+  "message": "The token field is required.",
+  "errors": {
+    "token": ["The token field is required."]
+  }
+}
+```
+
+---
+
+### POST /api/v1/email/resend
+
+Resend email verification link.
+
+**Authentication**: Required (Bearer token)
+
+**Rate Limit**: 1 request per 60 seconds
+
+#### Request
+
+```http
+POST /api/v1/email/resend
+Authorization: Bearer your-token-here
+```
+
+#### Success Response (200 OK)
+
+```json
+{
+  "message": "Verification email sent"
+}
+```
+
+#### Error Responses
+
+**400 Bad Request - Already Verified**
+```json
+{
+  "message": "Email already verified"
+}
+```
+
+**401 Unauthorized**
+```json
+{
+  "message": "Unauthenticated."
+}
+```
+
+**429 Too Many Requests**
+```json
+{
+  "message": "Please wait 60 seconds before requesting another verification email"
+}
+```
+
+---
+
+### Token Management
+
+#### GET /api/v1/tokens
+
+List all active API tokens for the authenticated user.
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+GET /api/v1/tokens
+Authorization: Bearer your-token-here
+```
+
+##### Success Response (200 OK)
+
+```json
+{
+  "tokens": [
+    {
+      "id": 1,
+      "name": "desktop-client",
+      "created_at": "2026-06-26T10:00:00.000000Z",
+      "last_used_at": "2026-06-26T15:45:00.000000Z",
+      "expires_at": "2026-07-26T10:00:00.000000Z"
+    },
+    {
+      "id": 2,
+      "name": "desktop-client",
+      "created_at": "2026-06-20T08:00:00.000000Z",
+      "last_used_at": "2026-06-25T12:30:00.000000Z",
+      "expires_at": "2026-07-20T08:00:00.000000Z"
+    }
+  ]
+}
+```
+
+##### Error Responses
+
+**401 Unauthorized**
+```json
+{
+  "message": "Unauthenticated."
+}
+```
+
+---
+
+#### POST /api/v1/token/refresh
+
+Refresh the current API token. The old token is invalidated and a new one is issued.
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+POST /api/v1/token/refresh
+Authorization: Bearer your-token-here
+```
+
+##### Success Response (200 OK)
+
+```json
+{
+  "message": "Token refreshed successfully",
+  "token": "2|newtoken123abc..."
+}
+```
+
+**Note**: The old token is immediately invalidated. Update your client with the new token.
+
+##### Error Responses
+
+**401 Unauthorized**
+```json
+{
+  "message": "Unauthenticated."
+}
+```
+
+---
+
+#### DELETE /api/v1/tokens/{tokenId}
+
+Revoke a specific API token.
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+DELETE /api/v1/tokens/123
+Authorization: Bearer your-token-here
+```
+
+##### Path Parameters
+
+| Parameter | Type    | Required | Description              |
+|-----------|---------|----------|--------------------------|
+| tokenId   | integer | Yes      | ID of the token to revoke |
+
+##### Success Response (200 OK)
+
+```json
+{
+  "message": "Token revoked successfully"
+}
+```
+
+##### Error Responses
+
+**401 Unauthorized**
+```json
+{
+  "message": "Unauthenticated."
+}
+```
+
+**404 Not Found**
+```json
+{
+  "message": "Token not found"
+}
+```
+
+---
+
 ## Error Responses
 
 ### Standard Error Format
@@ -427,8 +949,11 @@ All error responses follow this format:
 | Status Code | Meaning                    | Description                                    |
 |-------------|----------------------------|------------------------------------------------|
 | 200         | OK                         | Request successful                             |
+| 201         | Created                    | Resource created successfully (e.g., registration) |
+| 400         | Bad Request                | Invalid request (e.g., invalid token)          |
 | 401         | Unauthorized               | Missing or invalid authentication token        |
 | 403         | Forbidden                  | Account blacklisted or warned                  |
+| 404         | Not Found                  | Resource not found (e.g., token not found)     |
 | 422         | Unprocessable Entity       | Validation error                               |
 | 429         | Too Many Requests          | Rate limit exceeded                            |
 | 500         | Internal Server Error      | Server error                                   |
@@ -462,6 +987,18 @@ X-RateLimit-Remaining: 0
 - **Limit**: 5 attempts per 30 seconds
 - **Scope**: Per email + IP combination
 - **Applies to**: `/api/v1/login` only
+
+### Registration Rate Limit
+
+- **Limit**: 3 requests per 60 seconds
+- **Scope**: Per IP address
+- **Applies to**: `/api/v1/register` only
+
+### Email Verification Rate Limit
+
+- **Limit**: 1 request per 60 seconds
+- **Scope**: Per authenticated user
+- **Applies to**: `/api/v1/email/resend` only
 
 ---
 
@@ -605,6 +1142,13 @@ class ForumAPI {
 
 ### cURL Examples
 
+**Register**:
+```bash
+curl -X POST http://localhost:8000/api/v1/register \
+  -H "Content-Type: application/json" \
+  -d '{"full_name":"John Doe","email":"john@example.com","password":"Password123","password_confirmation":"Password123"}'
+```
+
 **Login**:
 ```bash
 curl -X POST http://localhost:8000/api/v1/login \
@@ -632,6 +1176,60 @@ curl -X POST http://localhost:8000/api/v1/password/change \
   -H "Authorization: Bearer your-token-here" \
   -H "Content-Type: application/json" \
   -d '{"current_password":"Old123","new_password":"New456","new_password_confirmation":"New456"}'
+```
+
+**Forgot Password**:
+```bash
+curl -X POST http://localhost:8000/api/v1/password/forgot \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com"}'
+```
+
+**Reset Password**:
+```bash
+curl -X POST http://localhost:8000/api/v1/password/reset \
+  -H "Content-Type: application/json" \
+  -d '{"token":"reset-token","email":"user@example.com","password":"NewPass123","password_confirmation":"NewPass123"}'
+```
+
+**Verify Email**:
+```bash
+curl -X POST http://localhost:8000/api/v1/email/verify \
+  -H "Authorization: Bearer your-token-here" \
+  -H "Content-Type: application/json" \
+  -d '{"token":"verification-token","email":"user@example.com"}'
+```
+
+**Resend Verification**:
+```bash
+curl -X POST http://localhost:8000/api/v1/email/resend \
+  -H "Authorization: Bearer your-token-here"
+```
+
+**Delete Account**:
+```bash
+curl -X DELETE http://localhost:8000/api/v1/account \
+  -H "Authorization: Bearer your-token-here" \
+  -H "Content-Type: application/json" \
+  -d '{"password":"YourPassword123"}'
+```
+
+**List Tokens**:
+```bash
+curl -X GET http://localhost:8000/api/v1/tokens \
+  -H "Authorization: Bearer your-token-here"
+```
+
+**Refresh Token**:
+```bash
+curl -X POST http://localhost:8000/api/v1/token/refresh \
+  -H "Authorization: Bearer your-token-here"
+```
+
+**Revoke Token**:
+```bash
+curl -X DELETE http://localhost:8000/api/v1/tokens/123 \
+  -H "Authorization: Bearer your-token-here"
 ```
 
 **Logout**:
@@ -702,9 +1300,10 @@ php artisan schedule:run
 
 ## Version History
 
-| Version | Date       | Description                    |
-|---------|------------|--------------------------------|
-| v1      | 2026-06-26 | Initial API release            |
+| Version | Date       | Description                              |
+|---------|------------|------------------------------------------|
+| v1.1    | 2026-06-26 | Added registration, email verification, password reset, token management, and account deletion endpoints |
+| v1      | 2026-06-26 | Initial API release                      |
 
 ---
 
