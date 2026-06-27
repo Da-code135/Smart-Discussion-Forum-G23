@@ -6,17 +6,34 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\BlacklistRecord;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class UserManagementController extends Controller
 {
+    protected AuditLogService $auditLogService;
+
+    public function __construct(AuditLogService $auditLogService)
+    {
+        $this->auditLogService = $auditLogService;
+    }
+
     // ============================================
-    // #88: SHOW USERS TABLE
+    // #88: SHOW USERS TABLE (with role-based filtering)
     // ============================================
     public function index(Request $request)
     {
+        $currentUser = auth()->user();
         $query = User::query();
+
+        // Role-based filtering: Group Admins see only users in their groups
+        if ($currentUser->isGroupAdmin()) {
+            $adminGroupIds = $currentUser->administeredGroups()->pluck('groups.id');
+            $query->whereIn('group_id', $adminGroupIds);
+        }
+        // System Admins see all users (no filter needed)
 
         // #89: SEARCH FUNCTIONALITY
         if ($request->filled('search')) {
@@ -36,7 +53,7 @@ class UserManagementController extends Controller
         }
 
         // #88: EAGER LOAD ROLE (prevent N+1 query)
-        $users = $query->with('role')
+        $users = $query->with(['role', 'group'])
                        ->paginate(15); // #88: Paginate 15 per page
 
         $roles = Role::all();
@@ -85,7 +102,7 @@ class UserManagementController extends Controller
         $newRoleId = $request->input('role_id');
 
         // #91: Prevent downgrading the last Administrator
-        $adminRole = Role::where('role_name', 'Administrator')->first();
+        $adminRole = Role::where('role_name', 'System Administrator')->first();
         $adminCount = User::where('role_id', $adminRole->id)->count();
 
         if ($user->role_id === $adminRole->id && $adminCount === 1) {

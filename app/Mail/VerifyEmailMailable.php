@@ -34,7 +34,7 @@ class VerifyEmailMailable extends Mailable implements ShouldQueue
         ]);
 
         return new Content(
-            view: 'emails.verify-email',
+            view: 'email.verify-email',
             with: [
                 'user' => $this->user,
                 'verificationUrl' => $verificationUrl,
