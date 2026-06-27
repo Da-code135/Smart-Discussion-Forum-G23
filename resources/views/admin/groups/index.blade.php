@@ -5,12 +5,14 @@
 
 @section('content')
 <div class="container">
-    <!-- Header with Create Button -->
+    <!-- Header with Create Button (System Admin only) -->
     <div class="admin-header">
         <h1>Group Management</h1>
-        <a href="{{ route('admin.groups.create') }}" class="btn btn-primary">
-            + Create New Group
-        </a>
+        @if (auth()->user()->isSystemAdmin())
+            <a href="{{ route('admin.groups.create') }}" class="btn btn-primary">
+                + Create New Group
+            </a>
+        @endif
     </div>
 
     {{-- Search & Sort --}}
@@ -77,18 +79,20 @@
                         </td>
                         <td>
                             <div class="action-buttons">
-                                {{-- Manage Members --}}
+                                {{-- Manage Members (all admins) --}}
                                 <a href="{{ route('admin.groups.members', $group) }}" class="btn btn-warning btn-sm">
                                     👥 Members
                                 </a>
 
-                                {{-- Edit Group --}}
-                                <a href="{{ route('admin.groups.edit', $group) }}" class="btn btn-primary btn-sm">
-                                    Edit
-                                </a>
+                                {{-- Edit Group (System Admin or Group Admin of this group) --}}
+                                @if (auth()->user()->isSystemAdmin() || auth()->user()->canAdminGroup($group))
+                                    <a href="{{ route('admin.groups.edit', $group) }}" class="btn btn-primary btn-sm">
+                                        Edit
+                                    </a>
+                                @endif
 
-                                {{-- Delete Group --}}
-                                @if ($group->group_name !== 'General')
+                                {{-- Delete Group (System Admin only, cannot delete General) --}}
+                                @if (auth()->user()->isSystemAdmin() && $group->group_name !== 'General')
                                     <form method="POST" action="{{ route('admin.groups.destroy', $group) }}" style="display: inline;">
                                         @csrf
                                         @method('DELETE')
