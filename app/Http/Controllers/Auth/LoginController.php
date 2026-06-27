@@ -32,14 +32,13 @@ class LoginController extends Controller
         $maxAttempts = 5;
         $lockoutSeconds = 30;
 
-  if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
-    $seconds = RateLimiter::availableIn($key);
+        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+            $seconds = RateLimiter::availableIn($key);
 
-    throw ValidationException::withMessages([
-        'email' => "Too many login attempts. Try again in {$seconds} seconds.",
-    ]);
-}
-
+            throw ValidationException::withMessages([
+                'email' => "Too many login attempts. Try again in {$seconds} seconds.",
+            ]);
+        }
 
 
         // #52: VALIDATE EMAIL & PASSWORD FORMAT
@@ -109,13 +108,7 @@ class LoginController extends Controller
         // Clear rate limiter on successful login
         RateLimiter::clear($key);
 
-        // #52: Redirect by role
-        $role = $user->role->role_name;
-        if ($role === 'Administrator') {
-            return redirect()->route('dashboard');
-        } else {
-            return redirect()->route('dashboard');
-        }
+        return redirect()->route('dashboard');
     }
 
     // ============================================

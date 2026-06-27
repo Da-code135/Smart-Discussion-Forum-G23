@@ -9,6 +9,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use App\Models\Role;
+use App\Models\Group;
+use App\Mail\WelcomeMailable;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Auth\Events\Registered;
 
 class RegisterController extends Controller
@@ -110,13 +114,22 @@ class RegisterController extends Controller
                 ->with('error', 'Registration data expired. Please register again.');
         }
 
-        // Create User with role_id = 3 (student/regular user), group_id = 1
+        // Look up role and group by name (dynamic, not hardcoded)
+        $role = Role::where('role_name', 'Student')->first();
+        $group = Group::where('group_name', 'Default Group')->first();
+
+        if (!$role || !$group) {
+            return redirect()->route('register')
+                ->with('error', 'Required role or group not found. Please contact administrator.');
+        }
+
+        // Create User with looked-up role and group
         $user = User::create([
             'full_name' => $registrationData['full_name'],
             'email' => $registrationData['email'],
             'password' => Hash::make($registrationData['password']),
-            'role_id' => 3,
-            'group_id' => 1,
+            'role_id' => $role->id,
+            'group_id' => $group->id,
         ]);
 
         // Create OnboardingAgreement record
@@ -135,6 +148,9 @@ class RegisterController extends Controller
 
         // Fire registered event (for email verification, etc.)
         event(new Registered($user));
+
+        // Send welcome notification email (SDD 5.1.1)
+        Mail::to($user->email)->send(new WelcomeMailable($user));
 
         // Redirect to dashboard with success message
         return redirect()->route('dashboard')
