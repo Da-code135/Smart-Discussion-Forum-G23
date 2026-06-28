@@ -15,11 +15,16 @@ class IsAdmin
      */
    public function handle(Request $request, Closure $next)
     {
-        // Check if user is authenticated and has Administrator role
-        if (auth()->check() && auth()->user()->role->role_name === 'Administrator') {
-            return $next($request);
+        // Check if user is authenticated and is any type of admin
+        if (!auth()->check()) {
+            return redirect('/login')->with('error', 'Please login to continue');
         }
 
-        return redirect('/dashboard')->with('error', 'Unauthorized access');
+        // Check if user is any type of admin (System Admin or Group Admin)
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Unauthorized. Administrator access required.');
+        }
+
+        return $next($request);
     }
 }

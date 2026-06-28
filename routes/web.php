@@ -93,9 +93,11 @@ Route::middleware('guest')->group(function () {
      * POST /register
      * Task #43, #44, #45: Store and validate registration data
      * Route name: 'register.store'
+     * Rate limited: 3 registrations per minute to prevent spam
      */
     Route::post('/register', [RegisterController::class, 'storeRegister'])
-        ->name('register.store');
+        ->name('register.store')
+        ->middleware('throttle:3,60'); // 3 requests per 60 minutes
 
     /**
      * GET /onboarding
@@ -185,7 +187,7 @@ Route::middleware('auth')->group(function () {
 // ============================================
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    // User Management (#88-#91)
+    // User Management (#88-#91) - All admins can view, but actions are controlled by policies
     Route::get('/users', [\App\Http\Controllers\Admin\UserManagementController::class, 'index'])
         ->name('users.index');
     Route::post('/users/{user}/lift-blacklist', [\App\Http\Controllers\Admin\UserManagementController::class, 'liftBlacklist'])
@@ -193,14 +195,72 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/users/{user}/change-role', [\App\Http\Controllers\Admin\UserManagementController::class, 'changeRole'])
         ->name('users.change-role');
 
-    // System Config (#92)
-    Route::get('/system-config', [\App\Http\Controllers\Admin\SystemConfigController::class, 'index'])
-        ->name('system-config.index');
-    Route::put('/system-config', [\App\Http\Controllers\Admin\SystemConfigController::class, 'update'])
-        ->name('system-config.update');
+    // System Config (#92) - System Admin only
+    Route::middleware(['system-admin'])->group(function () {
+        Route::get('/system-config', [\App\Http\Controllers\Admin\SystemConfigController::class, 'index'])
+            ->name('system-config.index');
+        Route::put('/system-config', [\App\Http\Controllers\Admin\SystemConfigController::class, 'update'])
+            ->name('system-config.update');
+    });
 
-    // Admin Dashboard
+    // Admin Dashboard - All admins
     Route::get('/dashboard', function () {
         return view('admin.dashboard');
     })->name('dashboard');
+
+    // Audit Logs - All admins
+    Route::get('/audit-logs', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])
+        ->name('audit-logs.index');
+    Route::get('/audit-logs/{log}', [\App\Http\Controllers\Admin\AuditLogController::class, 'show'])
+        ->name('audit-logs.show');
+    Route::get('/audit-logs/export/{format?}', [\App\Http\Controllers\Admin\AuditLogController::class, 'export'])
+        ->name('audit-logs.export');
+
+    // IP Whitelist - System Admin only
+    Route::middleware(['system-admin'])->group(function () {
+        Route::get('/ip-whitelist', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'index'])
+            ->name('ip-whitelist.index');
+        Route::get('/ip-whitelist/create', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'create'])
+            ->name('ip-whitelist.create');
+        Route::post('/ip-whitelist', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'store'])
+            ->name('ip-whitelist.store');
+        Route::get('/ip-whitelist/{ipWhitelist}/edit', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'edit'])
+            ->name('ip-whitelist.edit');
+        Route::put('/ip-whitelist/{ipWhitelist}', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'update'])
+            ->name('ip-whitelist.update');
+        Route::delete('/ip-whitelist/{ipWhitelist}', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'destroy'])
+            ->name('ip-whitelist.destroy');
+        Route::post('/ip-whitelist/{ipWhitelist}/activate', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'activate'])
+            ->name('ip-whitelist.activate');
+        Route::post('/ip-whitelist/{ipWhitelist}/deactivate', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'deactivate'])
+            ->name('ip-whitelist.deactivate');
+    });
+
+    // Group Management - All admins can view their groups, but actions are controlled by policies
+    Route::get('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'index'])
+        ->name('groups.index');
+    
+    // Group creation - System Admin only
+    Route::middleware(['system-admin'])->group(function () {
+        Route::get('/groups/create', [\App\Http\Controllers\Admin\GroupController::class, 'create'])
+            ->name('groups.create');
+        Route::post('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'store'])
+            ->name('groups.store');
+        Route::post('/groups/bulk-assign', [\App\Http\Controllers\Admin\GroupController::class, 'bulkAssign'])
+            ->name('groups.bulk-assign');
+    });
+    
+    // Group-specific actions - controlled by can-admin-group middleware
+    Route::middleware(['can-admin-group'])->group(function () {
+        Route::get('/groups/{group}/edit', [\App\Http\Controllers\Admin\GroupController::class, 'edit'])
+            ->name('groups.edit');
+        Route::put('/groups/{group}', [\App\Http\Controllers\Admin\GroupController::class, 'update'])
+            ->name('groups.update');
+        Route::delete('/groups/{group}', [\App\Http\Controllers\Admin\GroupController::class, 'destroy'])
+            ->name('groups.destroy');
+        Route::get('/groups/{group}/members', [\App\Http\Controllers\Admin\GroupController::class, 'showMembers'])
+            ->name('groups.members');
+        Route::put('/groups/{group}/members', [\App\Http\Controllers\Admin\GroupController::class, 'updateMembers'])
+            ->name('groups.update-members');
+    });
 });

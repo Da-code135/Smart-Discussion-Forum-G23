@@ -16,9 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // API rate limiting: 60 requests per minute
         $middleware->throttleApi(60, 0);
 
-        // Register API security headers middleware
+        // Register middleware aliases
         $middleware->alias([
             'api.security' => \App\Http\Middleware\ApiSecurityHeaders::class,
+            'admin' => \App\Http\Middleware\IsAdmin::class,
+            'system-admin' => \App\Http\Middleware\IsSystemAdmin::class,
+            'group-admin' => \App\Http\Middleware\IsGroupAdmin::class,
+            'can-admin-group' => \App\Http\Middleware\CanAdminGroup::class,
+            'ip-whitelist' => \App\Http\Middleware\IpWhitelist::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

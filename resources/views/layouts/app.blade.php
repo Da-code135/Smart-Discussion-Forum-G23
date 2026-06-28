@@ -66,15 +66,3 @@
 </body>
 </html>
 
-you didn't explain " <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">" so this "@hasSection('admin')
-        <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
-    @endif" is an if block? what does "@stack('styles')" do. I also don't understand "<main class="app-main">
-            @if (session('success'))
-                <div class="alert alert-success flash-alert" role="alert">
-                    <span class="material-symbols-outlined">check_circle</span>
-                    {{ session('success') }}
-                </div>
-            @endif"......or will going through the login.blade.php cover these

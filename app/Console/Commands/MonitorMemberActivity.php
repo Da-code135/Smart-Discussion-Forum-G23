@@ -63,7 +63,7 @@ class MonitorMemberActivity extends Command
         foreach ($users as $user) {
             // Calculate days since last activity
             $lastActive = $user->last_active_at ?? $user->created_at;
-            $daysInactive = now()->diffInDays($lastActive);
+            $daysInactive = now()->diffInDays($lastActive, absolute: true);
 
             $this->line("Checking: {$user->full_name} ({$user->email}) - {$daysInactive} days inactive");
 
@@ -96,48 +96,71 @@ class MonitorMemberActivity extends Command
 
     /**
      * Issue a warning to an inactive user.
+     * Implements 3-step escalation per SDD 5.1.3:
+     * - Inactive (no warnings) → Warning 1
+     * - Warning 1 expired (deadline passed, not acknowledged) → Warning 2
+     * - Warning 2 expired → Blacklist
      *
      * @param User $user
      * @return void
      */
     private function issueWarning(User $user): void
     {
-        // Check if user already has an unresolved warning to avoid duplicates
-        $existingWarning = Warning::where('user_id', $user->id)
-            ->where('is_resolved', false)
-            ->first();
-
-        if ($existingWarning) {
-            $this->line("  <comment>User already has an unresolved warning. Checking for blacklist...</comment>");
-
-            // If user is already warned and has unresolved warning, blacklist them
-            if ($user->account_status === 'warned') {
-                $this->blacklistUser($user);
-            }
-            return;
-        }
-
         // Fetch warning response days from config
         $warningResponseDays = (int) SystemConfig::getValue('warning_response_days', 7);
 
-        // Create warning record
-        Warning::create([
-            'user_id' => $user->id,
-            'warning_number' => 1,
-            'reason' => 'Account inactivity - No activity for extended period',
-            'response_deadline' => now()->addDays($warningResponseDays),
-            'is_acknowledged' => false,
-            'is_resolved' => false,
-        ]);
+        // Check for existing unresolved warnings
+        $unresolvedWarnings = Warning::where('user_id', $user->id)
+            ->where('is_resolved', false)
+            ->orderBy('warning_number', 'desc')
+            ->get();
 
-        // Update user status to warned (if not already)
-        if ($user->account_status !== 'warned') {
-            $user->update(['account_status' => 'warned']);
+        if ($unresolvedWarnings->isEmpty()) {
+            // No warnings yet → Issue Warning 1
+            Warning::create([
+                'user_id' => $user->id,
+                'warning_number' => 1,
+                'reason' => 'Account inactivity - No activity for extended period',
+                'response_deadline' => now()->addDays($warningResponseDays),
+                'is_acknowledged' => false,
+                'is_resolved' => false,
+            ]);
+
+            if ($user->account_status !== 'warned') {
+                $user->update(['account_status' => 'warned']);
+            }
+
+            $this->line("  <fg=yellow>✓ Warning 1 issued</> - Deadline: {$warningResponseDays} days");
+            Log::info("Warning 1 issued to user {$user->id} ({$user->email}) for inactivity");
+            return;
         }
 
-        $this->line("  <fg=yellow>✓ Warning issued</> - Deadline: {$warningResponseDays} days");
+        $latestWarning = $unresolvedWarnings->first();
 
-        Log::info("Warning issued to user {$user->id} ({$user->email}) for inactivity");
+        if ($latestWarning->warning_number === 1 && $latestWarning->response_deadline->isPast()) {
+            // Warning 1 expired (deadline passed, not acknowledged) → Issue Warning 2
+            Warning::create([
+                'user_id' => $user->id,
+                'warning_number' => 2,
+                'reason' => 'Account inactivity - Failed to respond to Warning 1',
+                'response_deadline' => now()->addDays($warningResponseDays),
+                'is_acknowledged' => false,
+                'is_resolved' => false,
+            ]);
+
+            $this->line("  <fg=yellow>⚠ Warning 2 issued</> - Deadline: {$warningResponseDays} days");
+            Log::info("Warning 2 issued to user {$user->id} ({$user->email}) - Warning 1 expired unacknowledged");
+            return;
+        }
+
+        if ($latestWarning->warning_number === 2 && $latestWarning->response_deadline->isPast()) {
+            // Warning 2 expired → Blacklist user
+            $this->blacklistUser($user);
+            return;
+        }
+
+        // Warning exists but deadline hasn't passed yet - no action needed
+        $this->line("  <comment>User has active warning - deadline not yet passed</comment>");
     }
 
     /**

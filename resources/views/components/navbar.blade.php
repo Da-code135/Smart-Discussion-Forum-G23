@@ -52,6 +52,40 @@
             <span class="material-symbols-outlined">person</span>
             <span>My Profile</span>
         </a>
+
+        {{-- Admin Section - Only visible to admins --}}
+        @if ($user->isAdmin())
+            <p class="app-sidebar-label" style="margin-top: 1.5rem;">ADMIN</p>
+
+            <a href="{{ route('admin.dashboard') }}" class="app-sidebar-link {{ $activeNav === 'admin-dashboard' ? 'is-active' : '' }}">
+                <span class="material-symbols-outlined">dashboard</span>
+                <span>Admin Dashboard</span>
+            </a>
+            <a href="{{ route('admin.users.index') }}" class="app-sidebar-link {{ $activeNav === 'admin-users' ? 'is-active' : '' }}">
+                <span class="material-symbols-outlined">manage_accounts</span>
+                <span>Users</span>
+            </a>
+            <a href="{{ route('admin.groups.index') }}" class="app-sidebar-link {{ $activeNav === 'admin-groups' ? 'is-active' : '' }}">
+                <span class="material-symbols-outlined">group_work</span>
+                <span>Groups</span>
+            </a>
+            <a href="{{ route('admin.audit-logs.index') }}" class="app-sidebar-link {{ $activeNav === 'admin-audit' ? 'is-active' : '' }}">
+                <span class="material-symbols-outlined">fact_check</span>
+                <span>Audit Logs</span>
+            </a>
+
+            {{-- System Admin only links --}}
+            @if ($user->isSystemAdmin())
+                <a href="{{ route('admin.system-config.index') }}" class="app-sidebar-link {{ $activeNav === 'admin-config' ? 'is-active' : '' }}">
+                    <span class="material-symbols-outlined">settings</span>
+                    <span>System Config</span>
+                </a>
+                <a href="{{ route('admin.ip-whitelist.index') }}" class="app-sidebar-link {{ $activeNav === 'admin-ip' ? 'is-active' : '' }}">
+                    <span class="material-symbols-outlined">security</span>
+                    <span>IP Whitelist</span>
+                </a>
+            @endif
+        @endif
     </nav>
 
     <div class="app-sidebar-footer">
@@ -90,4 +124,10 @@
         <span class="material-symbols-outlined">person</span>
         <span>Profile</span>
     </a>
+    @if ($user->isAdmin())
+        <a href="{{ route('admin.dashboard') }}" class="app-mobile-nav-link">
+            <span class="material-symbols-outlined">dashboard</span>
+            <span>Admin</span>
+        </a>
+    @endif
 </nav>

@@ -97,28 +97,36 @@
                     </td>
                     <td>
                         <div class="table-actions">
-                            <a href="{{ route('admin.users.edit', $user->id) }}" class="btn btn-primary btn-sm">Edit</a>
-                            <a href="{{ route('admin.users.members', $user->id) }}" class="btn btn-secondary btn-sm">View Groups</a>
-                            
-                            @if ($user->account_status === 'active')
-                                <form method="POST" action="{{ route('admin.users.warn', $user->id) }}" style="display: inline;">
-                                    @csrf
-                                    <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Warn this user?')">Warn</button>
-                                </form>
-                            @endif
-                            
-                            @if ($user->account_status === 'warned')
-                                <form method="POST" action="{{ route('admin.users.blacklist', $user->id) }}" style="display: inline;">
-                                    @csrf
-                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Blacklist this user?')">Blacklist</button>
-                                </form>
-                            @endif
-                            
+                            {{-- Lift Blacklist (all admins can do this for users they can manage) --}}
                             @if ($user->account_status === 'blacklisted')
-                                <form method="POST" action="{{ route('admin.users.activate', $user->id) }}" style="display: inline;">
+                                <form method="POST" action="{{ route('admin.users.lift-blacklist', $user) }}" style="display: inline;">
                                     @csrf
-                                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Activate this user?')">Activate</button>
+                                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Lift blacklist for this user?')">
+                                        Lift Blacklist
+                                    </button>
                                 </form>
+                            @endif
+
+                            {{-- Change Role (System Admin only) --}}
+                            @if (auth()->user()->isSystemAdmin() && $user->id !== auth()->id())
+                                <form method="POST" action="{{ route('admin.users.change-role', $user) }}" style="display: inline;">
+                                    @csrf
+                                    <select name="role_id" class="form-control" style="display: inline-block; width: auto; padding: 0.25rem 0.5rem; font-size: 0.875rem;">
+                                        @foreach ($roles as $r)
+                                            <option value="{{ $r->id }}" {{ $user->role_id == $r->id ? 'selected' : '' }}>
+                                                {{ $r->role_name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Change role for this user?')">
+                                        Change Role
+                                    </button>
+                                </form>
+                            @endif
+
+                            {{-- Show self-indicator --}}
+                            @if ($user->id === auth()->id())
+                                <span class="badge badge-info" style="font-size: 0.75rem;">You</span>
                             @endif
                         </div>
                     </td>
