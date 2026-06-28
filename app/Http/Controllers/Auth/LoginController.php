@@ -112,7 +112,7 @@ class LoginController extends Controller
         // #52: Redirect by role
         $role = $user->role->role_name;
         if ($role === 'Administrator') {
-            return redirect()->route('dashboard');
+            return redirect()->route('admin.dashboard');
         } else {
             return redirect()->route('dashboard');
         }
