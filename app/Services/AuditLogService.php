@@ -29,7 +29,7 @@ class AuditLogService
     ): AuditLog
     {
         $request = request();
-        
+
         return AuditLog::create([
             'user_id' => $userId ?? (Auth::id() ?: null),
             'action' => $action,
@@ -64,6 +64,7 @@ class AuditLogService
         }
 
         $descriptions = [
+            'user.created' => "{$userName} created user account for {$targetName}",
             'user.role.changed' => "{$userName} changed role for user {$targetName}",
             'user.group.changed' => "{$userName} changed group for user {$targetName}",
             'user.blacklisted' => "{$userName} blacklisted user {$targetName}",
@@ -71,6 +72,8 @@ class AuditLogService
             'user.warned' => "{$userName} issued warning to user {$targetName}",
             'user.activated' => "{$userName} activated user {$targetName}",
             'user.deleted' => "{$userName} deleted user {$targetName}",
+            'user.password.reset' => "{$userName} reset password for user {$targetName}",
+            'warning.resolved' => "{$userName} resolved warning for user {$targetName}",
             'group.created' => "{$userName} created group {$targetName}",
             'group.updated' => "{$userName} updated group {$targetName}",
             'group.deleted' => "{$userName} deleted group {$targetName}",
@@ -82,6 +85,23 @@ class AuditLogService
         ];
 
         return $descriptions[$action] ?? "{$userName} performed {$action}";
+    }
+
+    /**
+     * Log user creation
+     */
+    public function logUserCreated($user): AuditLog
+    {
+        return $this->log(
+            action: 'user.created',
+            target: $user,
+            newValues: [
+                'full_name' => $user->full_name,
+                'email' => $user->email,
+                'role_id' => $user->role_id,
+                'group_id' => $user->group_id,
+            ]
+        );
     }
 
     /**
@@ -171,6 +191,34 @@ class AuditLogService
                 'id' => $user->id,
                 'full_name' => $user->full_name,
                 'email' => $user->email,
+            ]
+        );
+    }
+
+    /**
+     * Log user password reset by admin
+     */
+    public function logUserPasswordReset($user): AuditLog
+    {
+        return $this->log(
+            action: 'user.password.reset',
+            target: $user
+        );
+    }
+
+    /**
+     * Log warning resolved by admin
+     */
+    public function logWarningResolved($warning): AuditLog
+    {
+        $user = $warning->user;
+        return $this->log(
+            action: 'warning.resolved',
+            target: $user,
+            newValues: [
+                'warning_id' => $warning->id,
+                'warning_number' => $warning->warning_number,
+                'reason' => $warning->reason,
             ]
         );
     }
