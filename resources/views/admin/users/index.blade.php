@@ -5,7 +5,12 @@
 
 @section('content')
 <div class="admin-header">
-    <h1>User Management</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        <h1 style="margin: 0;">User Management</h1>
+        @if (auth()->user()->isSystemAdmin())
+            <a href="{{ route('admin.users.create') }}" class="btn btn-primary">+ Create User</a>
+        @endif
+    </div>
     <p>Manage users, roles, blacklists, and account statuses</p>
 
     {{-- Search & Filter Section --}}
@@ -96,7 +101,22 @@
                         {{ $user->last_active_at ? $user->last_active_at->format('M d, Y H:i') : 'Never' }}
                     </td>
                     <td>
-                        <div class="table-actions">
+                        <div class="table-actions" style="display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center;">
+                            {{-- View button (all admins) --}}
+                            <a href="{{ route('admin.users.show', $user) }}" class="btn btn-secondary btn-sm">View</a>
+
+                            {{-- Edit button (all admins) --}}
+                            <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-primary btn-sm">Edit</a>
+
+                            {{-- System Admin only actions --}}
+                            @if (auth()->user()->isSystemAdmin())
+                                <a href="{{ route('admin.users.reset-password', $user) }}" class="btn btn-secondary btn-sm" title="Reset Password">Password</a>
+
+                                @if ($user->account_status !== 'blacklisted')
+                                    <a href="{{ route('admin.users.blacklist', $user) }}" class="btn btn-danger btn-sm">Blacklist</a>
+                                @endif
+                            @endif
+
                             {{-- Lift Blacklist (all admins can do this for users they can manage) --}}
                             @if ($user->account_status === 'blacklisted')
                                 <form method="POST" action="{{ route('admin.users.lift-blacklist', $user) }}" style="display: inline;">

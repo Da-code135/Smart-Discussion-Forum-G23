@@ -131,6 +131,22 @@
                     <a href="{{ route('admin.users.show', $user) }}" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
+
+            {{-- Danger Zone: System Admin only, cannot delete yourself --}}
+            @if (auth()->user()->isSystemAdmin() && $user->id !== auth()->id())
+                <div class="danger-zone" style="margin-top: 2rem; padding-top: 2rem; border-top: 2px solid #dc3545;">
+                    <h3 style="color: #dc3545; margin-bottom: 1rem;">Danger Zone</h3>
+                    <p>Once you delete a user account, there is no going back. All associated data (warnings, blacklist records, agreements) will be permanently removed.</p>
+
+                    <form method="POST" action="{{ route('admin.users.destroy', $user) }}" style="margin-top: 1rem;">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('Are you absolutely sure? This will permanently delete {{ $user->full_name }}\'s account. This action cannot be undone.')">
+                            Delete This User
+                        </button>
+                    </form>
+                </div>
+            @endif
         </div>
     </div>
 </div>
