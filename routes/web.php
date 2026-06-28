@@ -190,6 +190,33 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // User Management (#88-#91) - All admins can view, but actions are controlled by policies
     Route::get('/users', [\App\Http\Controllers\Admin\UserManagementController::class, 'index'])
         ->name('users.index');
+
+    // User creation & deletion - System Admin only (must be before {user} route to avoid route conflict)
+    Route::middleware(['system-admin'])->group(function () {
+        Route::get('/users/create', [\App\Http\Controllers\Admin\UserManagementController::class, 'create'])
+            ->name('users.create');
+        Route::post('/users', [\App\Http\Controllers\Admin\UserManagementController::class, 'store'])
+            ->name('users.store');
+        Route::delete('/users/{user}', [\App\Http\Controllers\Admin\UserManagementController::class, 'destroy'])
+            ->name('users.destroy');
+        Route::get('/users/{user}/reset-password', [\App\Http\Controllers\Admin\UserManagementController::class, 'showResetPassword'])
+            ->name('users.reset-password');
+        Route::post('/users/{user}/reset-password', [\App\Http\Controllers\Admin\UserManagementController::class, 'resetPassword'])
+            ->name('users.reset-password.store');
+        Route::get('/users/{user}/blacklist', [\App\Http\Controllers\Admin\UserManagementController::class, 'showBlacklist'])
+            ->name('users.blacklist');
+        Route::post('/users/{user}/blacklist', [\App\Http\Controllers\Admin\UserManagementController::class, 'blacklist'])
+            ->name('users.blacklist.store');
+        Route::post('/warnings/{warning}/resolve', [\App\Http\Controllers\Admin\UserManagementController::class, 'resolveWarning'])
+            ->name('warnings.resolve');
+    });
+
+    Route::get('/users/{user}', [\App\Http\Controllers\Admin\UserManagementController::class, 'show'])
+        ->name('users.show');
+    Route::get('/users/{user}/edit', [\App\Http\Controllers\Admin\UserManagementController::class, 'edit'])
+        ->name('users.edit');
+    Route::put('/users/{user}', [\App\Http\Controllers\Admin\UserManagementController::class, 'update'])
+        ->name('users.update');
     Route::post('/users/{user}/lift-blacklist', [\App\Http\Controllers\Admin\UserManagementController::class, 'liftBlacklist'])
         ->name('users.lift-blacklist');
     Route::post('/users/{user}/change-role', [\App\Http\Controllers\Admin\UserManagementController::class, 'changeRole'])
@@ -239,7 +266,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Group Management - All admins can view their groups, but actions are controlled by policies
     Route::get('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'index'])
         ->name('groups.index');
-    
+
     // Group creation - System Admin only
     Route::middleware(['system-admin'])->group(function () {
         Route::get('/groups/create', [\App\Http\Controllers\Admin\GroupController::class, 'create'])
@@ -249,7 +276,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/groups/bulk-assign', [\App\Http\Controllers\Admin\GroupController::class, 'bulkAssign'])
             ->name('groups.bulk-assign');
     });
-    
+
     // Group-specific actions - controlled by can-admin-group middleware
     Route::middleware(['can-admin-group'])->group(function () {
         Route::get('/groups/{group}/edit', [\App\Http\Controllers\Admin\GroupController::class, 'edit'])
