@@ -108,7 +108,13 @@ class LoginController extends Controller
         // Clear rate limiter on successful login
         RateLimiter::clear($key);
 
-        return redirect()->route('dashboard');
+        // #52: Redirect by role
+        $role = $user->role->role_name;
+        if ($role === 'Administrator') {
+            return redirect()->route('admin.dashboard');
+        } else {
+            return redirect()->route('dashboard');
+        }
     }
 
     // ============================================

@@ -42,7 +42,7 @@
   - [4.2 Web Login Tests (14 tests)](#42-web-login-tests-14-tests)
   - [4.3 Registration & Onboarding Tests (15 tests)](#43-registration--onboarding-tests-15-tests)
   - [4.4 Admin Access Control Tests (17 tests)](#44-admin-access-control-tests-17-tests)
-  - [4.5 User Management Tests (7 tests)](#45-user-management-tests-7-tests)
+  - [4.5 User Management Tests (25 tests)](#45-user-management-tests-25-tests)
   - [4.6 Group Management Tests (12 tests)](#46-group-management-tests-12-tests)
   - [4.7 Monitor Member Activity Tests (8 tests)](#47-monitor-member-activity-tests-8-tests)
   - [4.8 API Login Tests (12 tests)](#48-api-login-tests-12-tests)
@@ -152,11 +152,11 @@ Thresholds are stored in the `system_configs` table and cached via the `SystemCo
 | `app/Http/Middleware/` | 5 custom middleware: IsAdmin, IsSystemAdmin, IsGroupAdmin, CanAdminGroup, IpWhitelist |
 | `app/Policies/` | GroupPolicy for group-level authorization |
 | `app/Console/Commands/` | MonitorMemberActivity artisan command |
-| `routes/` | `web.php` (267 lines, all web routes), `api.php` (201 lines, all API routes) |
+| `routes/` | `web.php` (296 lines, all web routes), `api.php` (201 lines, all API routes) |
 | `database/migrations/` | 10 migration files defining the schema |
 | `database/seeders/` | RoleSeeder (4 roles) |
 | `tests/Feature/` | 12 test files covering web, admin, API, and console features |
-| `resources/views/` | Blade templates organised into `auth/`, `admin/`, `profile/`, `email/`, `layouts/` |
+| `resources/views/admin/users/` | 6 Blade templates: index, show, create, edit, reset-password, blacklist |
 | `bootstrap/app.php` | Middleware registration, route configuration, exception handling |
 
 ### Test Suite
@@ -470,8 +470,15 @@ The `GroupController` at `app/Http/Controllers/Admin/GroupController.php` uses `
 |----------|:-----------:|:-----------:|:-------:|:-----:|
 | Admin Dashboard | Yes | Yes | 403 | → login |
 | User List | All users | Own groups' users | 403 | → login |
+| User Detail | Any user | Own groups' users | 403 | → login |
+| Create User | Yes | 403 | 403 | → login |
+| Edit User | Any user | Own groups' users | 403 | → login |
+| Delete User | Yes | 403 | 403 | → login |
+| Reset Password | Yes | 403 | 403 | → login |
+| Blacklist User | Yes | 403 | 403 | → login |
 | Lift Blacklist | Yes | Yes | 403 | → login |
 | Change Role | Yes | Yes | 403 | → login |
+| Resolve Warning | Yes | 403 | 403 | → login |
 | System Config | Yes | 403 | 403 | → login |
 | IP Whitelist | Yes | 403 | 403 | → login |
 | Group List | All groups | Assigned groups | 403 | → login |
@@ -574,19 +581,83 @@ API routes at `routes/api.php` use a two-layer approach. The outer `auth:sanctum
 
 ---
 
-## 4.5 User Management Tests (7 tests)
+## 4.5 User Management Tests (25 tests)
 
 **File:** `tests/Feature/Admin/UserManagementTest.php`
 
+### User List
+
 | Test | What It Verifies |
-|------|-----------------|
+|------|----------------|
 | `test_admin_can_view_users_list` | Returns 200 with `users` view data |
 | `test_admin_can_search_users` | Search by name returns 200 |
 | `test_admin_can_filter_users_by_status` | Filter by `account_status` returns 200 |
+
+### Lift Blacklist & Change Role
+
+| Test | What It Verifies |
+|------|----------------|
 | `test_admin_can_lift_blacklist` | Blacklist record gets `lifted_at` set; user status becomes active |
 | `test_system_admin_can_change_user_role` | User's `role_id` is updated to the new role |
 | `test_cannot_downgrade_last_admin` | Error message in session; role remains unchanged |
 | `test_can_downgrade_admin_when_others_exist` | When 2+ admins exist, downgrade succeeds |
+
+### Show User Detail
+
+| Test | What It Verifies |
+|------|----------------|
+| `test_admin_can_view_user_detail_page` | Returns 200 with correct view and `user` data |
+| `test_group_admin_cannot_view_user_outside_scope` | Group Admin → 403 for users outside their groups |
+
+### Create User
+
+| Test | What It Verifies |
+|------|----------------|
+| `test_system_admin_can_create_user` | User appears in database with `active` status |
+| `test_create_user_requires_valid_password` | Weak password → validation error |
+| `test_group_admin_cannot_create_user` | Group Admin → 403 |
+
+### Edit User
+
+| Test | What It Verifies |
+|------|----------------|
+| `test_system_admin_can_edit_user` | User's `full_name` is updated in database |
+| `test_edit_user_validates_email_uniqueness` | Duplicate email → validation error |
+| `test_edit_user_cannot_downgrade_last_admin` | Error in session; role remains unchanged |
+
+### Delete User
+
+| Test | What It Verifies |
+|------|----------------|
+| `test_system_admin_can_delete_user` | User removed from database; redirects to index |
+| `test_admin_cannot_delete_self` | Error in session; user still in database |
+| `test_group_admin_cannot_delete_user` | Group Admin → 403; user still in database |
+
+### Reset Password
+
+| Test | What It Verifies |
+|------|----------------|
+| `test_system_admin_can_reset_password` | Password actually changed in database |
+| `test_reset_password_requires_strong_password` | Weak password → validation error |
+| `test_group_admin_cannot_reset_password` | Group Admin → 403 |
+
+### Blacklist User
+
+| Test | What It Verifies |
+|------|----------------|
+| `test_system_admin_can_blacklist_user` | User status becomes `blacklisted`; BlacklistRecord created with expiry |
+| `test_system_admin_can_permanently_blacklist_user` | BlacklistRecord created with null `expires_at` |
+| `test_blacklist_requires_reason` | Missing reason → validation error |
+| `test_group_admin_cannot_blacklist_user` | Group Admin → 403 |
+
+### Resolve Warning
+
+| Test | What It Verifies |
+|------|----------------|
+| `test_system_admin_can_resolve_warning` | Warning `is_resolved` set to true; `resolved_at` populated |
+| `test_resolving_last_warning_activates_user` | User `account_status` changes from `warned` to `active` |
+| `test_cannot_resolve_already_resolved_warning` | Error in session; warning remains resolved |
+| `test_group_admin_cannot_resolve_warning` | Group Admin → 403 |
 
 ---
 
@@ -743,11 +814,27 @@ API routes at `routes/api.php` use a two-layer approach. The outer `auth:sanctum
 
 ## 5.1 User Management
 
-**User list with role-based filtering.** The `UserManagementController::index()` method at `app/Http/Controllers/Admin/UserManagementController.php` lines 26–68 starts with a base query on the `User` model. If the current user is a Group Admin, it scopes the query to only include users whose `group_id` matches one of the admin's assigned groups (retrieved via the `administeredGroups()` pivot relationship). System Admins see all users without filtering. Three optional filters are applied if present in the request: text search (matches against `full_name` or `email` using LIKE), status filter (exact match on `account_status`), and role filter (exact match on `role_id`). The query eager-loads `role` and `group` relationships to prevent N+1 query problems, then paginates at 15 results per page. The view at `resources/views/admin/users/index.blade.php` (150 lines) renders a table with search bar, filter dropdowns, and action buttons.
+The `UserManagementController` at `app/Http/Controllers/Admin/UserManagementController.php` provides full CRUD and moderation capabilities for user accounts. All actions are logged via the `AuditLogService`.
 
-**Lift blacklist.** The `liftBlacklist()` method at lines 73–94 finds the active blacklist record (where `lifted_at` is null) for the target user, sets `lifted_at` to now and `lifted_by` to the current admin's ID, then changes the user's `account_status` back to `'active'`. This immediately unblocks the user — they can log in on their next attempt.
+**User list with role-based filtering.** The `index()` method starts with a base query on the `User` model. If the current user is a Group Admin, it scopes the query to only include users whose `group_id` matches one of the admin's assigned groups (retrieved via the `administeredGroups()` pivot relationship). System Admins see all users without filtering. Three optional filters are applied if present in the request: text search (matches against `full_name` or `email` using LIKE), status filter (exact match on `account_status`), and role filter (exact match on `role_id`). The query eager-loads `role` and `group` relationships to prevent N+1 query problems, then paginates at 15 results per page.
 
-**Change role.** The `changeRole()` method at lines 99–116 includes a safety check: it counts how many System Administrators exist, and if the target user is the last one, it refuses to change their role (preventing the system from being locked out of admin access). Otherwise, it updates the user's `role_id` to the new value.
+**User detail page.** The `show()` method loads a user with their role and group, then verifies authorization via `canAdminUser()`. It eager-loads the user's warnings (with `createdBy`), blacklist records (with `liftedBy`), and onboarding agreements. The view at `resources/views/admin/users/show.blade.php` renders a profile header with status/role badges, account details grid, and history tables for warnings, blacklists, and agreements.
+
+**Create user (System Admin only).** The `create()` and `store()` methods allow System Admins to create new user accounts. Validation requires `full_name`, unique `email`, `password` (confirmed, min 8 chars, mixed case, numbers), `role_id`, and `group_id`. The new user is created with `account_status = 'active'`. An audit log entry records the creation.
+
+**Edit user.** The `edit()` and `update()` methods support both System Admin and Group Admin access. System Admins can modify `full_name`, `email`, `role_id`, `group_id`, and `account_status`. Group Admins can only modify `full_name`, `email`, and `group_id` — role and status fields appear as disabled read-only inputs. A safety check prevents downgrading the last System Administrator. Audit logs record role changes, group changes, and reactivations.
+
+**Delete user (System Admin only).** The `destroy()` method performs a hard delete (`forceDelete()`) — DB cascade removes related warnings, blacklist records, tokens, and agreements. Cannot delete your own account. An audit log entry is recorded before deletion.
+
+**Reset password (System Admin only).** The `showResetPassword()` and `resetPassword()` methods allow System Admins to set a new password for any user. The same password strength rules apply as registration (`Password::min(8)->mixedCase()->numbers()`). The `hashed` cast on the User model handles hashing automatically.
+
+**Manual blacklist (System Admin only).** The `showBlacklist()` and `blacklist()` methods allow System Admins to blacklist a user with a required reason and optional duration (1–365 days). If no duration is provided, the blacklist is permanent. A `BlacklistRecord` is created and the user's `account_status` is set to `'blacklisted'`.
+
+**Lift blacklist.** The `liftBlacklist()` method finds the active blacklist record (where `lifted_at` is null) for the target user, sets `lifted_at` to now and `lifted_by` to the current admin's ID, then changes the user's `account_status` back to `'active'`. This immediately unblocks the user — they can log in on their next attempt.
+
+**Change role.** The `changeRole()` method includes a safety check: it counts how many System Administrators exist, and if the target user is the last one, it refuses to change their role (preventing the system from being locked out of admin access). Otherwise, it updates the user's `role_id` to the new value.
+
+**Resolve warning (System Admin only).** The `resolveWarning()` method marks a warning as resolved by setting `is_resolved = true` and `resolved_at = now()`. If the resolved warning was the user's last unresolved warning and their status is `'warned'`, the status is automatically changed to `'active'`. Already-resolved warnings are rejected with an error.
 
 ---
 
@@ -787,7 +874,14 @@ Each config value is saved via `SystemConfig::updateOrCreate()` which either ins
 
 ## 5.4 Admin Dashboard Views
 
-**User management view** — `resources/views/admin/users/index.blade.php` (150 lines): Renders a searchable, filterable table of users. Includes a search bar for name/email, dropdown filters for account status and role, a "Lift Blacklist" button for blacklisted users, a "Change Role" form visible only to System Admins, and pagination controls.
+**User management views** — The `resources/views/admin/users/` directory contains six Blade templates:
+
+- `index.blade.php`: Searchable, filterable table of users with a "+ Create User" button (System Admin only). Each row has View, Edit, Password, Blacklist, Lift Blacklist, and Change Role action buttons with role-based visibility.
+- `show.blade.php`: User detail page showing profile header with status/role badges, account details grid (role, group, status, email verified, last active, joined date), and history tables for warnings, blacklist records, and onboarding agreements.
+- `create.blade.php`: Form to create a new user (System Admin only) with fields for full name, email, password, role, and group.
+- `edit.blade.php`: Role-aware edit form. System Admins see all fields (name, email, role, group, status). Group Admins see name, email, group as editable with role/status as disabled read-only. Includes a Danger Zone with delete button (System Admin only, hidden for self).
+- `reset-password.blade.php`: Password reset form (System Admin only) with new password and confirmation fields.
+- `blacklist.blade.php`: Blacklist form (System Admin only) with reason textarea and optional duration in days.
 
 **Group management view** — `resources/views/admin/groups/index.blade.php` (124 lines): Renders a searchable, sortable table of groups. Includes a search bar, sort toggle (date vs. member count), and action buttons for Create (System Admin only), Edit, Delete, and Manage Members.
 
@@ -801,9 +895,9 @@ The `RoleSeeder` at `database/seeders/RoleSeeder.php` line 17 seeds the top role
 
 ---
 
-## 6.2 Missing Per-User Authorization in User Management
+## 6.2 Partial Per-User Authorization in Legacy Methods
 
-The `UserManagementController::changeRole()` and `liftBlacklist()` methods at `app/Http/Controllers/Admin/UserManagementController.php` lines 73 and 99 rely solely on the route-level `admin` middleware. They do not call `canAdminUser()` or any equivalent check. This means a Group Admin could potentially change the role of or lift the blacklist for users outside their assigned groups, since the controller never verifies that the target user belongs to one of the admin's groups.
+The newer methods (`show`, `edit`, `update`, `destroy`) all call `canAdminUser()` for proper scoping. However, the legacy `changeRole()` and `liftBlacklist()` methods still rely solely on the route-level `admin` middleware without calling `canAdminUser()`. A Group Admin could potentially change the role of or lift the blacklist for users outside their assigned groups through these two endpoints.
 
 ---
 
@@ -870,5 +964,6 @@ Several areas of the application lack automated test coverage:
 3. **Web password reset flow** — `PasswordController` web routes (forgot, reset, change) are only tested through the API test file.
 4. **Web email verification** — `EmailVerificationController` web routes are only tested through the API test file.
 5. **Warning acknowledgement** — `WarningAcknowledgementController` is only indirectly tested via login redirect tests.
-6. **Audit logging** — No tests verify that admin actions actually create audit log entries.
-7. **Concurrent access** — No tests for race conditions in role changes, blacklist operations, or group membership updates.
+6. **Audit logging verification** — Tests verify that actions succeed but do not assert that specific audit log entries are created.
+7. **Legacy method authorization** — `changeRole()` and `liftBlacklist()` lack tests verifying Group Admin scoping via `canAdminUser()`.
+8. **Concurrent access** — No tests for race conditions in role changes, blacklist operations, or group membership updates.
