@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\OnboardingAgreement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use App\Models\Role;
@@ -19,10 +20,10 @@ class RegisterController extends Controller
 {
     /**
      * Show the registration form (Task #42)
-     * 
+     *
      * GET /register
      * Route name: 'register'
-     * 
+     *
      * @return \Illuminate\View\View
      */
     public function showRegister()
@@ -32,15 +33,15 @@ class RegisterController extends Controller
 
     /**
      * Store registration data in session and validate (Task #43, #44, #45)
-     * 
+     *
      * POST /register
      * Route name: 'register.store'
-     * 
+     *
      * Validation Rules:
      * - full_name: required, string, max 255
      * - email: required, email, unique in users table
      * - password: required, confirmed, min 8, mixed case, at least 1 number
-     * 
+     *
      * @param Request $request
      * @return \Illuminate\Http\RedirectResponse
      */
@@ -65,11 +66,11 @@ class RegisterController extends Controller
             'password' => 'Password must be at least 8 characters with uppercase, lowercase, and numbers.',
         ]);
 
-        // Store validated data in session (without password_confirmation)
+        // Store validated data in session (password hashed, never plaintext)
         session(['registration_data' => [
             'full_name' => $validated['full_name'],
             'email' => $validated['email'],
-            'password' => $validated['password'],
+            'password_hash' => Hash::make($validated['password']),
         ]]);
 
         // Redirect to onboarding
@@ -78,10 +79,10 @@ class RegisterController extends Controller
 
     /**
      * Show the onboarding (platform rules) view (Task #46)
-     * 
+     *
      * GET /onboarding
      * Route name: 'onboarding'
-     * 
+     *
      * @return \Illuminate\View\View
      */
     public function showOnboarding()
@@ -91,15 +92,15 @@ class RegisterController extends Controller
 
     /**
      * Accept onboarding agreement and create user account (Task #47)
-     * 
+     *
      * POST /onboarding/agree
      * Route name: 'onboarding.agree'
-     * 
+     *
      * Creates:
-     * 1. User record with role_id = 3, group_id = 1, hashed password
+     * 1. User record with role_id = Member, group_id = 1, hashed password
      * 2. OnboardingAgreement record with agreed = true
      * 3. Logs in the user automatically
-     * 
+     *
      * @param Request $request
      * @return \Illuminate\Http\RedirectResponse
      */
@@ -115,7 +116,7 @@ class RegisterController extends Controller
         }
 
         // Look up role and group by name (dynamic, not hardcoded)
-        $role = Role::where('role_name', 'Student')->first();
+        $role = Role::where('role_name', 'Member')->first();
         $group = Group::where('group_name', 'Default Group')->first();
 
         if (!$role || !$group) {
@@ -123,22 +124,27 @@ class RegisterController extends Controller
                 ->with('error', 'Required role or group not found. Please contact administrator.');
         }
 
-        // Create User with looked-up role and group
-        $user = User::create([
-            'full_name' => $registrationData['full_name'],
-            'email' => $registrationData['email'],
-            'password' => Hash::make($registrationData['password']),
-            'role_id' => $role->id,
-            'group_id' => $group->id,
-        ]);
+        // Wrap user creation and agreement in DB transaction for data consistency
+        $user = DB::transaction(function () use ($registrationData, $role, $group, $request) {
+            // Create User with looked-up role and group
+            $user = User::create([
+                'full_name' => $registrationData['full_name'],
+                'email' => $registrationData['email'],
+                'password' => $registrationData['password_hash'],
+                'role_id' => $role->id,
+                'group_id' => $group->id,
+            ]);
 
-        // Create OnboardingAgreement record
-        OnboardingAgreement::create([
-            'user_id' => $user->id,
-            'agreed' => true,
-            'ip_address' => $request->ip(),
-            'agreement_version' => config('app.agreement_version', '1.0'),
-        ]);
+            // Create OnboardingAgreement record
+            OnboardingAgreement::create([
+                'user_id' => $user->id,
+                'agreed' => true,
+                'ip_address' => $request->ip(),
+                'agreement_version' => config('app.agreement_version', '1.0'),
+            ]);
+
+            return $user;
+        });
 
         // Clear session data
         session()->forget('registration_data');
@@ -159,15 +165,15 @@ class RegisterController extends Controller
 
     /**
      * Decline onboarding agreement (Task #48)
-     * 
+     *
      * POST /onboarding/decline
      * Route name: 'onboarding.decline'
-     * 
+     *
      * Creates:
      * 1. OnboardingAgreement record with agreed = false, user_id = null
      * 2. Does NOT create a User record
      * 3. Clears session and redirects to register
-     * 
+     *
      * @param Request $request
      * @return \Illuminate\Http\RedirectResponse
      */

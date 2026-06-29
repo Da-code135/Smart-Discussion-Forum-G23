@@ -54,6 +54,9 @@ class SystemConfigController extends Controller
             );
         }
 
+        // Clear cache for all updated config keys
+        SystemConfig::clearAllCaches();
+
         // Audit log
         $this->auditLogService->logSystemConfigUpdated($validated);
 

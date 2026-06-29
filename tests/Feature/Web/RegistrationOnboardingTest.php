@@ -181,7 +181,7 @@ class RegistrationOnboardingTest extends TestCase
         $this->post('/onboarding/agree');
 
         $user = User::where('email', 'newuser@test.com')->first();
-        $this->assertEquals($this->studentRole->id, $user->role_id);
+        $this->assertEquals($this->memberRole->id, $user->role_id);
     }
 
     public function test_accepting_onboarding_assigns_default_group(): void

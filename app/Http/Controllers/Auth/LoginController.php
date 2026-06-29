@@ -28,12 +28,15 @@ class LoginController extends Controller
     public function authenticate(Request $request)
     {
         // #55: RATE LIMITING CHECK (before anything else)
+        // Primary: per-IP + email key
         $key = 'login-attempts:' . $request->input('email') . '|' . $request->ip();
+        // Secondary: email-only key (prevents IP rotation bypass)
+        $emailKey = 'login-attempts-email:' . $request->input('email');
         $maxAttempts = 5;
         $lockoutSeconds = 30;
 
-        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
-            $seconds = RateLimiter::availableIn($key);
+        if (RateLimiter::tooManyAttempts($key, $maxAttempts) || RateLimiter::tooManyAttempts($emailKey, $maxAttempts)) {
+            $seconds = max(RateLimiter::availableIn($key), RateLimiter::availableIn($emailKey));
 
             throw ValidationException::withMessages([
                 'email' => "Too many login attempts. Try again in {$seconds} seconds.",
@@ -54,6 +57,7 @@ class LoginController extends Controller
         if (!$user || !Hash::check($request->input('password'), $user->password)) {
             // Increment failed attempts
             RateLimiter::hit($key, $lockoutSeconds);
+            RateLimiter::hit($emailKey, $lockoutSeconds);
 
             throw ValidationException::withMessages([
                 'password' => 'These credentials do not match our records.',
@@ -91,6 +95,7 @@ class LoginController extends Controller
 
                 // Clear rate limiter on successful login
                 RateLimiter::clear($key);
+                RateLimiter::clear($emailKey);
 
                 return redirect()->route('warning-acknowledgement');
             }
@@ -109,8 +114,7 @@ class LoginController extends Controller
         RateLimiter::clear($key);
 
         // #52: Redirect by role
-        $role = $user->role->role_name;
-        if ($role === 'System Administrator') {
+        if ($user->isSystemAdmin()) {
             return redirect()->route('admin.dashboard');
         } else {
             return redirect()->route('dashboard');

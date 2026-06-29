@@ -28,7 +28,7 @@ class UserFactory extends Factory
         'full_name' => fake()->name(),
         'email' => fake()->unique()->email(),
         'password' => bcrypt('password123'),
-        'role_id' => 4,  // Default to Member
+        'role_id' => 5,  // Default to Member
         'group_id' => 1, // Default to first group
         'account_status' => 'active'
         ];

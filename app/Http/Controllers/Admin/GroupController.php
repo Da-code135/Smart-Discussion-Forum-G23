@@ -158,6 +158,15 @@ class GroupController extends Controller
             return redirect()->back()->with('error', 'Cannot delete the General group');
         }
 
+        // Reassign users in this group to the default group before soft-deleting
+        $defaultGroupId = Group::where('group_name', 'General')->value('id')
+            ?? Group::min('id');
+
+        if ($defaultGroupId && $defaultGroupId != $group->id) {
+            User::where('group_id', $group->id)
+                ->update(['group_id' => $defaultGroupId]);
+        }
+
         // Audit log
         $this->auditLogService->logGroupDeleted($group);
 
@@ -185,10 +194,13 @@ class GroupController extends Controller
         if ($currentUser->isGroupAdmin()) {
             // Group admins see only users in their groups
             $adminGroupIds = $currentUser->administeredGroups()->pluck('groups.id');
-            $allUsers = User::whereIn('group_id', $adminGroupIds)->get();
+            $allUsers = User::whereIn('group_id', $adminGroupIds)
+                ->orderBy('full_name')
+                ->get(['id', 'full_name', 'email', 'group_id']);
         } else {
-            // System admins see all users
-            $allUsers = User::all();
+            // System admins see all users (select only needed columns to reduce memory)
+            $allUsers = User::orderBy('full_name')
+                ->get(['id', 'full_name', 'email', 'group_id']);
         }
 
         return view('admin.groups.members', [

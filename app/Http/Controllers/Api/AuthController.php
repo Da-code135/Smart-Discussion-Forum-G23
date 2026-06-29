@@ -35,7 +35,7 @@ class AuthController extends Controller
         ]);
 
         // Look up role and group by name (dynamic, not hardcoded)
-        $role = Role::where('role_name', 'Student')->first();
+        $role = Role::where('role_name', 'Member')->first();
         $group = Group::where('group_name', 'Default Group')->first();
 
         if (!$role || !$group) {
@@ -78,11 +78,12 @@ class AuthController extends Controller
     {
         // Rate limiting check
         $key = 'api-login-attempts:' . $request->input('email') . '|' . $request->ip();
+        $emailKey = 'api-login-attempts-email:' . $request->input('email');
         $maxAttempts = 5;
         $lockoutSeconds = 30;
 
-        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
-            $seconds = RateLimiter::availableIn($key);
+        if (RateLimiter::tooManyAttempts($key, $maxAttempts) || RateLimiter::tooManyAttempts($emailKey, $maxAttempts)) {
+            $seconds = max(RateLimiter::availableIn($key), RateLimiter::availableIn($emailKey));
 
             return response()->json([
                 'message' => 'Too many login attempts. Try again in ' . $seconds . ' seconds.',
@@ -101,6 +102,7 @@ class AuthController extends Controller
         // Check credentials
         if (!$user || !Hash::check($request->input('password'), $user->password)) {
             RateLimiter::hit($key, $lockoutSeconds);
+            RateLimiter::hit($emailKey, $lockoutSeconds);
 
             return response()->json([
                 'message' => 'Invalid credentials.',
@@ -115,6 +117,7 @@ class AuthController extends Controller
 
             if ($blacklistRecord) {
                 RateLimiter::hit($key, $lockoutSeconds);
+                RateLimiter::hit($emailKey, $lockoutSeconds);
 
                 return response()->json([
                     'message' => 'Your account is blacklisted until ' . $blacklistRecord->expires_at->format('M d, Y') . '.',
@@ -139,6 +142,7 @@ class AuthController extends Controller
 
         // Clear rate limiter on successful login
         RateLimiter::clear($key);
+        RateLimiter::clear($emailKey);
 
         // Update last active
         $user->update(['last_active_at' => now()]);

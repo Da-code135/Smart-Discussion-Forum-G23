@@ -16,13 +16,13 @@ class AuthControllerRegisterTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Seed roles and groups
         Role::create(['role_name' => 'Administrator', 'description' => 'Admin role']);
         Role::create(['role_name' => 'Lecturer', 'description' => 'Lecturer role']);
         Role::create(['role_name' => 'Student', 'description' => 'Student role']);
         Role::create(['role_name' => 'Member', 'description' => 'Member role']);
-        
+
         Group::create(['group_name' => 'Default Group', 'description' => 'Default group']);
     }
 
@@ -55,7 +55,7 @@ class AuthControllerRegisterTest extends TestCase
                 'user' => [
                     'full_name' => 'John Doe',
                     'email' => 'john@example.com',
-                    'role' => 'Student',
+                    'role' => 'Member',
                     'group' => 'Default Group',
                 ],
             ]);
@@ -144,7 +144,7 @@ class AuthControllerRegisterTest extends TestCase
             ->assertJsonValidationErrors(['password']);
     }
 
-    public function test_registration_assigns_student_role(): void
+    public function test_registration_assigns_member_role(): void
     {
         $response = $this->postJson('/api/v1/register', [
             'full_name' => 'John Doe',
@@ -156,9 +156,9 @@ class AuthControllerRegisterTest extends TestCase
         $response->assertStatus(201);
 
         $user = User::where('email', 'john@example.com')->first();
-        $studentRole = Role::where('role_name', 'Student')->first();
+        $memberRole = Role::where('role_name', 'Member')->first();
 
-        $this->assertEquals($studentRole->id, $user->role_id);
+        $this->assertEquals($memberRole->id, $user->role_id);
     }
 
     public function test_registration_assigns_default_group(): void
@@ -195,8 +195,8 @@ class AuthControllerRegisterTest extends TestCase
 
     public function test_registration_fails_without_required_role(): void
     {
-        // Delete Student role
-        Role::where('role_name', 'Student')->delete();
+        // Delete Member role (default registration role)
+        Role::where('role_name', 'Member')->delete();
 
         $response = $this->postJson('/api/v1/register', [
             'full_name' => 'John Doe',

@@ -265,7 +265,13 @@ class UserManagementController extends Controller
     // ============================================
     public function liftBlacklist($userId)
     {
+        $currentUser = auth()->user();
         $user = User::findOrFail($userId);
+
+        // Authorization: System Admin can manage any user, Group Admin only their scoped users
+        if (!$currentUser->canAdminUser($user)) {
+            abort(403, 'You do not have permission to manage this user');
+        }
 
         // Find active blacklist record
         $blacklistRecord = BlacklistRecord::where('user_id', $userId)
@@ -291,7 +297,19 @@ class UserManagementController extends Controller
     // ============================================
     public function changeRole(Request $request, $userId)
     {
+        $currentUser = auth()->user();
         $user = User::findOrFail($userId);
+
+        // Authorization: System Admin can manage any user, Group Admin only their scoped users
+        if (!$currentUser->canAdminUser($user)) {
+            abort(403, 'You do not have permission to manage this user');
+        }
+
+        // Only System Admin can change roles
+        if (!$currentUser->isSystemAdmin()) {
+            abort(403, 'Only System Administrators can change user roles');
+        }
+
         $newRoleId = $request->input('role_id');
 
         // #91: Prevent downgrading the last Administrator

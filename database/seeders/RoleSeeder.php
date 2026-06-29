@@ -13,11 +13,42 @@ class RoleSeeder extends Seeder
      */
     public function run(): void
     {
-        Role::insert([
-            ['role_name' => 'System Administrator', 'description' => 'Full access to all features including moderation, statistics, user management, and system configuration.'],
-            ['role_name' => 'Group Administrator', 'description' => 'Access to quiz configuration, participation marking criteria, and discussion features.'],
-            ['role_name' => 'Student', 'description' => 'Access to quiz attempts, discussion features, and performance reports.'],
-            ['role_name' => 'Member', 'description' => 'Access to discussion features, topic filtering, PDF export, and social media forwarding only.'],
-        ]);
+        $roles = [
+            [
+                'id' => 1,
+                'role_name' => 'System Administrator',
+                'description' => 'Full system-wide access to all features, user management, role assignment, and system configuration. Can manage all users and groups.',
+            ],
+            [
+                'id' => 2,
+                'role_name' => 'Group Administrator',
+                'description' => 'Can manage assigned groups, group members, and group-specific content. Limited to groups they are assigned to administer.',
+            ],
+            [
+                'id' => 3,
+                'role_name' => 'Student',
+                'description' => 'Access to quiz attempts, discussion features, and performance reports.',
+            ],
+            [
+                'id' => 4,
+                'role_name' => 'Lecturer',
+                'description' => 'Access to quiz configuration, participation marking criteria, and discussion features.',
+            ],
+            [
+                'id' => 5,
+                'role_name' => 'Member',
+                'description' => 'Access to discussion features, topic filtering, PDF export, and social media forwarding only.',
+            ],
+        ];
+
+        foreach ($roles as $role) {
+            Role::updateOrInsert(
+                ['id' => $role['id']],
+                [
+                    'role_name' => $role['role_name'],
+                    'description' => $role['description'],
+                ]
+            );
+        }
     }
 }
