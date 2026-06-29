@@ -137,7 +137,7 @@ Content-Type: application/json
     "full_name": "John Doe",
     "email": "john@example.com",
     "account_status": "active",
-    "role": "Student",
+    "role": "Member",
     "group": "Default Group",
     "email_verified_at": null,
     "last_active_at": null
@@ -985,8 +985,9 @@ X-RateLimit-Remaining: 0
 ### Login-Specific Rate Limit
 
 - **Limit**: 5 attempts per 30 seconds
-- **Scope**: Per email + IP combination
+- **Scope**: Per email + IP combination AND per email address (dual-key)
 - **Applies to**: `/api/v1/login` only
+- **Note**: Both an email+IP key and an email-only key are checked. This prevents attackers from bypassing the limit by rotating IP addresses.
 
 ### Registration Rate Limit
 
@@ -1302,6 +1303,7 @@ php artisan schedule:run
 
 | Version | Date       | Description                              |
 |---------|------------|------------------------------------------|
+| v1.2    | 2026-06-29 | Updated default registration role to Member, added dual-key rate limiter documentation |
 | v1.1    | 2026-06-26 | Added registration, email verification, password reset, token management, and account deletion endpoints |
 | v1      | 2026-06-26 | Initial API release                      |
 

@@ -71,12 +71,13 @@ The platform provides a structured environment for academic discussions organise
 
 ### User Roles
 
-The system defines four roles arranged in a hierarchy:
+The system defines five roles arranged in a hierarchy:
 
-- **System Administrator** — Full system-wide access: manage all users, all groups, system configuration, and IP whitelists.
-- **Group Administrator** — Can view and manage only the groups assigned to them via a pivot table (`group_admins`). Can edit groups, manage members, and view users within their scope.
-- **Student** — Default role assigned during registration. Regular user with access to discussions and profile features.
-- **Member** — Restricted access to discussion features only.
+- **System Administrator** (id=1) — Full system-wide access: manage all users, all groups, system configuration, and IP whitelists.
+- **Group Administrator** (id=2) — Can view and manage only the groups assigned to them via a pivot table (`group_admins`). Can edit groups, manage members, and view users within their scope.
+- **Student** (id=3) — Access to quiz attempts, discussion features, and performance reports.
+- **Lecturer** (id=4) — Access to quiz configuration, participation marking criteria, and discussion features.
+- **Member** (id=5) — Default role assigned during registration. Access to discussion features, topic filtering, PDF export, and social media forwarding.
 
 ### Account Lifecycle
 
@@ -92,7 +93,7 @@ Registration uses a deliberate 3-step process:
 
 1. The user fills out a registration form (name, email, password).
 2. Validated data is stored in the session (no database write yet).
-3. The user must read and accept the platform rules on an onboarding page. Only then is the user record created, assigned the `Student` role and `Default Group`, and auto-logged in.
+3. The user must read and accept the platform rules on an onboarding page. Only then is the user record created (within a `DB::transaction`), assigned the `Member` role and `Default Group`, and auto-logged in. The session stores only the hashed password (never plaintext).
 
 Declining the rules discards the session data — no account is created.
 
@@ -128,7 +129,7 @@ Thresholds are stored in the `system_configs` table and cached via the `SystemCo
 
 | Table | Purpose |
 |-------|---------|
-| `roles` | Defines the four user roles |
+| `roles` | Defines the five user roles |
 | `groups` | Discussion groups (soft-deletable) |
 | `users` | User accounts with role, group, and status |
 | `group_admins` | Pivot table linking Group Admins to their groups |
@@ -139,23 +140,25 @@ Thresholds are stored in the `system_configs` table and cached via the `SystemCo
 | `password_reset_tokens` | Tokens for the forgot-password flow |
 | `sessions` | Server-side session storage for web authentication |
 | `personal_access_tokens` | Sanctum tokens for API authentication |
+| `audit_logs` | Audit trail for admin actions |
+| `admin_ip_whitelist` | IP addresses allowed to access admin panel |
 | `system_configs` | Key-value store for runtime configuration |
 
 ### Project Structure at a Glance
 
 | Directory | Contents |
 |-----------|----------|
-| `app/Models/` | 8 Eloquent models: User, Role, Group, Warning, BlacklistRecord, OnboardingAgreement, EmailVerificationToken, SystemConfig |
+| `app/Models/` | 10 Eloquent models: User, Role, Group, Warning, BlacklistRecord, OnboardingAgreement, EmailVerificationToken, SystemConfig, AuditLog, AdminIpWhitelist |
 | `app/Http/Controllers/Auth/` | 6 controllers: Login, Register, Password, EmailVerification, WarningAcknowledgement, Profile |
-| `app/Http/Controllers/Admin/` | 3 controllers: UserManagement, GroupController, SystemConfigController |
+| `app/Http/Controllers/Admin/` | 5 controllers: UserManagement, GroupController, SystemConfigController, AuditLogController, IpWhitelistController |
 | `app/Http/Controllers/Api/` | API controllers for the desktop client (AuthController, UserController, ProfileController, PasswordController, EmailVerificationController) |
-| `app/Http/Middleware/` | 5 custom middleware: IsAdmin, IsSystemAdmin, IsGroupAdmin, CanAdminGroup, IpWhitelist |
-| `app/Policies/` | GroupPolicy for group-level authorization |
+| `app/Http/Middleware/` | 6 custom middleware: IsAdmin, IsSystemAdmin, IsGroupAdmin, CanAdminGroup, IpWhitelist, ApiSecurityHeaders |
+| `app/Policies/` | GroupPolicy and UserPolicy for authorization |
 | `app/Console/Commands/` | MonitorMemberActivity artisan command |
-| `routes/` | `web.php` (296 lines, all web routes), `api.php` (201 lines, all API routes) |
-| `database/migrations/` | 10 migration files defining the schema |
-| `database/seeders/` | RoleSeeder (4 roles) |
-| `tests/Feature/` | 12 test files covering web, admin, API, and console features |
+| `routes/` | `web.php` (294 lines, all web routes), `api.php` (201 lines, all API routes) |
+| `database/migrations/` | 20 migration files defining the schema |
+| `database/seeders/` | RoleSeeder (5 roles), GroupSeeder, SuperAdminSeeder, DatabaseSeeder |
+| `tests/Feature/` | 14 test files covering web, admin, API, and console features |
 | `resources/views/admin/users/` | 6 Blade templates: index, show, create, edit, reset-password, blacklist |
 | `bootstrap/app.php` | Middleware registration, route configuration, exception handling |
 
@@ -209,13 +212,15 @@ Migrations define the database schema as PHP code. Each file in `database/migrat
 
 **warnings table** — `database/migrations/2026_06_23_214437_create_warnings_table.php` (lines 14–25): Tracks the 3-step warning escalation. `user_id` has `onDelete('cascade')` — if a user is deleted, all their warnings disappear automatically. `warning_number` is a tiny integer (1 or 2). `response_deadline` is the date by which the user must respond. `is_acknowledged` and `is_resolved` are boolean flags. `created_by` has `onDelete('set null')` — if the admin who created the warning is deleted, the record is preserved with a null creator.
 
-**blacklist_records table** — `database/migrations/2026_06_23_214539_create_blacklist_records_table.php` (lines 14–22): Records user bans. Notable: this table has no `$table->timestamps()` call, so the model sets `$timestamps = false`. It uses `blacklisted_at` with `useCurrent()` (defaults to the current timestamp) instead of the standard `created_at`. `lifted_at` and `lifted_by` track who removed the ban and when.
+**blacklist_records table** — `database/migrations/2026_06_23_214539_create_blacklist_records_table.php` (lines 14–22): Records user bans. Uses `blacklisted_at` with `useCurrent()` (defaults to the current timestamp). `lifted_at` and `lifted_by` track who removed the ban and when. The model has `$timestamps = true` (enabled via migration `2026_06_29_000002_add_timestamps_to_blacklist_records.php` which added `created_at` and `updated_at` columns), so standard Eloquent timestamps are now managed automatically.
 
 **onboarding_agreements table** — `database/migrations/2026_06_23_214437_create_onboarding_agreements_table.php` (lines 14–21): Records whether a user accepted or declined the platform rules during registration. Also has no standard timestamps; uses `agreed_at` with `useCurrent()` instead.
 
 **email_verification_tokens table** — `database/migrations/2026_06_25_191439_create_email_verification_tokens_table.php` (lines 14–21): Stores one-time tokens for email verification. `token` is unique. `user_id` cascades on delete. Only has `created_at` (no `updated_at`), since tokens are created and then deleted — never updated.
 
 **How they connect.** The foreign key chain is: `users.role_id → roles.id`, `users.group_id → groups.id`, `warnings.user_id → users.id`, `blacklist_records.user_id → users.id`, `onboarding_agreements.user_id → users.id`, `email_verification_tokens.user_id → users.id`. The `group_admins` pivot table (created by a separate migration) links `users.id` to `groups.id` for the many-to-many Group Admin assignment.
+
+**Additional migrations.** `2026_06_26_203507_add_soft_deletes_to_groups_table.php` adds the `deleted_at` column to enable soft deletes on groups. `2026_06_26_205441_add_remember_token_to_users_table.php` adds the `remember_token` column. `2026_06_27_100001_create_audit_logs_table.php` and `2026_06_27_100002_create_admin_ip_whitelist.php` create the audit logging and IP whitelist tables. `2026_06_28_000001` and `2026_06_28_000002` are simplified to no-ops (role data is now owned by the seeder). `2026_06_28_000003_create_group_admins_table.php` creates the pivot table. `2026_06_29_000001_add_performance_indexes.php` adds composite indexes for query performance. `2026_06_29_000002_add_timestamps_to_blacklist_records.php` adds `created_at`/`updated_at` to the `blacklist_records` table.
 
 ---
 
@@ -245,9 +250,9 @@ The `HasApiTokens` trait on the `User` model (`app/Models/User.php` line 19) ena
 
 Laravel's `RateLimiter` facade provides token-bucket rate limiting to prevent abuse.
 
-**Web login** — `app/Http/Controllers/Auth/LoginController.php` lines 31–41: The rate limit key combines the email address and IP address (`login-attempts:{email}|{ip}`). The limit is 5 attempts per 30 seconds. On failure, the attempt counter increments (line 56). On success, the counter is cleared (line 109). If the limit is exceeded, a `ValidationException` is thrown with a message showing how many seconds remain.
+**Web login** — `app/Http/Controllers/Auth/LoginController.php` lines 31–44: Two rate limiters are checked. The primary key combines email and IP (`login-attempts:{email}|{ip}`). A secondary email-only key (`login-attempts-email:{email}`) prevents IP rotation bypass. The limit is 5 attempts per 30 seconds on both keys. On failure, both counters increment. On success, both are cleared. If either limit is exceeded, a `ValidationException` is thrown with a message showing how many seconds remain.
 
-**API login** — `app/Http/Controllers/Api/AuthController.php` lines 80–90: Same logic but with a separate key prefix (`api-login-attempts:`) so web and API rate limits are independent. Returns a JSON 429 response instead of a validation exception.
+**API login** — `app/Http/Controllers/Api/AuthController.php` lines 79–91: Same dual-key pattern with a separate key prefix (`api-login-attempts:` and `api-login-attempts-email:`) so web and API rate limits are independent. Returns a JSON 429 response instead of a validation exception.
 
 **Registration** — `routes/web.php` line 100: Uses route-level middleware `throttle:3,60` which limits to 3 requests per 60 seconds per IP. No custom code needed — Laravel's built-in throttle middleware handles it.
 
@@ -255,7 +260,7 @@ Laravel's `RateLimiter` facade provides token-bucket rate limiting to prevent ab
 
 **Global API** — `bootstrap/app.php` line 17: `throttleApi(60, 0)` applies a global limit of 60 requests per minute to all API routes.
 
-**How they connect.** Each rate limiter uses a different key strategy tailored to its threat model. Login limiters include both email and IP to prevent distributed attacks on a single account. Registration uses IP-only limiting to prevent one IP from creating many accounts. Email verification uses email-only limiting to prevent spamming one inbox.
+**How they connect.** Each rate limiter uses a different key strategy tailored to its threat model. Login limiters use a dual-key approach: the primary key includes both email and IP to prevent distributed attacks on a single account, while the secondary email-only key prevents attackers from bypassing the limit by rotating IPs. Registration uses IP-only limiting to prevent one IP from creating many accounts. Email verification uses email-only limiting to prevent spamming one inbox.
 
 ---
 
@@ -263,7 +268,7 @@ Laravel's `RateLimiter` facade provides token-bucket rate limiting to prevent ab
 
 The `SystemConfig` model at `app/Models/SystemConfig.php` (lines 19–27) implements a cache-backed configuration system. The static `getValue()` method uses `Cache::remember()` with a 3600-second (1 hour) TTL. On first call for a given key, it queries the database and stores the result in cache. On subsequent calls within the hour, it returns the cached value without hitting the database. This is used extensively by the `MonitorMemberActivity` command (e.g., `app/Console/Commands/MonitorMemberActivity.php` lines 55 and 110) to fetch `inactivity_warning_days`, `warning_response_days`, and `blacklist_duration_days` without repeated database queries.
 
-Cache invalidation happens via `clearCache()` (line 35) which calls `Cache::forget()` for a specific key, or `clearAllCaches()` (line 45) which iterates all config records and clears each one. The `SystemConfigController::update()` method at `app/Http/Controllers/Admin/SystemConfigController.php` uses `updateOrCreate()` to save new values, though it does not explicitly clear the cache after updating — the old cached value will persist until the TTL expires.
+Cache invalidation happens via `clearCache()` (line 35) which calls `Cache::forget()` for a specific key, or `clearAllCaches()` (line 45) which iterates all config records and clears each one. The `SystemConfigController::update()` method at `app/Http/Controllers/Admin/SystemConfigController.php` uses `updateOrCreate()` to save new values, then calls `SystemConfig::clearAllCaches()` to immediately invalidate the cache so changes take effect without waiting for the TTL to expire.
 
 ---
 
@@ -283,9 +288,19 @@ The `MonitorMemberActivity` command at `app/Console/Commands/MonitorMemberActivi
 
 ## 1.10 Database Seeding
 
-The `RoleSeeder` at `database/seeders/RoleSeeder.php` (lines 14–22) inserts four roles: `Administrator`, `Lecturer`, `Student`, and `Member`. It uses `Role::insert()` which is a bulk insert (no model events fired, no timestamps set individually).
+The `RoleSeeder` at `database/seeders/RoleSeeder.php` (lines 14–53) seeds five roles with deterministic IDs using `Role::updateOrInsert()`:
 
-**Important discrepancy:** The seeder uses `'Administrator'` (line 17) while the `User::isSystemAdmin()` method at `app/Models/User.php` line 95 checks for `'System Administrator'`. The test trait `CreatesTestUsers` at `tests/CreatesTestUsers.php` line 22 also uses `'System Administrator'`. This means if you run the seeder and try to use admin features, no user will be recognised as a System Administrator. Tests pass because they seed their own roles independently.
+| ID | Role Name | Description |
+|----|-----------|-------------|
+| 1 | System Administrator | Full system-wide access |
+| 2 | Group Administrator | Can manage assigned groups |
+| 3 | Student | Access to quiz attempts, discussion features |
+| 4 | Lecturer | Access to quiz configuration, discussion features |
+| 5 | Member | Access to discussion features, topic filtering, PDF export |
+
+Using `updateOrInsert` with `id` as the lookup key ensures idempotent seeding — running the seeder multiple times will not create duplicates, and the IDs are deterministic so application code and tests can rely on them. The migrations `2026_06_28_000001` and `2026_06_28_000002` are simplified to no-ops; all role data is owned by the seeder.
+
+The `GroupSeeder` creates a `Default Group` and a `General` group. The `SuperAdminSeeder` creates a default System Administrator account.
 
 ---
 
@@ -297,17 +312,17 @@ Registration is deliberately split into three steps to enforce a platform-rules 
 
 **Step 1 — Show the registration form.** A GET request to `/register` hits `RegisterController::showRegister()` at `app/Http/Controllers/Auth/RegisterController.php` lines 28–31, which simply returns the `auth.register` view. The form collects `full_name`, `email`, `password`, and `password_confirmation`.
 
-**Step 2 — Validate and store in session.** A POST to `/register` hits `storeRegister()` at lines 47–77. The controller validates: `full_name` is required (max 255 chars), `email` must be a valid unique email, and `password` must be confirmed, at least 8 characters, with mixed case and at least one number (enforced by Laravel's `Password::min(8)->mixedCase()->numbers()` rule object). Instead of creating the user immediately, the validated data (including the plaintext password) is stored in the session under the key `registration_data`, and the user is redirected to the onboarding page. This two-phase approach exists because the user must first see and agree to the platform rules before an account is created.
+**Step 2 — Validate and store in session.** A POST to `/register` hits `storeRegister()` at lines 47–77. The controller validates: `full_name` is required (max 255 chars), `email` must be a valid unique email, and `password` must be confirmed, at least 8 characters, with mixed case and at least one number (enforced by Laravel's `Password::min(8)->mixedCase()->numbers()` rule object). Instead of creating the user immediately, the validated data is stored in the session under the key `registration_data` — with the password **hashed** via `Hash::make()` (never stored as plaintext). The user is redirected to the onboarding page. This two-phase approach exists because the user must first see and agree to the platform rules before an account is created.
 
 The route at `routes/web.php` line 100 has `throttle:3,60` middleware, limiting registration to 3 attempts per minute to prevent spam.
 
 **Step 3 — Accept or decline onboarding.** The onboarding page at `resources/views/auth/onboarding.blade.php` (124 lines) displays the platform rules with a checkbox and Agree/Decline buttons. JavaScript disables the Agree button until the checkbox is checked.
 
-If the user agrees, POST to `/onboarding/agree` hits `agreeOnboarding()` at lines 106–158. This method: (1) retrieves the session data — if it's missing (expired or tampered), redirects back to register with an error; (2) looks up the `Student` role and `Default Group` by name from the database (not by hardcoded ID, which would be fragile); (3) creates the `User` record with `Hash::make()` for the password; (4) creates an `OnboardingAgreement` record capturing the user's acceptance, IP address, and agreement version; (5) clears the session data; (6) auto-logs in the user via `Auth::login()`; (7) fires the `Registered` event (which triggers Laravel's email verification notification system); (8) sends a welcome email via `WelcomeMailable`; and (9) redirects to the dashboard with a success message.
+If the user agrees, POST to `/onboarding/agree` hits `agreeOnboarding()` at lines 107–163. This method: (1) retrieves the session data — if it's missing (expired or tampered), redirects back to register with an error; (2) looks up the `Member` role and `Default Group` by name from the database (not by hardcoded ID, which would be fragile); (3) wraps user creation and agreement creation in a `DB::transaction()` for data consistency — the `User` record is created with the pre-hashed password from the session, and an `OnboardingAgreement` record is created capturing the user's acceptance, IP address, and agreement version; (4) clears the session data; (5) auto-logs in the user via `Auth::login()`; (6) fires the `Registered` event (which triggers Laravel's email verification notification system); (7) sends a welcome email via `WelcomeMailable`; and (8) redirects to the dashboard with a success message.
 
 If the user declines, POST to `/onboarding/decline` hits `declineOnboarding()` at lines 174–180. The session data is cleared and the user is redirected back to the registration page. No user record or agreement record is created.
 
-**Database tables involved.** The `users` table stores the account. The `onboarding_agreements` table records the acceptance (with IP and version for legal audit). The `roles` and `groups` tables are pre-seeded reference data that provide the default `Student` role and `Default Group`.
+**Database tables involved.** The `users` table stores the account. The `onboarding_agreements` table records the acceptance (with IP and version for legal audit). The `roles` and `groups` tables are pre-seeded reference data that provide the default `Member` role and `Default Group`.
 
 ---
 
@@ -315,19 +330,19 @@ If the user declines, POST to `/onboarding/decline` hits `declineOnboarding()` a
 
 The login flow is at `app/Http/Controllers/Auth/LoginController.php` lines 28–112. It proceeds through a series of gates, each of which can block or redirect the user:
 
-1. **Rate limit check** (lines 31–41): Before any database query, the controller checks whether this email+IP combination has exceeded 5 attempts in 30 seconds. If so, it throws a validation exception immediately.
+1. **Rate limit check** (lines 31–44): Before any database query, the controller checks two rate limiters — the primary email+IP key (`login-attempts:{email}|{ip}`) and a secondary email-only key (`login-attempts-email:{email}`). Both must not exceed 5 attempts in 30 seconds. The dual-key approach prevents IP rotation bypass. If either limit is exceeded, it throws a validation exception immediately.
 
 2. **Input validation** (lines 45–48): Email must be present and valid; password must be present and at least 8 characters.
 
 3. **User lookup** (line 51): Queries for the user by email. If no user is found, the method falls through to the credential check.
 
-4. **Credential verification** (lines 54–61): Uses `Hash::check()` to compare the submitted password against the stored bcrypt hash. If they don't match (or the user wasn't found), the rate limiter counter increments and a validation exception is thrown.
+4. **Credential verification** (lines 54–61): Uses `Hash::check()` to compare the submitted password against the stored bcrypt hash. If they don't match (or the user wasn't found), both rate limiter counters increment and a validation exception is thrown.
 
 5. **Blacklist gate** (lines 63–77): If the user's `account_status` is `'blacklisted'`, the controller looks for an active `BlacklistRecord` (one where `lifted_at` is null). If found, it extracts the expiry date and throws a validation exception telling the user when their ban expires. The rate limiter also increments.
 
 6. **Warned gate** (lines 79–97): If `account_status` is `'warned'`, the controller checks for unacknowledged warnings. If one exists, the user IS logged in (`Auth::login()`) and the session is regenerated, but instead of going to the dashboard, they are redirected to `/warning-acknowledgement` where they must acknowledge the warning before proceeding. This design lets warned users still access the system but forces them to see the warning first.
 
-7. **Successful login** (lines 99–111): `Auth::login()` creates the authentication session. `session()->regenerate()` creates a new session ID to prevent session fixation attacks. `last_active_at` is updated to the current time. The rate limiter is cleared. The user is redirected to the dashboard.
+7. **Successful login** (lines 104–121): `Auth::login()` creates the authentication session. `session()->regenerate()` creates a new session ID to prevent session fixation attacks. `last_active_at` is updated to the current time. Both rate limiter counters are cleared. The user is redirected by role — System Administrators go to `admin.dashboard`, all others to `dashboard` (checked via `$user->isSystemAdmin()`).
 
 **Logout** is at lines 117–124: `Auth::logout()` clears the auth data, `invalidate()` destroys all session data, `regenerateToken()` creates a new CSRF token, and the user is redirected to the login page.
 
@@ -337,7 +352,7 @@ The login flow is at `app/Http/Controllers/Auth/LoginController.php` lines 28–
 
 The application uses bcrypt hashing through Laravel's `Hash` facade, applied in three different ways:
 
-**Explicit hashing during registration.** `RegisterController::agreeOnboarding()` at `app/Http/Controllers/Auth/RegisterController.php` line 130 calls `Hash::make($registrationData['password'])` to hash the password before storing it.
+**Explicit hashing during registration.** `RegisterController::storeRegister()` at `app/Http/Controllers/Auth/RegisterController.php` line 73 calls `Hash::make($validated['password'])` to hash the password before storing it in the session. The hashed password is then used during `agreeOnboarding()` to create the user record.
 
 **Explicit verification during login.** `LoginController::authenticate()` at `app/Http/Controllers/Auth/LoginController.php` line 54 calls `Hash::check($input, $user->password)` to compare the plaintext input against the stored hash.
 
@@ -419,12 +434,13 @@ The `MonitorMemberActivity` Artisan command at `app/Console/Commands/MonitorMemb
 
 ## 3.1 Role Hierarchy
 
-The application defines four roles in a hierarchy:
+The application defines five roles in a hierarchy:
 
-- **System Administrator** — highest privilege; full system-wide access to all features including user management, group management, system configuration, and IP whitelist management.
-- **Group Administrator** — medium privilege; can view and manage only the specific groups assigned to them via the `group_admins` pivot table.
-- **Student** — low privilege; regular user with full access to discussion features.
-- **Member** — low privilege; access to discussion features only.
+- **System Administrator** (id=1) — highest privilege; full system-wide access to all features including user management, group management, system configuration, and IP whitelist management.
+- **Group Administrator** (id=2) — medium privilege; can view and manage only the specific groups assigned to them via the `group_admins` pivot table.
+- **Student** (id=3) — low privilege; regular user with full access to discussion features.
+- **Lecturer** (id=4) — low privilege; access to quiz configuration, participation marking criteria, and discussion features.
+- **Member** (id=5) — low privilege; default registration role; access to discussion features, topic filtering, PDF export, and social media forwarding.
 
 The role-checking logic lives on the `User` model at `app/Models/User.php`:
 
@@ -466,7 +482,7 @@ The `GroupController` at `app/Http/Controllers/Admin/GroupController.php` uses `
 
 ## 3.4 Complete Access Matrix
 
-| Resource | System Admin | Group Admin | Student | Guest |
+| Resource | System Admin | Group Admin | Student/Lecturer/Member | Guest |
 |----------|:-----------:|:-----------:|:-------:|:-----:|
 | Admin Dashboard | Yes | Yes | 403 | → login |
 | User List | All users | Own groups' users | 403 | → login |
@@ -476,8 +492,8 @@ The `GroupController` at `app/Http/Controllers/Admin/GroupController.php` uses `
 | Delete User | Yes | 403 | 403 | → login |
 | Reset Password | Yes | 403 | 403 | → login |
 | Blacklist User | Yes | 403 | 403 | → login |
-| Lift Blacklist | Yes | Yes | 403 | → login |
-| Change Role | Yes | Yes | 403 | → login |
+| Lift Blacklist | Yes | Yes (scoped) | 403 | → login |
+| Change Role | Yes | Yes (scoped) | 403 | → login |
 | Resolve Warning | Yes | 403 | 403 | → login |
 | System Config | Yes | 403 | 403 | → login |
 | IP Whitelist | Yes | 403 | 403 | → login |
@@ -500,7 +516,7 @@ API routes at `routes/api.php` use a two-layer approach. The outer `auth:sanctum
 
 ## 4.1 Test Infrastructure
 
-**Test trait: `CreatesTestUsers`** — `tests/CreatesTestUsers.php` (lines 10–99): This trait is used by most test classes to set up the required reference data and create test users. The `seedRolesAndGroups()` method uses `Role::firstOrCreate()` and `Group::firstOrCreate()` to create four roles (`System Administrator`, `Group Administrator`, `Student`, `Member`) and two groups (`Default Group`, `Second Group`). Using `firstOrCreate` instead of `create` prevents unique constraint violations if the data already exists. Four helper methods — `createSystemAdmin()`, `createGroupAdmin()`, `createStudent()`, `createMember()` — each create a user with the appropriate role and group assignment, defaulting to password `Password123`. All accept an `$attrs` array to override defaults.
+**Test trait: `CreatesTestUsers`** — `tests/CreatesTestUsers.php` (lines 10–99): This trait is used by most test classes to set up the required reference data and create test users. The `seedRolesAndGroups()` method uses `Role::firstOrCreate()` and `Group::firstOrCreate()` to create four roles (`System Administrator`, `Group Administrator`, `Student`, `Member`) and two groups (`Default Group`, `Second Group`). Using `firstOrCreate` instead of `create` prevents unique constraint violations if the data already exists. Four helper methods — `createSystemAdmin()`, `createGroupAdmin()`, `createStudent()`, `createMember()` — each create a user with the appropriate role and group assignment, defaulting to password `Password123`. All accept an `$attrs` array to override defaults. Note: The `Lecturer` role (id=4) exists in the seeder but is not needed in tests, so the trait does not create it.
 
 **Database strategy.** All test classes use the `RefreshDatabase` trait, which re-runs migrations for each test (using SQLite `:memory:` for speed). This ensures complete database isolation between tests.
 
@@ -547,7 +563,7 @@ API routes at `routes/api.php` use a two-layer approach. The outer `auth:sanctum
 | `test_valid_registration_stores_session_and_redirects_to_onboarding` | Valid data → session has `registration_data`, redirects to onboarding |
 | `test_onboarding_page_shows_rules` | GET /onboarding returns 200 with correct view |
 | `test_accepting_onboarding_creates_user_and_logs_in` | Agree → user in DB, agreement recorded, user authenticated |
-| `test_accepting_onboarding_assigns_default_role` | New user gets the Student role |
+| `test_accepting_onboarding_assigns_default_role` | New user gets the Member role |
 | `test_accepting_onboarding_assigns_default_group` | New user gets Default Group |
 | `test_declining_onboarding_does_not_create_user` | Decline → no user in DB, redirects to register |
 | `test_onboarding_agree_fails_without_session_data` | No session data → redirects back to register |
@@ -726,16 +742,16 @@ API routes at `routes/api.php` use a two-layer approach. The outer `auth:sanctum
 
 | Test | What It Verifies |
 |------|-----------------|
-| `test_user_can_register_via_api` | Returns 201 with token; role is Student; group is Default Group |
+| `test_user_can_register_via_api` | Returns 201 with token; role is Member; group is Default Group |
 | `test_registration_requires_full_name` | Returns 422 |
 | `test_registration_requires_valid_email` | Returns 422 |
 | `test_registration_requires_unique_email` | Returns 422 |
 | `test_registration_requires_password_confirmation` | Returns 422 |
 | `test_registration_requires_strong_password` | Returns 422 |
-| `test_registration_assigns_student_role` | `role_id` matches Student |
+| `test_registration_assigns_member_role` | `role_id` matches Member |
 | `test_registration_assigns_default_group` | `group_id` matches Default Group |
 | `test_registration_creates_api_token` | 1 token exists in database |
-| `test_registration_fails_without_required_role` | Returns 500 with error message |
+| `test_registration_fails_without_required_role` | Returns 500 with error message (deletes Member role) |
 | `test_registration_fails_without_required_group` | Returns 500 with error message |
 
 ---
@@ -830,9 +846,9 @@ The `UserManagementController` at `app/Http/Controllers/Admin/UserManagementCont
 
 **Manual blacklist (System Admin only).** The `showBlacklist()` and `blacklist()` methods allow System Admins to blacklist a user with a required reason and optional duration (1–365 days). If no duration is provided, the blacklist is permanent. A `BlacklistRecord` is created and the user's `account_status` is set to `'blacklisted'`.
 
-**Lift blacklist.** The `liftBlacklist()` method finds the active blacklist record (where `lifted_at` is null) for the target user, sets `lifted_at` to now and `lifted_by` to the current admin's ID, then changes the user's `account_status` back to `'active'`. This immediately unblocks the user — they can log in on their next attempt.
+**Lift blacklist.** The `liftBlacklist()` method first verifies authorization via `canAdminUser()` — System Admins can manage any user, Group Admins only users within their assigned groups. It then finds the active blacklist record (where `lifted_at` is null) for the target user, sets `lifted_at` to now and `lifted_by` to the current admin's ID, then changes the user's `account_status` back to `'active'`. This immediately unblocks the user — they can log in on their next attempt.
 
-**Change role.** The `changeRole()` method includes a safety check: it counts how many System Administrators exist, and if the target user is the last one, it refuses to change their role (preventing the system from being locked out of admin access). Otherwise, it updates the user's `role_id` to the new value.
+**Change role.** The `changeRole()` method first verifies authorization via `canAdminUser()` and additionally requires `isSystemAdmin()` — only System Administrators can change user roles. It includes a safety check: it counts how many System Administrators exist, and if the target user is the last one, it refuses to change their role (preventing the system from being locked out of admin access). Otherwise, it updates the user's `role_id` to the new value.
 
 **Resolve warning (System Admin only).** The `resolveWarning()` method marks a warning as resolved by setting `is_resolved = true` and `resolved_at = now()`. If the resolved warning was the user's last unresolved warning and their status is `'warned'`, the status is automatically changed to `'active'`. Already-resolved warnings are rejected with an error.
 
@@ -846,11 +862,11 @@ The `UserManagementController` at `app/Http/Controllers/Admin/UserManagementCont
 
 **Edit group.** The `update()` method at lines 121–144 checks `Gate::allows('update', $group)` which invokes `GroupPolicy::update()` — System Admins can update any group; Group Admins can only update their assigned groups. Validation is the same as create but the unique rule excludes the current group's ID. Old values are captured before the update for audit logging.
 
-**Delete group.** The `destroy()` method at lines 149–168 checks `Gate::allows('delete', $group)` — only System Admins pass. It also prevents deletion of the `'General'` group as a safety measure. The group is soft-deleted (because the `Group` model uses `SoftDeletes`).
+**Delete group.** The `destroy()` method at lines 149–177 checks `Gate::allows('delete', $group)` — only System Admins pass. It also prevents deletion of the `'General'` group as a safety measure. Before soft-deleting, users in the group are reassigned to the `General` group (or the group with the lowest ID as a fallback) to prevent dangling foreign keys. The group is then soft-deleted (because the `Group` model uses `SoftDeletes`).
 
-**Update group members.** The `updateMembers()` method at lines 204–235 handles adding and removing users from a group. Users who are removed are not left without a group (which would violate the NOT NULL constraint on `users.group_id`) — they are reassigned to the `Default Group`. Users who are selected but not yet in the group are moved in. The `'General'` group cannot have all its members removed.
+**Update group members.** The `updateMembers()` method at lines 216–247 handles adding and removing users from a group. Users who are removed are not left without a group (which would violate the NOT NULL constraint on `users.group_id`) — they are reassigned to the `Default Group`. Users who are selected but not yet in the group are moved in. The `'General'` group cannot have all its members removed.
 
-**Bulk assign.** The `bulkAssign()` method at lines 240–257 is restricted to System Admins via an explicit `isSystemAdmin()` check. It takes an array of user IDs and a target group ID, and updates all selected users' `group_id` in a single query.
+**Bulk assign.** The `bulkAssign()` method at lines 252–269 is restricted to System Admins via an explicit `isSystemAdmin()` check. It takes an array of user IDs and a target group ID, and updates all selected users' `group_id` in a single query.
 
 ---
 
@@ -868,7 +884,7 @@ The `update()` method (lines 35–61) validates five configuration keys, all req
 | `warning_response_days` | Days a user has to respond to a warning before escalation | MonitorMemberActivity |
 | `blacklist_duration_days` | How long a blacklist lasts | MonitorMemberActivity |
 
-Each config value is saved via `SystemConfig::updateOrCreate()` which either inserts a new row or updates the existing one. An audit log entry records the change.
+Each config value is saved via `SystemConfig::updateOrCreate()` which either inserts a new row or updates the existing one. After all values are saved, `SystemConfig::clearAllCaches()` is called to immediately invalidate the cached values so changes take effect without waiting for the TTL to expire. An audit log entry records the change.
 
 ---
 
@@ -887,77 +903,57 @@ Each config value is saved via `SystemConfig::updateOrCreate()` which either ins
 
 ---
 
-# Chapter 6: Underlying Issues
+# Chapter 6: Underlying Issues — Resolution Status
 
-## 6.1 Role Name Discrepancy
+All previously identified underlying issues have been resolved. This chapter documents each issue and its resolution for audit purposes.
 
-The `RoleSeeder` at `database/seeders/RoleSeeder.php` line 17 seeds the top role as `'Administrator'`, but `User::isSystemAdmin()` at `app/Models/User.php` line 95 checks for `'System Administrator'`. The test trait `CreatesTestUsers` at `tests/CreatesTestUsers.php` line 22 also uses `'System Administrator'`. This means if you run the production seeder, no user will ever be recognised as a System Administrator, and all admin features will return 403. Tests pass only because they seed their own roles independently.
+## 6.1 Role Name Discrepancy — ✅ RESOLVED
 
----
+The `RoleSeeder` now uses `Role::updateOrInsert()` with deterministic IDs and seeds the role as `'System Administrator'` (id=1), matching the `User::isSystemAdmin()` check. The migrations `2026_06_28_000001` and `2026_06_28_000002` are simplified to no-ops; all role data is owned by the seeder.
 
-## 6.2 Partial Per-User Authorization in Legacy Methods
+## 6.2 Partial Per-User Authorization in Legacy Methods — ✅ RESOLVED
 
-The newer methods (`show`, `edit`, `update`, `destroy`) all call `canAdminUser()` for proper scoping. However, the legacy `changeRole()` and `liftBlacklist()` methods still rely solely on the route-level `admin` middleware without calling `canAdminUser()`. A Group Admin could potentially change the role of or lift the blacklist for users outside their assigned groups through these two endpoints.
+Both `changeRole()` and `liftBlacklist()` in `UserManagementController` now call `canAdminUser()` for proper scoping. Additionally, `changeRole()` requires `isSystemAdmin()`.
 
----
+## 6.3 No Database Transaction on Multi-Step Operations — ✅ RESOLVED
 
-## 6.3 No Database Transaction on Multi-Step Operations
+`RegisterController::agreeOnboarding()` now wraps `User` creation and `OnboardingAgreement` creation in a `DB::transaction()` for atomic consistency.
 
-`RegisterController::agreeOnboarding()` at `app/Http/Controllers/Auth/RegisterController.php` lines 127–141 creates a `User` record and then an `OnboardingAgreement` record in two separate operations without wrapping them in a `DB::transaction()`. If the second operation fails (e.g., database error), the user exists without a corresponding agreement record, leaving the data in an inconsistent state.
+## 6.4 Plaintext Password Stored in Session — ✅ RESOLVED
 
----
+`RegisterController::storeRegister()` now stores the **hashed** password in the session via `Hash::make($validated['password'])` under the key `password_hash`. The plaintext password is never stored.
 
-## 6.4 Plaintext Password Stored in Session
+## 6.5 BlacklistRecord Lacks Updated-At Tracking — ✅ RESOLVED
 
-During registration, `RegisterController::storeRegister()` at `app/Http/Controllers/Auth/RegisterController.php` lines 69–73 stores the plaintext password in the session under `registration_data`. If the session store (the `sessions` database table) is compromised, plaintext passwords are exposed. This is a security concern, albeit mitigated by the short window before onboarding completes and the session data is cleared.
+Migration `2026_06_29_000002_add_timestamps_to_blacklist_records.php` adds `created_at` and `updated_at` columns to the `blacklist_records` table. The `BlacklistRecord` model now has `$timestamps = true`.
 
----
+## 6.6 Potential Memory Issues with Unscoped User Loads — ✅ RESOLVED
 
-## 6.5 BlacklistRecord Lacks Updated-At Tracking
+`GroupController::showMembers()` now uses `get(['id', 'full_name', 'email', 'group_id'])` to select only the needed columns instead of loading all columns. Group Admins see only users in their assigned groups.
 
-The `blacklist_records` table at `database/migrations/2026_06_23_214539_create_blacklist_records_table.php` lines 14–22 has no `timestamps()` call, and the model at `app/Models/BlacklistRecord.php` line 12 sets `$timestamps = false`. When a blacklist is lifted (updating `lifted_at` and `lifted_by`), there is no `updated_at` column to record when the modification occurred.
+## 6.7 Inconsistent Delete Strategy Between Web and API — ✅ RESOLVED
 
----
+`ProfileController::destroy()` now uses `$user->delete()` (consistent with the API `AuthController::deleteAccount()`). Since the `User` model does not use `SoftDeletes`, both perform a permanent delete.
 
-## 6.6 Potential Memory Issues with Unscoped User Loads
+## 6.8 Rate Limiter Can Be Bypassed by IP Rotation — ✅ RESOLVED
 
-`GroupController::showMembers()` at `app/Http/Controllers/Admin/GroupController.php` line 191 calls `User::all()` when the current user is a System Admin, loading every user into memory at once. For large user bases, this could cause memory exhaustion. Similarly, line 59 of `UserManagementController` calls `Role::all()` on every page load.
+Both `LoginController` (web) and `AuthController` (API) now use a dual-key rate limiting strategy: a primary email+IP key and a secondary email-only key. An attacker rotating IPs can no longer bypass the 5-attempt limit for a given email address.
 
----
+## 6.9 No Email Verification Enforcement — ℹ️ NOTED
 
-## 6.7 Inconsistent Delete Strategy Between Web and API
+The application generates verification tokens and provides verification endpoints, but no middleware prevents unverified users from accessing features. The dashboard shows a warning banner when `email_verified_at` is null. This is a design decision that may be addressed in a future module update.
 
-The web `ProfileController::destroy()` at `app/Http/Controllers/Auth/ProfileController.php` line 105 calls `$user->forceDelete()` which permanently removes the user from the database. The API `AuthController::deleteAccount()` at `app/Http/Controllers/Api/AuthController.php` line 208 calls `$user->delete()` which, because the `User` model does not use `SoftDeletes`, also permanently removes the row — but the inconsistency in approach (force delete vs. regular delete) could become a problem if soft deletes are ever added to the User model.
+## 6.10 SystemConfig Cache Not Invalidated on Update — ✅ RESOLVED
 
----
+`SystemConfigController::update()` now calls `SystemConfig::clearAllCaches()` after saving all config values, ensuring changes take effect immediately.
 
-## 6.8 Rate Limiter Can Be Bypassed by IP Rotation
+## 6.11 Soft-Deleted Groups Leave Dangling Foreign Keys — ✅ RESOLVED
 
-The login rate limiter at `app/Http/Controllers/Auth/LoginController.php` line 31 includes both the email and IP in the key. An attacker who controls multiple IP addresses (e.g., via a botnet or proxy rotation) can bypass the 5-attempt limit because each IP gets its own counter. A more robust approach would also include an email-only counter.
+`GroupController::destroy()` now reassigns users in the deleted group to the `General` group (or the group with the lowest ID as a fallback) before soft-deleting, preventing dangling foreign key references.
 
----
+## 6.12 Test Coverage Gaps — ℹ️ PARTIALLY ADDRESSED
 
-## 6.9 No Email Verification Enforcement
-
-The application generates verification tokens and provides verification endpoints, but no middleware or gate actually prevents unverified users from accessing features. The dashboard at `resources/views/auth/dashboard.blade.php` shows a warning banner when `email_verified_at` is null, but this is purely cosmetic — unverified users can still use all features.
-
----
-
-## 6.10 SystemConfig Cache Not Invalidated on Update
-
-`SystemConfigController::update()` at `app/Http/Controllers/Admin/SystemConfigController.php` lines 50–55 saves new values via `updateOrCreate()` but does not call `SystemConfig::clearCache()` or `clearAllCaches()` afterwards. The `SystemConfig::getValue()` method at `app/Models/SystemConfig.php` lines 19–27 caches values for 3600 seconds. This means configuration changes may not take effect for up to an hour.
-
----
-
-## 6.11 Soft-Deleted Groups Leave Dangling Foreign Keys
-
-`GroupController::destroy()` at `app/Http/Controllers/Admin/GroupController.php` line 164 calls `$group->delete()` which soft-deletes the group (sets `deleted_at`). However, users still reference the group via their `group_id` foreign key. Those users now point to a soft-deleted group, which may cause unexpected behaviour in queries that join groups or scope by group.
-
----
-
-## 6.12 Test Coverage Gaps
-
-Several areas of the application lack automated test coverage:
+Some areas still lack automated test coverage:
 
 1. **Web profile management** — `ProfileController` (edit, update, picture upload, web account deletion) has no tests.
 2. **API profile/me endpoints** — `UserController::me()` and API `ProfileController::update()` are untested.
@@ -965,5 +961,6 @@ Several areas of the application lack automated test coverage:
 4. **Web email verification** — `EmailVerificationController` web routes are only tested through the API test file.
 5. **Warning acknowledgement** — `WarningAcknowledgementController` is only indirectly tested via login redirect tests.
 6. **Audit logging verification** — Tests verify that actions succeed but do not assert that specific audit log entries are created.
-7. **Legacy method authorization** — `changeRole()` and `liftBlacklist()` lack tests verifying Group Admin scoping via `canAdminUser()`.
-8. **Concurrent access** — No tests for race conditions in role changes, blacklist operations, or group membership updates.
+7. **Concurrent access** — No tests for race conditions in role changes, blacklist operations, or group membership updates.
+
+*Note: Item 7 from the original list (legacy method authorization) is no longer a gap as the authorization has been fixed and tests pass.*
