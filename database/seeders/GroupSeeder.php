@@ -20,6 +20,13 @@ class GroupSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
+            [
+                'group_name' => 'Default Group',
+                'description' => 'Default test group',
+                'created_by' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
     }
 }

@@ -26,6 +26,11 @@ class MonitorMemberActivity extends Command
     protected $description = 'Monitor member activity and issue warnings/blacklist';
 
     /**
+     * Counter for blacklisted users.
+     */
+    private int $blacklistedCount = 0;
+
+    /**
      * Execute the console command.
      */
     public function handle(): int
@@ -57,7 +62,6 @@ class MonitorMemberActivity extends Command
         $this->newLine();
 
         $warnedCount = 0;
-        $blacklistedCount = 0;
         $skippedCount = 0;
 
         foreach ($users as $user) {
@@ -84,7 +88,7 @@ class MonitorMemberActivity extends Command
         $this->info('Activity monitoring complete!');
         $this->info("Results:");
         $this->line("  - Warned: {$warnedCount}");
-        $this->line("  - Blacklisted: {$blacklistedCount}");
+        $this->line("  - Blacklisted: {$this->blacklistedCount}");
         $this->line("  - Skipped (active): {$skippedCount}");
 
         if ($isDryRun) {
@@ -185,6 +189,8 @@ class MonitorMemberActivity extends Command
 
         // Update user status to blacklisted
         $user->update(['account_status' => 'blacklisted']);
+
+        $this->blacklistedCount++;
 
         $this->line("  <fg=red>✗ User blacklisted</> - Duration: {$blacklistDuration} days");
 

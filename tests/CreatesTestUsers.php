@@ -5,7 +5,6 @@ namespace Tests;
 use App\Models\Group;
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 
 trait CreatesTestUsers
 {
@@ -54,7 +53,7 @@ trait CreatesTestUsers
         return User::create(array_merge([
             'full_name' => 'System Admin',
             'email' => 'sysadmin@test.com',
-            'password' => Hash::make('Password123'),
+            'password' => 'Password123',
             'role_id' => $this->systemAdminRole->id,
             'group_id' => $this->defaultGroup->id,
             'account_status' => 'active',
@@ -66,7 +65,7 @@ trait CreatesTestUsers
         return User::create(array_merge([
             'full_name' => 'Group Admin',
             'email' => 'groupadmin@test.com',
-            'password' => Hash::make('Password123'),
+            'password' => 'Password123',
             'role_id' => $this->groupAdminRole->id,
             'group_id' => $this->defaultGroup->id,
             'account_status' => 'active',
@@ -78,7 +77,7 @@ trait CreatesTestUsers
         return User::create(array_merge([
             'full_name' => 'Test Student',
             'email' => 'student@test.com',
-            'password' => Hash::make('Password123'),
+            'password' => 'Password123',
             'role_id' => $this->studentRole->id,
             'group_id' => $this->defaultGroup->id,
             'account_status' => 'active',
@@ -90,7 +89,7 @@ trait CreatesTestUsers
         return User::create(array_merge([
             'full_name' => 'Test Member',
             'email' => 'member@test.com',
-            'password' => Hash::make('Password123'),
+            'password' => 'Password123',
             'role_id' => $this->memberRole->id,
             'group_id' => $this->defaultGroup->id,
             'account_status' => 'active',

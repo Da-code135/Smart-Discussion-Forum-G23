@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Group;
 
 class SuperAdminSeeder extends Seeder
 {
@@ -21,6 +22,9 @@ class SuperAdminSeeder extends Seeder
             ['description' => 'Full system-wide access to all features, user management, role assignment, and system configuration.']
         );
 
+        // Get the General group (created by GroupSeeder)
+        $generalGroup = Group::where('group_name', 'General')->firstOrFail();
+
         // Create super admin user
         $superAdmin = User::updateOrCreate(
             ['email' => 'admin@admin.com'],
@@ -28,7 +32,7 @@ class SuperAdminSeeder extends Seeder
                 'full_name' => 'Super Admin',
                 'password' => bcrypt('password'),
                 'role_id' => $adminRole->id,
-                'group_id' => 1, // Default group
+                'group_id' => $generalGroup->id,
                 'account_status' => 'active',
             ]
         );

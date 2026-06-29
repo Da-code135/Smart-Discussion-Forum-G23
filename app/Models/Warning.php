@@ -17,12 +17,20 @@ class Warning extends Model
         'created_by',
     ];
 
-    protected $casts = [
-        'is_acknowledged' => 'boolean',
-        'is_resolved' => 'boolean',
-        'response_deadline' => 'datetime',
-        'resolved_at' => 'datetime',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'is_acknowledged' => 'boolean',
+            'is_resolved' => 'boolean',
+            'response_deadline' => 'datetime',
+            'resolved_at' => 'datetime',
+        ];
+    }
 
     public function user()
     {

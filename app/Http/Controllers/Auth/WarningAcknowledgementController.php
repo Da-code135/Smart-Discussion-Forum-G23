@@ -18,6 +18,10 @@ class WarningAcknowledgementController extends Controller
     // #80: Handle acknowledgement
     public function acknowledge(Request $request)
     {
+        $validated = $request->validate([
+            'acknowledge' => 'required|accepted',
+        ]);
+
         $user = Auth::user();
 
         // Find the first unacknowledged warning for this user
@@ -31,6 +35,7 @@ class WarningAcknowledgementController extends Controller
             ]);
         }
 
-        return redirect()->route('dashboard');
+        return redirect()->route('dashboard')
+            ->with('success', 'Warning acknowledged successfully.');
     }
 }

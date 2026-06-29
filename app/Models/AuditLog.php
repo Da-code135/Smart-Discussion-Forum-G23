@@ -39,10 +39,7 @@ class AuditLog extends Model
      */
     public function target()
     {
-        if ($this->target_type && $this->target_id) {
-            return $this->morphTo();
-        }
-        return null;
+        return $this->morphTo();
     }
 
     /**
@@ -110,7 +107,25 @@ class AuditLog extends Model
      */
     public function getActionLabelAttribute()
     {
-        $labels = [
+        return self::getActionLabel($this->action);
+    }
+
+    /**
+     * Get action label by action name
+     */
+    public static function getActionLabel(string $action): string
+    {
+        $labels = self::getActionLabels();
+
+        return $labels[$action] ?? ucfirst(str_replace('.', ' ', $action));
+    }
+
+    /**
+     * Get the full action labels map
+     */
+    public static function getActionLabels(): array
+    {
+        return [
             'user.role.changed' => 'User Role Changed',
             'user.group.changed' => 'User Group Changed',
             'user.blacklisted' => 'User Blacklisted',
@@ -127,7 +142,5 @@ class AuditLog extends Model
             'admin.ip.added' => 'Admin IP Added',
             'admin.ip.removed' => 'Admin IP Removed',
         ];
-
-        return $labels[$this->action] ?? ucfirst(str_replace('.', ' ', $this->action));
     }
 }

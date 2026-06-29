@@ -13,7 +13,7 @@ class Group extends Model
 
     protected $fillable = ['group_name', 'description', 'created_by'];
     
-     public function users()
+    public function users()
     {
         return $this->hasMany(User::class);
     }
@@ -44,7 +44,7 @@ class Group extends Model
     /**
      * Add admin to this group
      */
-    public function addAdmin(User $user, int $assignedBy = null): void
+    public function addAdmin(User $user, ?int $assignedBy = null): void
     {
         if (!$this->hasAdmin($user)) {
             $this->admins()->attach($user->id, [

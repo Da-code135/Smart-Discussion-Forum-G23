@@ -39,7 +39,7 @@ class AuditLogController extends Controller
             ->map(function ($action) {
                 return [
                     'value' => $action,
-                    'label' => $this->getActionLabel($action),
+                    'label' => AuditLog::getActionLabel($action),
                 ];
             });
 
@@ -122,31 +122,5 @@ class AuditLogController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
-    }
-
-    /**
-     * Get action label
-     */
-    protected function getActionLabel(string $action): string
-    {
-        $labels = [
-            'user.role.changed' => 'User Role Changed',
-            'user.group.changed' => 'User Group Changed',
-            'user.blacklisted' => 'User Blacklisted',
-            'user.blacklist.lifted' => 'User Blacklist Lifted',
-            'user.warned' => 'User Warned',
-            'user.activated' => 'User Activated',
-            'user.deleted' => 'User Deleted',
-            'group.created' => 'Group Created',
-            'group.updated' => 'Group Updated',
-            'group.deleted' => 'Group Deleted',
-            'group.member.added' => 'Group Member Added',
-            'group.member.removed' => 'Group Member Removed',
-            'system.config.updated' => 'System Configuration Updated',
-            'admin.ip.added' => 'Admin IP Added',
-            'admin.ip.removed' => 'Admin IP Removed',
-        ];
-
-        return $labels[$action] ?? ucfirst(str_replace('.', ' ', $action));
     }
 }

@@ -52,6 +52,7 @@
             </div>
         </div>
     </section>
+</div>
 @endif
 
 @if ($isAdmin)

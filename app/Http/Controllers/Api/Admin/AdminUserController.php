@@ -222,7 +222,7 @@ class AdminUserController extends Controller
         $warning = $user->warnings()->create([
             'reason' => $validated['reason'],
             'response_deadline' => $validated['response_deadline'],
-            'issued_by' => Auth::id(),
+            'created_by' => Auth::id(),
         ]);
 
         $user->update(['account_status' => 'warned']);

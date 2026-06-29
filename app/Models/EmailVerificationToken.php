@@ -17,7 +17,6 @@ class EmailVerificationToken extends Model
 
     protected $casts = [
         'expires_at' => 'datetime',
-        'created_at' => 'datetime',
     ];
 
     public function user()

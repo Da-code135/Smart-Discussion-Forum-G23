@@ -56,7 +56,12 @@ class EmailVerificationController extends Controller
     // ============================================
     public function resend(Request $request)
     {
-        $user = Auth::user() ?? User::where('email', $request->input('email'))->first();
+        // Require authentication to prevent abuse (sending verification emails to arbitrary addresses)
+        if (!Auth::check()) {
+            return redirect()->route('login')->with('error', 'Please log in to request a verification email');
+        }
+
+        $user = Auth::user();
 
         if (!$user) {
             return redirect()->back()->with('error', 'User not found');
