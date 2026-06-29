@@ -7,7 +7,6 @@ use App\Models\Role;
 use App\Models\Group;
 use App\Models\EmailVerificationToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
@@ -32,7 +31,7 @@ class EmailVerificationControllerTest extends TestCase
         $this->user = User::create([
             'full_name' => 'John Doe',
             'email' => 'john@example.com',
-            'password' => Hash::make('Password123'),
+            'password' => 'Password123',
             'role_id' => Role::where('role_name', 'Student')->first()->id,
             'group_id' => Group::where('group_name', 'Default Group')->first()->id,
             'email_verified_at' => null,
@@ -189,14 +188,17 @@ class EmailVerificationControllerTest extends TestCase
             'Authorization' => 'Bearer ' . $this->token,
         ])->postJson('/api/v1/email/resend');
 
-        // Should return success even if already verified (idempotent)
-        $response->assertStatus(200);
+        // Controller returns 400 when email is already verified
+        $response->assertStatus(400)
+            ->assertJson([
+                'message' => 'Email already verified',
+            ]);
     }
 
     public function test_resend_verification_is_rate_limited(): void
     {
-        // Clear any existing rate limits
-        RateLimiter::clear('verify-email:' . $this->user->email);
+        // Clear any existing rate limits (key must match controller's 'api-verify-email:' prefix)
+        RateLimiter::clear('api-verify-email:' . $this->user->email);
 
         // First request should succeed
         $response1 = $this->withHeaders([
