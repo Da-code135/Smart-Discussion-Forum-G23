@@ -42,12 +42,23 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile/picture', [ProfileController::class, 'showPictureUpload'])->name('profile.picture');
     Route::post('/profile/picture', [ProfileController::class, 'uploadPicture'])->name('profile.picture.upload');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // ============================================
+    // FORUM ROUTES (Task 2a — Topic creation & feed; Task 2b — Topic detail & replies)
+    // ============================================
+
+    Route::prefix('forum')->name('forum.')->group(function () {
+        // Task 2a.2 & 2a.3: Create topic form, store, and feed
+        Route::get('/', [\App\Http\Controllers\ForumController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\ForumController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\ForumController::class, 'store'])->name('store');
+
+        // Task 2b.1 & 2b.2: Topic detail with replies & reply form
+        Route::get('/{topic}', [\App\Http\Controllers\ForumController::class, 'show'])->name('show');
+        Route::post('/{topic}/reply', [\App\Http\Controllers\ForumController::class, 'replyStore'])->name('reply.store');
+    });
 });
 
-
-Route::get('/forum', function () {
-    return "Forum page (other module)";
-})->name('forum.index');
 
 // Group Management
 Route::get('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'index'])
