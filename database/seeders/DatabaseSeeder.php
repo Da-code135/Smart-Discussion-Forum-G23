@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             GroupSeeder::class,
             SuperAdminSeeder::class,
+            TopicCategorySeeder::class,
         ]);
     }
 }
