@@ -81,6 +81,29 @@
                             </span>
                         </div>
                     @endif
+
+                    {{-- Exclude user form for post author --}}
+                    @if ($reply->user_id === auth()->id())
+                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.1);">
+                            <form method="POST" action="{{ route('forum.visibility.exclude', $reply->id) }}" class="exclude-form" style="display: flex; gap: 0.5rem; align-items: center;">
+                                @csrf
+                                <select name="user_id" style="padding: 0.25rem; border: 1px solid #ccc; border-radius: 4px;">
+                                    <option value="">Choose user to exclude...</option>
+                                    @foreach (\App\Models\User::where('group_id', auth()->user()->group_id)->where('id', '!=', auth()->id())->get() as $user)
+                                        <option value="{{ $user->id }}">{{ $user->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="submit" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                    Exclude this user
+                                </button>
+                            </form>
+                            @if(session('success') && session('post_id') == $reply->id)
+                                <div class="alert alert-success" style="margin-top: 0.5rem; font-size: 0.8rem; color: green;">
+                                    {{ session('success') }}
+                                </div>
+                            @endif
+                        </div>
+                    @endif
                 </div>
             </div>
         </article>
