@@ -232,3 +232,42 @@ tbody tr:hover {
 .confirmation-actions .btn {
     min-width: 120px;
 }
+
+/* Moderation Panel */
+.reported-post-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+}
+
+.reported-post-card p {
+    margin-bottom: 0.75rem;
+}
+
+.reported-post-card small {
+    color: var(--text-muted);
+}
+
+.reported-post-card .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1rem;
+    align-items: flex-end;
+}
+
+.reported-post-card .actions form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.reported-post-card .actions textarea {
+    min-width: 280px;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+}
