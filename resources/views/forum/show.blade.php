@@ -20,6 +20,38 @@
                 @endif
             </div>
         </div>
+        <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+            {{-- PDF Export Button --}}
+            <a href="{{ route('forum.export-pdf', $topic->id) }}" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+                <span class="material-symbols-outlined" style="font-size: 1rem;">download</span>
+                Export PDF
+            </a>
+            {{-- Social Sharing Dropdown --}}
+            <div style="position: relative;">
+                <button onclick="toggleShareMenu()" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+                    <span class="material-symbols-outlined" style="font-size: 1rem;">share</span>
+                    Share
+                </button>
+                <div id="share-menu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 0.25rem; background: #fff; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 160px; z-index: 100; overflow: hidden;">
+                    <a href="https://wa.me/?text={{ urlencode('Check out this topic: ' . route('forum.show', $topic->id)) }}" target="_blank" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; text-decoration: none; color: #333; font-size: 0.85rem; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                        <span class="material-symbols-outlined" style="font-size: 1.1rem; color: #25D366;">chat</span>
+                        WhatsApp
+                    </a>
+                    <a href="https://twitter.com/intent/tweet?url={{ urlencode(route('forum.show', $topic->id)) }}&text={{ urlencode('Check out: ' . $topic->title) }}" target="_blank" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; text-decoration: none; color: #333; font-size: 0.85rem; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                        <span class="material-symbols-outlined" style="font-size: 1.1rem; color: #1DA1F2;">tag</span>
+                        Twitter / X
+                    </a>
+                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ urlencode(route('forum.show', $topic->id)) }}" target="_blank" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; text-decoration: none; color: #333; font-size: 0.85rem; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                        <span class="material-symbols-outlined" style="font-size: 1.1rem; color: #1877F2;">thumb_up</span>
+                        Facebook
+                    </a>
+                    <button onclick="copyToClipboard('{{ route('forum.show', $topic->id) }}')" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; background: none; border: none; width: 100%; cursor: pointer; color: #333; font-size: 0.85rem;">
+                        <span class="material-symbols-outlined" style="font-size: 1.1rem; color: #586747;">link</span>
+                        Copy Link
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </header>
 
@@ -161,3 +193,35 @@
     </div>
 </section>
 @endsection
+
+@push('scripts')
+<script>
+function toggleShareMenu() {
+    const menu = document.getElementById('share-menu');
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+function copyToClipboard(url) {
+    navigator.clipboard.writeText(url).then(function() {
+        alert('Link copied to clipboard!');
+    }).catch(function() {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = url;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        alert('Link copied to clipboard!');
+    });
+}
+
+// Close share menu when clicking outside
+document.addEventListener('click', function(event) {
+    const menu = document.getElementById('share-menu');
+    if (menu && !event.target.closest('#share-menu') && !event.target.closest('[onclick*="toggleShareMenu"]')) {
+        menu.style.display = 'none';
+    }
+});
+</script>
+@endpush
