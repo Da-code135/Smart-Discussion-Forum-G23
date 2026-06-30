@@ -56,6 +56,9 @@ Route::middleware('auth')->group(function () {
         // Task 2b.1 & 2b.2: Topic detail with replies & reply form
         Route::get('/{topic}', [\App\Http\Controllers\ForumController::class, 'show'])->name('show');
         Route::post('/{topic}/reply', [\App\Http\Controllers\ForumController::class, 'replyStore'])->name('reply.store');
+        
+        // Task 4.1: Exclude user from post visibility
+        Route::post('/post/{post}/visibility/exclude', [\App\Http\Controllers\ForumController::class, 'excludeUser'])->name('visibility.exclude');
     });
 });
 
