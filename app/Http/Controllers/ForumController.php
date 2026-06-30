@@ -6,6 +6,7 @@ use App\Models\Topic;
 use App\Models\Post;
 use App\Models\PostVisibility;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -195,5 +196,44 @@ class ForumController extends Controller
             'success' => 'User excluded from this post.',
             'post_id' => $post->id
         ]);
+    }
+
+    /**
+     * ============================================
+     * Task 5.1 — Export Topic Thread as PDF
+     * ============================================
+     *
+     * Generate a formatted PDF of the topic thread including the opening
+     * post (topic description) and all visible replies.
+     *
+     * Security:
+     *   1. Group isolation check — topic must belong to user's group
+     *   2. Visibility rules — excluded posts are filtered from the PDF
+     *   3. Moderation — removed posts are excluded
+     */
+    public function exportPDF(Topic $topic)
+    {
+        // === GROUP ISOLATION CHECK ===
+        if ($topic->group_id !== Auth::user()->group_id) {
+            abort(403, 'You do not have access to this topic.');
+        }
+
+        // Load visible, non-removed replies with their authors
+        $replies = Post::where('topic_id', $topic->id)
+            ->notRemoved()
+            ->visibleToUser(Auth::id())
+            ->with('user')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        // Load the topic creator for the PDF
+        $topic->load('creator');
+
+        $pdf = Pdf::loadView('forum.export-pdf', [
+            'topic' => $topic,
+            'replies' => $replies,
+        ]);
+
+        return $pdf->download('topic-' . $topic->id . '.pdf');
     }
 }

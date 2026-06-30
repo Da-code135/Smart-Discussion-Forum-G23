@@ -59,6 +59,9 @@ Route::middleware('auth')->group(function () {
         
         // Task 4.1: Exclude user from post visibility
         Route::post('/post/{post}/visibility/exclude', [\App\Http\Controllers\ForumController::class, 'excludeUser'])->name('visibility.exclude');
+
+        // Task 5.1: Export topic thread as PDF
+        Route::get('/{topic}/export-pdf', [\App\Http\Controllers\ForumController::class, 'exportPDF'])->name('export-pdf');
     });
 });
 
