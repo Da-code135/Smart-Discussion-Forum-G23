@@ -33,6 +33,9 @@
                     Share
                 </button>
                 <div id="share-menu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 0.25rem; background: #fff; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 160px; z-index: 100; overflow: hidden;">
+                    <div style="padding: 0.5rem 1rem; font-size: 0.75rem; color: rgba(88,103,75,0.6); background: rgba(88,103,75,0.04); border-bottom: 1px solid rgba(0,0,0,0.05);">
+                        Recipients must be logged in to view this topic.
+                    </div>
                     <a href="https://wa.me/?text={{ urlencode('Check out this topic: ' . route('forum.show', $topic->id)) }}" target="_blank" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; text-decoration: none; color: #333; font-size: 0.85rem; border-bottom: 1px solid rgba(0,0,0,0.05);">
                         <span class="material-symbols-outlined" style="font-size: 1.1rem; color: #25D366;">chat</span>
                         WhatsApp
@@ -121,7 +124,7 @@
                                 @csrf
                                 <select name="user_id" style="padding: 0.25rem; border: 1px solid #ccc; border-radius: 4px;">
                                     <option value="">Choose user to exclude...</option>
-                                    @foreach (\App\Models\User::where('group_id', auth()->user()->group_id)->where('id', '!=', auth()->id())->get() as $user)
+                                    @foreach ($excludableUsers as $user)
                                         <option value="{{ $user->id }}">{{ $user->full_name }}</option>
                                     @endforeach
                                 </select>

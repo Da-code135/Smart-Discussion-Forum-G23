@@ -6,6 +6,7 @@ use App\Models\Topic;
 use App\Models\Post;
 use App\Models\PostVisibility;
 use App\Models\User;
+use App\Services\AuditLogService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -116,7 +117,13 @@ class ForumController extends Controller
                   ->with('user');
         }]);
 
-        return view('forum.show', compact('topic'));
+        // Pre-load users eligible for exclusion (same group, not current user)
+        // to avoid N+1 queries inside the Blade loop
+        $excludableUsers = User::where('group_id', Auth::user()->group_id)
+            ->where('id', '!=', Auth::id())
+            ->get();
+
+        return view('forum.show', compact('topic', 'excludableUsers'));
     }
 
     /**
@@ -226,8 +233,16 @@ class ForumController extends Controller
             ->orderBy('created_at', 'asc')
             ->get();
 
-        // Load the topic creator for the PDF
-        $topic->load('creator');
+        // Load the topic creator and group for the PDF
+        $topic->load(['creator', 'group']);
+
+        // Log the export for audit trail
+        app(AuditLogService::class)->log(
+            action: 'topic.exported',
+            target: $topic,
+            newValues: ['format' => 'pdf'],
+            description: Auth::user()->full_name . ' exported topic "' . $topic->title . '" as PDF'
+        );
 
         $pdf = Pdf::loadView('forum.export-pdf', [
             'topic' => $topic,

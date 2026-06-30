@@ -60,8 +60,10 @@ Route::middleware('auth')->group(function () {
         // Task 4.1: Exclude user from post visibility
         Route::post('/post/{post}/visibility/exclude', [\App\Http\Controllers\ForumController::class, 'excludeUser'])->name('visibility.exclude');
 
-        // Task 5.1: Export topic thread as PDF
-        Route::get('/{topic}/export-pdf', [\App\Http\Controllers\ForumController::class, 'exportPDF'])->name('export-pdf');
+        // Task 5.1: Export topic thread as PDF (throttled: 5 requests/minute to prevent DoS)
+        Route::get('/{topic}/export-pdf', [
+            \App\Http\Controllers\ForumController::class, 'exportPDF'
+        ])->middleware('throttle:5,1')->name('export-pdf');
     });
 });
 
