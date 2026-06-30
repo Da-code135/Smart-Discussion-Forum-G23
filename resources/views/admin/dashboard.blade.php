@@ -48,6 +48,11 @@
                 📁 Group Management
             </a>
 
+            {{-- Moderation Panel - All admins --}}
+            <a href="{{ route('admin.moderation.index') }}" class="link-btn">
+                🛡️ Moderation Panel
+            </a>
+
             {{-- Audit Logs - All admins --}}
             <a href="{{ route('admin.audit-logs.index') }}" class="link-btn">
                 📋 Audit Logs
