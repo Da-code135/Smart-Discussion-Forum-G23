@@ -246,6 +246,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         return view('admin.dashboard');
     })->name('dashboard');
 
+    // Moderation Panel - All admins (group-scoped in controller queries)
+    Route::get('/moderation', [\App\Http\Controllers\Admin\ModerationController::class, 'index'])
+        ->name('moderation.index');
+    Route::post('/moderation/{post}/remove', [\App\Http\Controllers\Admin\ModerationController::class, 'removePost'])
+        ->name('moderation.remove');
+    Route::post('/moderation/{post}/ignore', [\App\Http\Controllers\Admin\ModerationController::class, 'ignoreReport'])
+        ->name('moderation.ignore');
+
     // Audit Logs - All admins
     Route::get('/audit-logs', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])
         ->name('audit-logs.index');
