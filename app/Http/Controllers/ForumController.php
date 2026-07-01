@@ -180,6 +180,8 @@ class ForumController extends Controller
      *
      * Allow the post author to exclude specific users from seeing their post.
      * This creates a record in the post_visibility table to hide the post from the excluded user.
+     * 
+     * Security: Users can only exclude others in their own group
      */
     public function excludeUser(Request $request, Post $post)
     {
@@ -188,9 +190,18 @@ class ForumController extends Controller
             abort(403, 'Only the post author can exclude users.');
         }
 
+        // Validate the user_id input
         $request->validate([
             'user_id' => 'required|exists:users,id'
         ]);
+
+        // Get the user to be excluded
+        $userToExclude = User::findOrFail($request->user_id);
+
+        // Ensure the user being excluded belongs to the same group as the post author
+        if ($userToExclude->group_id !== Auth::user()->group_id) {
+            abort(403, 'You can only exclude users in your own group.');
+        }
 
         // Check if rule already exists
         $existing = PostVisibility::where('post_id', $post->id)
