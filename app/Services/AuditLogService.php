@@ -82,6 +82,7 @@ class AuditLogService
             'system.config.updated' => "{$userName} updated system configuration",
             'admin.ip.added' => "{$userName} added IP to whitelist",
             'admin.ip.removed' => "{$userName} removed IP from whitelist",
+            'topic.exported' => "{$userName} exported a topic as PDF",
         ];
 
         return $descriptions[$action] ?? "{$userName} performed {$action}";

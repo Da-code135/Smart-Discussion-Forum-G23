@@ -15,11 +15,13 @@ class Post extends Model
         'user_id',
         'content',
         'is_removed',
+        'is_reported',
         'category_id',
     ];
 
     protected $casts = [
         'is_removed' => 'boolean',
+        'is_reported' => 'boolean',
     ];
 
     /**
@@ -79,5 +81,21 @@ class Post extends Model
     public function scopeRemoved($query)
     {
         return $query->where('is_removed', true);
+    }
+
+    /**
+     * Scope: only posts flagged for moderation review.
+     */
+    public function scopeReported($query)
+    {
+        return $query->where('is_reported', true);
+    }
+
+    /**
+     * Moderation actions taken on this post.
+     */
+    public function moderationLogs()
+    {
+        return $this->hasMany(ModerationLog::class);
     }
 }

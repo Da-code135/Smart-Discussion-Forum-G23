@@ -4,7 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Topic;
 use App\Models\Post;
+use App\Models\PostVisibility;
+use App\Models\User;
+use App\Services\AuditLogService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ForumController extends Controller
 {
@@ -21,7 +26,7 @@ class ForumController extends Controller
      */
     public function index()//this fetches all topics from the user's group and displays them in a list
     {
-        $topics = Topic::where('group_id', auth()->user()->group_id)
+        $topics = Topic::where('group_id', Auth::user()->group_id)
                         ->where('status', 'active')
                         ->with('creator')           // Eager load creator (avoids N+1)
                         ->withCount('posts')        // Add posts_count column
@@ -67,8 +72,8 @@ class ForumController extends Controller
             'title'       => $request->title,
             'description' => $request->description,
             'post_type'   => $request->post_type ?? 'discussion',
-            'created_by'  => auth()->id(),
-            'group_id'    => auth()->user()->group_id,   // Critical: scoped to user's group
+            'created_by'  => Auth::id(),
+            'group_id'    => Auth::user()->group_id,   // Critical: scoped to user's group
             'status'      => 'active',
         ]);
 
@@ -95,7 +100,7 @@ class ForumController extends Controller
     public function show(Topic $topic)
     {
         // === GROUP ISOLATION CHECK (Defense in depth) ===
-        if ($topic->group_id !== auth()->user()->group_id) {
+        if ($topic->group_id !== Auth::user()->group_id) {
             abort(403, 'You do not have access to this topic.');
         }
 
@@ -107,12 +112,18 @@ class ForumController extends Controller
         //   4. Eager load the author to avoid N+1
         $topic->load(['posts' => function ($query) {
             $query->notRemoved()
-                  ->visibleToUser(auth()->id())
+                  ->visibleToUser(Auth::id())
                   ->orderBy('created_at', 'asc')
                   ->with('user');
         }]);
 
-        return view('forum.show', compact('topic'));
+        // Pre-load users eligible for exclusion (same group, not current user)
+        // to avoid N+1 queries inside the Blade loop
+        $excludableUsers = User::where('group_id', Auth::user()->group_id)
+            ->where('id', '!=', Auth::id())
+            ->get();
+
+        return view('forum.show', compact('topic', 'excludableUsers'));
     }
 
     /**
@@ -134,7 +145,7 @@ class ForumController extends Controller
     public function replyStore(Request $request, Topic $topic)
     {
         // === GROUP ISOLATION CHECK ===
-        if ($topic->group_id !== auth()->user()->group_id) {
+        if ($topic->group_id !== Auth::user()->group_id) {
             abort(403, 'You do not have access to this topic.');
         }
 
@@ -149,11 +160,95 @@ class ForumController extends Controller
 
         Post::create([
             'topic_id' => $topic->id,
-            'user_id'  => auth()->id(),
+            'user_id'  => Auth::id(),
             'content'  => $request->content,
         ]);
 
         return redirect()->route('forum.show', $topic->id)
                          ->with('success', 'Reply posted successfully!');
+    }
+
+    /**
+     * ============================================
+     * Task 4.1 — Exclude User from Post Visibility
+     * ============================================
+     *
+     * Allow the post author to exclude specific users from seeing their post.
+     * This creates a record in the post_visibility table to hide the post from the excluded user.
+     */
+    public function excludeUser(Request $request, Post $post)
+    {
+        // Only the post author can exclude users
+        if ($post->user_id !== Auth::id()) {
+            abort(403, 'Only the post author can exclude users.');
+        }
+
+        $request->validate([
+            'user_id' => 'required|exists:users,id'
+        ]);
+
+        // Check if rule already exists
+        $existing = PostVisibility::where('post_id', $post->id)
+                                  ->where('excluded_user_id', $request->user_id)
+                                  ->first();
+
+        if (!$existing) {
+            PostVisibility::create([
+                'post_id' => $post->id,
+                'excluded_user_id' => $request->user_id,
+            ]);
+        }
+
+        return redirect()->back()->with([
+            'success' => 'User excluded from this post.',
+            'post_id' => $post->id
+        ]);
+    }
+
+    /**
+     * ============================================
+     * Task 5.1 — Export Topic Thread as PDF
+     * ============================================
+     *
+     * Generate a formatted PDF of the topic thread including the opening
+     * post (topic description) and all visible replies.
+     *
+     * Security:
+     *   1. Group isolation check — topic must belong to user's group
+     *   2. Visibility rules — excluded posts are filtered from the PDF
+     *   3. Moderation — removed posts are excluded
+     */
+    public function exportPDF(Topic $topic)
+    {
+        // === GROUP ISOLATION CHECK ===
+        if ($topic->group_id !== Auth::user()->group_id) {
+            abort(403, 'You do not have access to this topic.');
+        }
+
+        // Load visible, non-removed replies with their authors
+        $replies = Post::where('topic_id', $topic->id)
+            ->notRemoved()
+            ->visibleToUser(Auth::id())
+            ->with('user')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        // Load the topic creator and group for the PDF
+        $topic->load(['creator', 'group']);
+
+        // Log the export for audit trail
+        app(AuditLogService::class)->log(
+            action: 'topic.exported',
+            target: $topic,
+            newValues: ['format' => 'pdf'],
+            description: Auth::user()->full_name . ' exported topic "' . $topic->title . '" as PDF'
+        );
+
+        $pdf = Pdf::loadView('forum.export-pdf', [
+            'topic' => $topic,
+            'replies' => $replies,
+        ]);
+
+        return $pdf->download('topic-' . $topic->id . '.pdf');
     }
 }

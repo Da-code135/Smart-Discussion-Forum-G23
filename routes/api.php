@@ -12,6 +12,13 @@ use App\Http\Controllers\Api\Admin\AuditLogController as AdminAuditLogController
 use App\Http\Controllers\Api\Admin\IpWhitelistController as AdminIpWhitelistController;
 use App\Http\Controllers\Api\Admin\BulkOperationController;
 use App\Http\Controllers\Api\Admin\SearchController;
+use App\Http\Controllers\Api\TopicController;
+use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\PostVisibilityController;
+use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\GroupBrowseController;
+use App\Http\Controllers\Api\Admin\WarningController;
+use App\Http\Controllers\Api\Admin\BlacklistController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -124,6 +131,41 @@ Route::prefix('v1')->group(function () {
             Route::post('/email/resend', [EmailVerificationController::class, 'resend']);
 
             // ============================================
+            // FORUM ROUTES (Topics & Posts)
+            // ============================================
+
+            // Topics
+            Route::get('/topics', [TopicController::class, 'index']);              // T1: List topics
+            Route::get('/topics/type/{type}', [TopicController::class, 'byType']); // T7: Filter by type
+            Route::post('/topics', [TopicController::class, 'store']);             // T3: Create topic
+            Route::get('/topics/{topicId}', [TopicController::class, 'show']);     // T2: Topic detail
+            Route::put('/topics/{topicId}', [TopicController::class, 'update']);   // T4: Update topic
+            Route::delete('/topics/{topicId}', [TopicController::class, 'destroy']);// T5: Archive topic
+
+            // Posts within topics
+            Route::get('/topics/{topicId}/posts', [TopicController::class, 'posts']); // T6: List posts
+            Route::post('/topics/{topicId}/posts', [PostController::class, 'store']); // P1: Create reply
+
+            // Standalone post operations
+            Route::put('/posts/{postId}', [PostController::class, 'update']);     // P2: Update post
+            Route::delete('/posts/{postId}', [PostController::class, 'destroy']); // P3: Delete post
+
+            // Post Visibility (P5-P7)
+            Route::get('/posts/{postId}/visibility', [PostVisibilityController::class, 'index']);          // P7: List excluded users
+            Route::post('/posts/{postId}/visibility/exclude', [PostVisibilityController::class, 'exclude']); // P5: Exclude user
+            Route::delete('/posts/{postId}/visibility/{userId}', [PostVisibilityController::class, 'removeExclusion']); // P6: Remove exclusion
+
+            // Categories (C1-C2: User-facing, group-scoped)
+            Route::get('/categories', [CategoryController::class, 'index']);              // C1: List categories
+            Route::get('/categories/{categoryId}/topics', [CategoryController::class, 'topics']); // C2: Topics in category
+
+            // Group Browsing (G1-G4: User-facing, group isolation enforced)
+            Route::get('/groups', [GroupBrowseController::class, 'index']);               // G1: List my groups
+            Route::get('/groups/{groupId}', [GroupBrowseController::class, 'show']);      // G2: Group detail
+            Route::get('/groups/{groupId}/topics', [GroupBrowseController::class, 'topics']);  // G3: Group topics
+            Route::get('/groups/{groupId}/members', [GroupBrowseController::class, 'members']); // G4: Group members
+
+            // ============================================
             // ADMIN ROUTES (Admin access required)
             // ============================================
 
@@ -137,6 +179,22 @@ Route::prefix('v1')->group(function () {
                 
                 // User role management (System Admin only - enforced in controller)
                 Route::post('/users/{userId}/change-role', [AdminUserController::class, 'changeRole']);
+
+                // Warning Management (W1-W4, All admins, group-scoped)
+                Route::get('/warnings', [WarningController::class, 'index']);                    // W1: List warnings
+                Route::get('/warnings/{warningId}', [WarningController::class, 'show']);         // W2: Show warning
+                Route::post('/users/{userId}/warnings', [WarningController::class, 'store']);    // W3: Issue warning
+                Route::post('/warnings/{warningId}/resolve', [WarningController::class, 'resolve']); // W4: Resolve warning
+
+                // Blacklist Management (W5-W7, All admins, group-scoped)
+                Route::get('/blacklist-records', [BlacklistController::class, 'index']);              // W5: List blacklist records
+                Route::post('/users/{userId}/blacklist', [BlacklistController::class, 'store']);      // W6: Blacklist user
+                Route::post('/blacklist-records/{recordId}/lift', [BlacklistController::class, 'lift']); // W7: Lift blacklist
+
+                // Category Management (C3-C5: Admin only)
+                Route::post('/categories', [CategoryController::class, 'store']);                 // C3: Create category
+                Route::put('/categories/{categoryId}', [CategoryController::class, 'update']);    // C4: Update category
+                Route::delete('/categories/{categoryId}', [CategoryController::class, 'destroy']); // C5: Delete category
 
                 // Group Management (All admins can view, actions enforced by policies)
                 Route::get('/groups', [AdminGroupController::class, 'index']);

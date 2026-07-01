@@ -56,6 +56,14 @@ Route::middleware('auth')->group(function () {
         // Task 2b.1 & 2b.2: Topic detail with replies & reply form
         Route::get('/{topic}', [\App\Http\Controllers\ForumController::class, 'show'])->name('show');
         Route::post('/{topic}/reply', [\App\Http\Controllers\ForumController::class, 'replyStore'])->name('reply.store');
+        
+        // Task 4.1: Exclude user from post visibility
+        Route::post('/post/{post}/visibility/exclude', [\App\Http\Controllers\ForumController::class, 'excludeUser'])->name('visibility.exclude');
+
+        // Task 5.1: Export topic thread as PDF (throttled: 5 requests/minute to prevent DoS)
+        Route::get('/{topic}/export-pdf', [
+            \App\Http\Controllers\ForumController::class, 'exportPDF'
+        ])->middleware('throttle:5,1')->name('export-pdf');
     });
 });
 
@@ -245,6 +253,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/dashboard', function () {
         return view('admin.dashboard');
     })->name('dashboard');
+
+    // Moderation Panel - All admins (group-scoped in controller queries)
+    Route::get('/moderation', [\App\Http\Controllers\Admin\ModerationController::class, 'index'])
+        ->name('moderation.index');
+    Route::post('/moderation/{post}/remove', [\App\Http\Controllers\Admin\ModerationController::class, 'removePost'])
+        ->name('moderation.remove');
+    Route::post('/moderation/{post}/ignore', [\App\Http\Controllers\Admin\ModerationController::class, 'ignoreReport'])
+        ->name('moderation.ignore');
 
     // Audit Logs - All admins
     Route::get('/audit-logs', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])
