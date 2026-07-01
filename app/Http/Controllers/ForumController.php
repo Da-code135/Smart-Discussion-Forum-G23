@@ -26,14 +26,14 @@ class ForumController extends Controller
      */
     public function index()//this fetches all topics from the user's group and displays them in a list
     {
-        $topics = Topic::where('group_id', Auth::user()->group_id)
-                        ->where('status', 'active')
-                        ->with('creator')           // Eager load creator (avoids N+1)
-                        ->withCount('posts')        // Add posts_count column
-                        ->latest()
-                        ->paginate(10);
+        $topics = Topic::where('group_id', Auth::user()->group_id)//this queries the Topic model to fetch topics where groupId matches the logged-in user's group. This prevents cross-group data leaks
+                        ->where('status', 'active')//only show topics whose status is active
+                        ->with('creator') // Eager load creator (avoids N+1) -> this line tells laravel "When you fetch the topics, also fetch the creator (user) for each topic"
+                        ->withCount('posts')// // Add posts_count property (total replies) without extra database queries> Adds a count of related records to each topic
+                        ->latest()//Sorts the results by the created_at column in descending order (newest first) It's a shortcut for ->orderBy('created_at', 'desc')
+                        ->paginate(10);//Split the results into pages of 10 items each
 
-        return view('forum.index', compact('topics'));
+        return view('forum.index', compact('topics')); //compact passes data to the template compact('topics') is shorthand for ['topics' => $topics] It takes the variable $topics and makes it available in the view
     }
 
     /**
