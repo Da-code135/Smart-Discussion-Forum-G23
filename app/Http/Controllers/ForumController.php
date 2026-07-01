@@ -63,7 +63,7 @@ class ForumController extends Controller
     public function store(Request $request)//validates the from data, saves the topic to the database, and redirects to the forum feed
     {
         $request->validate([
-            'title'       => 'required|max:255|unique:topics,title',
+            'title' => 'required|max:255|unique:topics,title,NULL,id,group_id,' . auth()->user()->group_id,/*"Check the topics table. The title column must be unique, BUT only check rows where group_id equals [current user's group_id]."*/
             'description' => 'required|string|max:10000',
             'post_type'   => 'sometimes|in:discussion,question',//sometimes means the field is optional and validation can pass without it being submitted
         ]);                                                     //in:discussion,question means the value must be on of these two
