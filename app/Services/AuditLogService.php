@@ -25,7 +25,7 @@ class AuditLogService
         array $oldValues = [],
         array $newValues = [],
         string $description = '',
-        int $userId = null
+        ?int $userId = null
     ): AuditLog
     {
         $request = request();
@@ -312,7 +312,7 @@ class AuditLogService
     /**
      * Get recent audit logs
      */
-    public function getRecentLogs(int $limit = 50, string $action = null)
+    public function getRecentLogs(int $limit = 50, ?string $action = null)
     {
         $query = AuditLog::with('user')->latest();
 

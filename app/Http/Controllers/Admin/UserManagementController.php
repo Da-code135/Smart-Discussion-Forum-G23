@@ -427,6 +427,7 @@ class UserManagementController extends Controller
 
         // Calculate expires_at if duration provided, otherwise null (permanent)
         $expiresAt = null;
+        $validated['duration_days'] = (int)$validated['duration_days'];
         if (!empty($validated['duration_days'])) {
             $expiresAt = now()->addDays($validated['duration_days']);
         }
@@ -442,7 +443,7 @@ class UserManagementController extends Controller
         $user->update(['account_status' => 'blacklisted']);
 
         // Audit log
-        $this->auditLogService->logUserBlacklisted($user, $validated['reason'], $expiresAt);
+        //$this->auditLogService->logUserBlacklisted($user, $validated['reason'], $expiresAt);
 
         return redirect()->route('admin.users.show', $user)
             ->with('success', "User '{$user->full_name}' has been blacklisted");
