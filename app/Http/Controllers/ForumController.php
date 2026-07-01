@@ -117,6 +117,8 @@ class ForumController extends Controller
                   ->with('user'); //this means "When loading posts, also load the related users immediately."
         }, 'group']);//this eager loads the group, which is later accessed in the blade
 
+        //Eager loading = "Load related data upfront, in the controller, before the view runs."
+
         // Pre-load users eligible for exclusion (same group, not current user)
         // to avoid N+1 queries inside the Blade loop
         $excludableUsers = User::where('group_id', Auth::user()->group_id)
