@@ -60,7 +60,7 @@ class ForumController extends Controller
      * Security: group_id is taken from auth()->user() — the user cannot
      * override it via the form payload. This prevents cross-group topic creation.
      */
-    public function store(Request $request)
+    public function store(Request $request)//validates the from data, saves the topic to the database, and redirects to the forum feed
     {
         $request->validate([
             'title'       => 'required|max:255|unique:topics,title',
