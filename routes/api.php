@@ -31,8 +31,8 @@ use Illuminate\Support\Facades\Route;
 | Rate limited to 60 requests per minute
 |
 */
-
-Route::prefix('v1')->group(function () {
+$API_VERSION = 'v1';
+Route::prefix($API_VERSION)->group(function () {
 
     // Apply security headers to all API routes
     Route::middleware('api.security')->group(function () {
@@ -170,13 +170,13 @@ Route::prefix('v1')->group(function () {
             // ============================================
 
             Route::prefix('admin')->middleware('admin')->group(function () {
-                
+
                 // User Management (All admins)
                 Route::get('/users', [AdminUserController::class, 'index']);
                 Route::get('/users/{userId}', [AdminUserController::class, 'show']);
                 Route::post('/users/{userId}/lift-blacklist', [AdminUserController::class, 'liftBlacklist']);
                 Route::post('/users/{userId}/warn', [AdminUserController::class, 'warn']);
-                
+
                 // User role management (System Admin only - enforced in controller)
                 Route::post('/users/{userId}/change-role', [AdminUserController::class, 'changeRole']);
 
@@ -201,12 +201,12 @@ Route::prefix('v1')->group(function () {
                 Route::get('/groups/{groupId}', [AdminGroupController::class, 'show']);
                 Route::get('/groups/{groupId}/members', [AdminGroupController::class, 'showMembers']);
                 Route::put('/groups/{groupId}/members', [AdminGroupController::class, 'updateMembers']);
-                
+
                 // Group CRUD (System Admin only for create/delete)
                 Route::post('/groups', [AdminGroupController::class, 'store']);
                 Route::put('/groups/{groupId}', [AdminGroupController::class, 'update']);
                 Route::delete('/groups/{groupId}', [AdminGroupController::class, 'destroy']);
-                
+
                 // Group admin management (System Admin only)
                 Route::post('/groups/{groupId}/admins', [AdminGroupController::class, 'addAdmin']);
                 Route::delete('/groups/{groupId}/admins/{userId}', [AdminGroupController::class, 'removeAdmin']);
