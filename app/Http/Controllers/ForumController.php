@@ -113,7 +113,7 @@ class ForumController extends Controller
         $topic->load(['posts' => function ($query) {
             $query->notRemoved()
                   ->visibleToUser(Auth::id())
-                  ->orderBy('created_at', 'asc')
+                  ->orderBy('created_at', 'asc')//will list the replies in order of creation, newest appears at the bottom
                   ->with('user'); //this means "When loading posts, also load the related users immediately."
         }]);
 
