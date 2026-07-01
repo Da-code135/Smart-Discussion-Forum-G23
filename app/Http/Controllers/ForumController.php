@@ -19,7 +19,7 @@ class ForumController extends Controller
      * Security: group_id is hard-filtered so topics from other groups
      * never leak into this view (defense in depth).
      */
-    public function index()
+    public function index()//this fetches all topics from the user's group and displays them in a list
     {
         $topics = Topic::where('group_id', auth()->user()->group_id)
                         ->where('status', 'active')
