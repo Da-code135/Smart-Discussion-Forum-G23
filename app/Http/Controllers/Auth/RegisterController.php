@@ -117,7 +117,7 @@ class RegisterController extends Controller
 
         // Look up role and group by name (dynamic, not hardcoded)
         $role = Role::where('role_name', 'Member')->first();
-        $group = Group::where('group_name', 'Default Group')->first();
+        $group = Group::where('group_name', 'General')->first();
 
         if (!$role || !$group) {
             return redirect()->route('register')
