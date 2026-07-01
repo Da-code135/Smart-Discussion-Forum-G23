@@ -51,11 +51,11 @@
             <span class="material-symbols-outlined" style="font-size: 3rem; color: var(--secondary); opacity: 0.5;">forum</span>
             <h3 style="margin: 1rem 0 0.5rem;">No topics yet</h3>
             <p style="color: rgba(88, 103, 75, 0.7); margin: 0 0 1.5rem;">
-                Be the first to start a discussion in your group!
+                Click the link below to create a new topic!
             </p>
             <a href="{{ route('forum.create') }}" class="btn btn-primary">
                 <span class="material-symbols-outlined" style="font-size: 1.25rem;">add</span>
-                Create Your First Topic
+                Create Your First Topic here!
             </a>
         </div>
     @endforelse
