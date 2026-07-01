@@ -100,7 +100,7 @@ class ForumController extends Controller
     public function show(Topic $topic)
     {
         // === GROUP ISOLATION CHECK (Defense in depth) ===
-        if ($topic->group_id !== Auth::user()->group_id) {
+        if ($topic->group_id !== Auth::user()->group_id) {//checks whether the groupId for the topic is the same as that for the logged in user
             abort(403, 'You do not have access to this topic.');
         }
 
@@ -114,7 +114,7 @@ class ForumController extends Controller
             $query->notRemoved()
                   ->visibleToUser(Auth::id())
                   ->orderBy('created_at', 'asc')
-                  ->with('user');
+                  ->with('user'); //this means "When loading posts, also load the related users immediately."
         }]);
 
         // Pre-load users eligible for exclusion (same group, not current user)
@@ -123,7 +123,12 @@ class ForumController extends Controller
             ->where('id', '!=', Auth::id())
             ->get();
 
-        return view('forum.show', compact('topic', 'excludableUsers'));
+        /*Get all users in the same group as the logged-in user,
+           excluding the logged-in user themselves.
+           These users will be displayed as options that the author
+           can choose to exclude from viewing individual posts.*/
+
+        return view('forum.show', compact('topic', 'excludableUsers'));//this just makes the topic and excludableUsers available in the blade template
     }
 
     /**
