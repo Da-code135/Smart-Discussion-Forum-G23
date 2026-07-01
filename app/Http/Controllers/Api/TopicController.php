@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Post;
 use App\Models\Topic;
 use App\Services\AuditLogService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class TopicController extends Controller
@@ -294,6 +296,175 @@ class TopicController extends Controller
 
         return response()->json([
             'data' => $topics,
+        ], 200);
+    }
+
+    /**
+     * E1: Export a topic thread as a formatted PDF.
+     *
+     * GET /api/v1/topics/{topicId}/export/pdf
+     *
+     * Generates a PDF containing the topic opening post and all visible,
+     * non-removed replies. Enforces group isolation, visibility rules,
+     * and moderation filtering. Logs the export to the audit trail.
+     */
+    public function exportPDF(Request $request, int $topicId, AuditLogService $auditLog)
+    {
+        $user = $request->user();
+
+        $topic = Topic::with(['creator', 'group'])->findOrFail($topicId);
+
+        // Group isolation check
+        if ($topic->group_id !== $user->group_id) {
+            return response()->json([
+                'message' => 'You do not have access to this topic.',
+            ], 403);
+        }
+
+        // Load visible, non-removed replies with their authors
+        $replies = Post::where('topic_id', $topic->id)
+            ->notRemoved()
+            ->visibleToUser($user->id)
+            ->with('user')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        // Log the export for audit trail
+        $auditLog->log(
+            action: 'topic.exported',
+            target: $topic,
+            newValues: ['format' => 'pdf'],
+            description: $user->full_name . ' exported topic "' . $topic->title . '" as PDF'
+        );
+
+        $pdf = Pdf::loadView('forum.export-pdf', [
+            'topic' => $topic,
+            'replies' => $replies,
+        ]);
+
+        return $pdf->download('topic-' . $topic->id . '.pdf');
+    }
+
+    /**
+     * E2: Generate a time-limited signed URL for topic access.
+     *
+     * POST /api/v1/topics/{topicId}/share
+     *
+     * Creates a temporary signed URL that allows anyone with the link
+     * to view the topic for a limited time (default 24 hours).
+     * Enforces group isolation — only members of the topic's group
+     * can generate share links.
+     *
+     * Request body (optional):
+     *   - expires_in: int (minutes, default 1440 = 24h, max 10080 = 7 days)
+     */
+    public function share(Request $request, int $topicId, AuditLogService $auditLog)
+    {
+        $user = $request->user();
+
+        $topic = Topic::findOrFail($topicId);
+
+        // Group isolation check
+        if ($topic->group_id !== $user->group_id) {
+            return response()->json([
+                'message' => 'You do not have access to this topic.',
+            ], 403);
+        }
+
+        // Only active topics can be shared
+        if ($topic->status !== 'active') {
+            return response()->json([
+                'message' => 'Only active topics can be shared.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'expires_in' => 'sometimes|integer|min:1|max:10080',
+        ]);
+
+        $expiresInMinutes = $validated['expires_in'] ?? 1440; // default 24 hours
+
+        // Generate a temporary signed route URL pointing to the topic show endpoint
+        $signedUrl = \URL::temporarySignedRoute(
+            'topics.share.access', // named route for share access
+            now()->addMinutes($expiresInMinutes),
+            ['topicId' => $topic->id]
+        );
+
+        // Log the share generation
+        $auditLog->log(
+            action: 'topic.shared',
+            target: $topic,
+            newValues: [
+                'expires_in_minutes' => $expiresInMinutes,
+                'expires_at' => now()->addMinutes($expiresInMinutes)->toIso8601String(),
+            ],
+            description: $user->full_name . ' generated a share link for topic "' . $topic->title . '"'
+        );
+
+        return response()->json([
+            'message' => 'Share link generated successfully.',
+            'data' => [
+                'url' => $signedUrl,
+                'expires_at' => now()->addMinutes($expiresInMinutes)->toIso8601String(),
+                'expires_in_minutes' => $expiresInMinutes,
+            ],
+        ], 201);
+    }
+
+    /**
+     * Access a topic via a signed share URL (no authentication required).
+     *
+     * GET /api/v1/topics/{topicId}/shared
+     *
+     * Validates the temporary signed URL signature. If valid, returns
+     * the topic with its visible, non-removed posts. No group isolation
+     * check — the signed URL itself is the authorization.
+     */
+    public function sharedAccess(Request $request, int $topicId)
+    {
+        // Validate the signed URL signature (Laravel handles this via middleware)
+        if (!$request->hasValidSignature()) {
+            return response()->json([
+                'message' => 'Invalid or expired share link.',
+            ], 403);
+        }
+
+        $topic = Topic::with('creator')->findOrFail($topicId);
+
+        // Only active topics accessible via share links
+        if ($topic->status !== 'active') {
+            return response()->json([
+                'message' => 'This topic is no longer available.',
+            ], 410);
+        }
+
+        // Load visible, non-removed replies with authors
+        $posts = $topic->posts()
+            ->notRemoved()
+            ->with('user')
+            ->orderBy('created_at', 'asc')
+            ->paginate(20);
+
+        return response()->json([
+            'data' => [
+                'topic' => [
+                    'id' => $topic->id,
+                    'title' => $topic->title,
+                    'description' => $topic->description,
+                    'status' => $topic->status,
+                    'post_type' => $topic->post_type,
+                    'group_id' => $topic->group_id,
+                    'creator' => $topic->creator ? [
+                        'id' => $topic->creator->id,
+                        'full_name' => $topic->creator->full_name,
+                    ] : null,
+                    'posts_count' => $posts->total(),
+                    'created_at' => $topic->created_at,
+                    'updated_at' => $topic->updated_at,
+                ],
+                'posts' => $posts,
+            ],
         ], 200);
     }
 }

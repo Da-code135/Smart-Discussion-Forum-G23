@@ -142,6 +142,15 @@ Route::prefix($API_VERSION)->group(function () {
             Route::put('/topics/{topicId}', [TopicController::class, 'update']);   // T4: Update topic
             Route::delete('/topics/{topicId}', [TopicController::class, 'destroy']);// T5: Archive topic
 
+            // Topic Export & Share (E1-E2)
+            Route::get('/topics/{topicId}/export/pdf', [TopicController::class, 'exportPDF']); // E1: Export topic as PDF
+            Route::post('/topics/{topicId}/share', [TopicController::class, 'share']);         // E2: Generate share link
+
+            // Share access (no auth required — validated via signed URL)
+            Route::get('/topics/{topicId}/shared', [TopicController::class, 'sharedAccess'])
+                ->name('topics.share.access')
+                ->withoutMiddleware('auth:sanctum');
+
             // Posts within topics
             Route::get('/topics/{topicId}/posts', [TopicController::class, 'posts']); // T6: List posts
             Route::post('/topics/{topicId}/posts', [PostController::class, 'store']); // P1: Create reply
