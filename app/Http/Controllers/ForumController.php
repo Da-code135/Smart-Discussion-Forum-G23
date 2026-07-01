@@ -65,14 +65,14 @@ class ForumController extends Controller
         $request->validate([
             'title'       => 'required|max:255|unique:topics,title',
             'description' => 'required|string|max:10000',
-            'post_type'   => 'sometimes|in:discussion,question',
-        ]);
+            'post_type'   => 'sometimes|in:discussion,question',//sometimes means the field is optional and validation can pass without it being submitted
+        ]);                                                     //in:discussion,question means the value must be on of these two
 
         Topic::create([
             'title'       => $request->title,
             'description' => $request->description,
             'post_type'   => $request->post_type ?? 'discussion',
-            'created_by'  => Auth::id(),
+            'created_by'  => Auth::id(), //sets the creator to the logged in user's ID
             'group_id'    => Auth::user()->group_id,   // Critical: scoped to user's group
             'status'      => 'active',
         ]);
