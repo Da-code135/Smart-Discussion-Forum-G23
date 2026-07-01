@@ -47,7 +47,7 @@ Route::middleware('auth')->group(function () {
     // FORUM ROUTES (Task 2a — Topic creation & feed; Task 2b — Topic detail & replies)
     // ============================================
 
-    Route::prefix('forum')->name('forum.')->group(function () {
+    Route::prefix('forum')->name('forum.')->group(function () {//prefix('forum') prepends the name forum to all urls inside the group and name prepends forum to all route names
         // Task 2a.2 & 2a.3: Create topic form, store, and feed
         Route::get('/', [\App\Http\Controllers\ForumController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\ForumController::class, 'create'])->name('create');
