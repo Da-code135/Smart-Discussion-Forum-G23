@@ -63,7 +63,7 @@
 
 ### What Is the Smart Discussion Forum?
 
-The Smart Discussion Forum is a web-based academic platform built with Laravel. It serves two interfaces: a browser-based web application for students and administrators, and a RESTful API (versioned under `/api/v1/`) for a companion desktop client. Both interfaces share the same user database but use different authentication mechanisms — sessions for the web, Laravel Sanctum tokens for the API.
+The Smart Discussion Forum is a Laravel-based academic discussion platform. It serves two interfaces: a browser-based web application for students and administrators, and a RESTful API (versioned under `/api/v1/`) for a companion desktop client. Both interfaces share the same user database but use different authentication mechanisms — sessions for the web, Laravel Sanctum tokens for the API. Some web routes such as `/groups` and `/verify-email` are registered at the top level of `routes/web.php`, so this documentation calls out both route-group protection and controller-level authorization where relevant.
 
 ### Core Purpose
 
@@ -75,9 +75,9 @@ The system defines five roles arranged in a hierarchy:
 
 - **System Administrator** (id=1) — Full system-wide access: manage all users, all groups, system configuration, and IP whitelists.
 - **Group Administrator** (id=2) — Can view and manage only the groups assigned to them via a pivot table (`group_admins`). Can edit groups, manage members, and view users within their scope.
-- **Student** (id=3) — Access to quiz attempts, discussion features, and performance reports.
-- **Lecturer** (id=4) — Access to quiz configuration, participation marking criteria, and discussion features.
-- **Member** (id=5) — Default role assigned during registration. Access to discussion features, topic filtering, PDF export, and social media forwarding.
+- **Student** (id=3) — Standard authenticated forum user with access to discussion features within their group.
+- **Lecturer** (id=4) — Standard authenticated forum user with access to discussion features within their group.
+- **Member** (id=5) — Default role assigned during registration. Access to discussion features, topic filtering, PDF export, and post visibility controls.
 
 ### Account Lifecycle
 
@@ -93,7 +93,7 @@ Registration uses a deliberate 3-step process:
 
 1. The user fills out a registration form (name, email, password).
 2. Validated data is stored in the session (no database write yet).
-3. The user must read and accept the platform rules on an onboarding page. Only then is the user record created (within a `DB::transaction`), assigned the `Member` role and `Default Group`, and auto-logged in. The session stores only the hashed password (never plaintext).
+3. The user must read and accept the platform rules on an onboarding page. Only then is the user record created (within a `DB::transaction`), assigned the `Member` role and the `General` group, and auto-logged in. The session stores only the hashed password (never plaintext).
 
 Declining the rules discards the session data — no account is created.
 
@@ -109,7 +109,7 @@ Both systems enforce the same blacklist and warned gates — blacklisted users a
 
 Access control is enforced at three levels:
 
-1. **Route middleware** — `auth`, `admin`, `system-admin`, and `can-admin-group` middleware in `bootstrap/app.php` and `routes/web.php` block unauthorised requests before they reach the controller.
+1. **Route middleware** — `auth`, `admin`, `system-admin`, and `can-admin-group` middleware in `bootstrap/app.php` and `routes/web.php` block unauthorised requests before they reach the controller. A few top-level web routes are intentionally defined outside the main admin/auth route groups, so those endpoints rely on controller or policy checks as an additional safeguard.
 2. **Policy checks** — The `GroupPolicy` at `app/Policies/GroupPolicy.php` governs who can create, edit, delete, and manage members of each group. Controllers invoke these via `Gate::allows()`.
 3. **Model helpers** — Methods on the `User` model (`isSystemAdmin()`, `isGroupAdmin()`, `isAdmin()`, `canAdminGroup()`, `canAdminUser()`) provide reusable authorization logic that both middleware and policies delegate to.
 
@@ -148,18 +148,18 @@ Thresholds are stored in the `system_configs` table and cached via the `SystemCo
 
 | Directory | Contents |
 |-----------|----------|
-| `app/Models/` | 10 Eloquent models: User, Role, Group, Warning, BlacklistRecord, OnboardingAgreement, EmailVerificationToken, SystemConfig, AuditLog, AdminIpWhitelist |
-| `app/Http/Controllers/Auth/` | 6 controllers: Login, Register, Password, EmailVerification, WarningAcknowledgement, Profile |
-| `app/Http/Controllers/Admin/` | 5 controllers: UserManagement, GroupController, SystemConfigController, AuditLogController, IpWhitelistController |
-| `app/Http/Controllers/Api/` | API controllers for the desktop client (AuthController, UserController, ProfileController, PasswordController, EmailVerificationController) |
-| `app/Http/Middleware/` | 6 custom middleware: IsAdmin, IsSystemAdmin, IsGroupAdmin, CanAdminGroup, IpWhitelist, ApiSecurityHeaders |
+| `app/Models/` | 15 Eloquent models covering users, roles, groups, forum content, moderation, audit logs, and runtime config |
+| `app/Http/Controllers/Auth/` | Auth and onboarding controllers for web login, registration, profile, passwords, and email verification |
+| `app/Http/Controllers/Admin/` | Web admin controllers for users, groups, moderation, audit logs, IP whitelist, and system config |
+| `app/Http/Controllers/Api/` | API controllers for auth, profile, passwords, email verification, forum topics/posts, categories, groups, warnings, blacklist, bulk operations, search, audit logs, and more |
+| `app/Http/Middleware/` | Custom middleware for admin scoping, system-admin checks, group access, IP whitelist, and API security headers |
 | `app/Policies/` | GroupPolicy and UserPolicy for authorization |
-| `app/Console/Commands/` | MonitorMemberActivity artisan command |
-| `routes/` | `web.php` (294 lines, all web routes), `api.php` (201 lines, all API routes) |
-| `database/migrations/` | 20 migration files defining the schema |
-| `database/seeders/` | RoleSeeder (5 roles), GroupSeeder, SuperAdminSeeder, DatabaseSeeder |
-| `tests/Feature/` | 14 test files covering web, admin, API, and console features |
-| `resources/views/admin/users/` | 6 Blade templates: index, show, create, edit, reset-password, blacklist |
+| `app/Console/Commands/` | `MonitorMemberActivity` artisan command |
+| `routes/` | `web.php` and `api.php` route definitions for the web app and versioned API |
+| `database/migrations/` | Schema migrations for the forum, auth, moderation, config, and security features |
+| `database/seeders/` | Role, group, and super-admin seeders plus the database seed orchestrator |
+| `tests/Feature/` | Feature tests covering web, admin, API, and console flows |
+| `resources/views/admin/users/` | Blade templates for admin user management |
 | `bootstrap/app.php` | Middleware registration, route configuration, exception handling |
 
 ### Test Suite
@@ -294,8 +294,8 @@ The `RoleSeeder` at `database/seeders/RoleSeeder.php` (lines 14–53) seeds five
 |----|-----------|-------------|
 | 1 | System Administrator | Full system-wide access |
 | 2 | Group Administrator | Can manage assigned groups |
-| 3 | Student | Access to quiz attempts, discussion features |
-| 4 | Lecturer | Access to quiz configuration, discussion features |
+| 3 | Student | Access to discussion features within their group |
+| 4 | Lecturer | Access to discussion features within their group |
 | 5 | Member | Access to discussion features, topic filtering, PDF export |
 
 Using `updateOrInsert` with `id` as the lookup key ensures idempotent seeding — running the seeder multiple times will not create duplicates, and the IDs are deterministic so application code and tests can rely on them. The migrations `2026_06_28_000001` and `2026_06_28_000002` are simplified to no-ops; all role data is owned by the seeder.
@@ -318,11 +318,11 @@ The route at `routes/web.php` line 100 has `throttle:3,60` middleware, limiting 
 
 **Step 3 — Accept or decline onboarding.** The onboarding page at `resources/views/auth/onboarding.blade.php` (124 lines) displays the platform rules with a checkbox and Agree/Decline buttons. JavaScript disables the Agree button until the checkbox is checked.
 
-If the user agrees, POST to `/onboarding/agree` hits `agreeOnboarding()` at lines 107–163. This method: (1) retrieves the session data — if it's missing (expired or tampered), redirects back to register with an error; (2) looks up the `Member` role and `Default Group` by name from the database (not by hardcoded ID, which would be fragile); (3) wraps user creation and agreement creation in a `DB::transaction()` for data consistency — the `User` record is created with the pre-hashed password from the session, and an `OnboardingAgreement` record is created capturing the user's acceptance, IP address, and agreement version; (4) clears the session data; (5) auto-logs in the user via `Auth::login()`; (6) fires the `Registered` event (which triggers Laravel's email verification notification system); (7) sends a welcome email via `WelcomeMailable`; and (8) redirects to the dashboard with a success message.
+If the user agrees, POST to `/onboarding/agree` hits `agreeOnboarding()` at lines 107–163. This method: (1) retrieves the session data — if it's missing (expired or tampered), redirects back to register with an error; (2) looks up the `Member` role and `General` group by name from the database (not by hardcoded ID, which would be fragile); (3) wraps user creation and agreement creation in a `DB::transaction()` for data consistency — the `User` record is created with the pre-hashed password from the session, and an `OnboardingAgreement` record is created capturing the user's acceptance, IP address, and agreement version; (4) clears the session data; (5) auto-logs in the user via `Auth::login()`; (6) fires the `Registered` event (which triggers Laravel's email verification notification system); (7) sends a welcome email via `WelcomeMailable`; and (8) redirects to the dashboard with a success message.
 
 If the user declines, POST to `/onboarding/decline` hits `declineOnboarding()` at lines 174–180. The session data is cleared and the user is redirected back to the registration page. No user record or agreement record is created.
 
-**Database tables involved.** The `users` table stores the account. The `onboarding_agreements` table records the acceptance (with IP and version for legal audit). The `roles` and `groups` tables are pre-seeded reference data that provide the default `Member` role and `Default Group`.
+**Database tables involved.** The `users` table stores the account. The `onboarding_agreements` table records the acceptance (with IP and version for legal audit). The `roles` and `groups` tables are pre-seeded reference data that provide the default `Member` role and `General` group.
 
 ---
 
@@ -439,7 +439,7 @@ The application defines five roles in a hierarchy:
 - **System Administrator** (id=1) — highest privilege; full system-wide access to all features including user management, group management, system configuration, and IP whitelist management.
 - **Group Administrator** (id=2) — medium privilege; can view and manage only the specific groups assigned to them via the `group_admins` pivot table.
 - **Student** (id=3) — low privilege; regular user with full access to discussion features.
-- **Lecturer** (id=4) — low privilege; access to quiz configuration, participation marking criteria, and discussion features.
+- **Lecturer** (id=4) — low privilege; access to discussion features within their group.
 - **Member** (id=5) — low privilege; default registration role; access to discussion features, topic filtering, PDF export, and social media forwarding.
 
 The role-checking logic lives on the `User` model at `app/Models/User.php`:
@@ -564,7 +564,7 @@ API routes at `routes/api.php` use a two-layer approach. The outer `auth:sanctum
 | `test_onboarding_page_shows_rules` | GET /onboarding returns 200 with correct view |
 | `test_accepting_onboarding_creates_user_and_logs_in` | Agree → user in DB, agreement recorded, user authenticated |
 | `test_accepting_onboarding_assigns_default_role` | New user gets the Member role |
-| `test_accepting_onboarding_assigns_default_group` | New user gets Default Group |
+| `test_accepting_onboarding_assigns_default_group` | New user gets the `General` group |
 | `test_declining_onboarding_does_not_create_user` | Decline → no user in DB, redirects to register |
 | `test_onboarding_agree_fails_without_session_data` | No session data → redirects back to register |
 | `test_registration_is_rate_limited` | 3 registrations → 4th returns 429 |
@@ -742,14 +742,14 @@ API routes at `routes/api.php` use a two-layer approach. The outer `auth:sanctum
 
 | Test | What It Verifies |
 |------|-----------------|
-| `test_user_can_register_via_api` | Returns 201 with token; role is Member; group is Default Group |
+| `test_user_can_register_via_api` | Returns 201 with token; role is Member; group is `Default Group` |
 | `test_registration_requires_full_name` | Returns 422 |
 | `test_registration_requires_valid_email` | Returns 422 |
 | `test_registration_requires_unique_email` | Returns 422 |
 | `test_registration_requires_password_confirmation` | Returns 422 |
 | `test_registration_requires_strong_password` | Returns 422 |
 | `test_registration_assigns_member_role` | `role_id` matches Member |
-| `test_registration_assigns_default_group` | `group_id` matches Default Group |
+| `test_registration_assigns_default_group` | `group_id` matches `Default Group` |
 | `test_registration_creates_api_token` | 1 token exists in database |
 | `test_registration_fails_without_required_role` | Returns 500 with error message (deletes Member role) |
 | `test_registration_fails_without_required_group` | Returns 500 with error message |
@@ -864,7 +864,7 @@ The `UserManagementController` at `app/Http/Controllers/Admin/UserManagementCont
 
 **Delete group.** The `destroy()` method at lines 149–177 checks `Gate::allows('delete', $group)` — only System Admins pass. It also prevents deletion of the `'General'` group as a safety measure. Before soft-deleting, users in the group are reassigned to the `General` group (or the group with the lowest ID as a fallback) to prevent dangling foreign keys. The group is then soft-deleted (because the `Group` model uses `SoftDeletes`).
 
-**Update group members.** The `updateMembers()` method at lines 216–247 handles adding and removing users from a group. Users who are removed are not left without a group (which would violate the NOT NULL constraint on `users.group_id`) — they are reassigned to the `Default Group`. Users who are selected but not yet in the group are moved in. The `'General'` group cannot have all its members removed.
+**Update group members.** The `updateMembers()` method at lines 216–247 handles adding and removing users from a group. Users who are removed are not left without a group (which would violate the NOT NULL constraint on `users.group_id`) — they are reassigned to the `General` group. Users who are selected but not yet in the group are moved in. The `'General'` group cannot have all its members removed.
 
 **Bulk assign.** The `bulkAssign()` method at lines 252–269 is restricted to System Admins via an explicit `isSystemAdmin()` check. It takes an array of user IDs and a target group ID, and updates all selected users' `group_id` in a single query.
 

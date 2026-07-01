@@ -30,6 +30,33 @@ This document provides comprehensive documentation for the Smart Discussion Foru
      - [Email Verification](#post-apiv1emailverify)
      - [Resend Verification](#post-apiv1emailresend)
      - [Token Management](#token-management)
+   - [Forum Endpoints](#forum-endpoints)
+     - [Topics (T1-T7)](#topics)
+     - [Posts (P1-P3)](#posts)
+   - [Post Visibility Endpoints](#post-visibility-endpoints)
+     - [Exclude User (P5)](#post-apiv1postspostidvisibilityexclude)
+     - [Remove Exclusion (P6)](#delete-apiv1postspostidvisibilityuserid)
+     - [List Exclusions (P7)](#get-apiv1postspostidvisibility)
+   - [Category Endpoints](#category-endpoints)
+     - [List Categories (C1)](#get-apiv1categories)
+     - [Category Topics (C2)](#get-apiv1categoriescategoryidtopics)
+     - [Admin Category CRUD (C3-C5)](#admin-category-management)
+   - [Group Browsing Endpoints](#group-browsing-endpoints)
+     - [List Groups (G1)](#get-apiv1groups)
+     - [Show Group (G2)](#get-apiv1groupsgroupid)
+     - [Group Topics (G3)](#get-apiv1groupsgroupidtopics)
+     - [Group Members (G4)](#get-apiv1groupsgroupidmembers)
+   - [Admin Warning Management](#admin-warning-management)
+     - [List Warnings (W1)](#get-apiv1adminwarnings)
+     - [Show Warning (W2)](#get-apiv1adminwarningswarningid)
+     - [Issue Warning (W3)](#post-apiv1adminusersuseridwarnings)
+     - [Resolve Warning (W4)](#post-apiv1adminwarningswarningidresolve)
+   - [Admin Blacklist Management](#admin-blacklist-management)
+     - [List Records (W5)](#get-apiv1adminblacklist-records)
+     - [Blacklist User (W6)](#post-apiv1adminusersuseridblacklist)
+     - [Lift Blacklist (W7)](#post-apiv1adminblacklist-recordsrecordidlift)
+    - [Admin Bulk Operations](#admin-bulk-operations)
+    - [Admin Advanced Search](#admin-advanced-search)
 3. [Error Responses](#error-responses)
 4. [Rate Limiting](#rate-limiting)
 5. [Security Headers](#security-headers)
@@ -57,11 +84,10 @@ Authorization: Bearer your-token-here
 
 ### Token Lifecycle
 
-- Tokens expire after 30 days (43,200 minutes)
-- Tokens are invalidated on logout
-- Each login creates a new token
+- Tokens are created per login and can be refreshed manually
+- Tokens are invalidated on logout or when explicitly revoked
 - Users can have multiple active tokens
-- Tokens can be refreshed before expiration
+- Token records expose `last_used_at` and nullable `expires_at` metadata
 - Users can view and revoke their active tokens
 
 ---
@@ -69,6 +95,8 @@ Authorization: Bearer your-token-here
 ## API Endpoints
 
 ### API Endpoints Summary
+
+#### Authentication & User Management
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
@@ -86,6 +114,90 @@ Authorization: Bearer your-token-here
 | GET | `/api/v1/tokens` | ✅ | List all active tokens |
 | POST | `/api/v1/token/refresh` | ✅ | Refresh current token |
 | DELETE | `/api/v1/tokens/{id}` | ✅ | Revoke specific token |
+
+#### Forum - Topics & Posts
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/topics` | ✅ | List active topics in user's group |
+| GET | `/api/v1/topics/type/{type}` | ✅ | Filter topics by type (discussion/question) |
+| POST | `/api/v1/topics` | ✅ | Create a new topic |
+| GET | `/api/v1/topics/{topicId}` | ✅ | Get topic detail with posts |
+| PUT | `/api/v1/topics/{topicId}` | ✅ | Update topic (creator or admin) |
+| DELETE | `/api/v1/topics/{topicId}` | ✅ | Archive topic (creator or admin) |
+| GET | `/api/v1/topics/{topicId}/posts` | ✅ | List posts in a topic |
+| POST | `/api/v1/topics/{topicId}/posts` | ✅ | Create a reply in a topic |
+| PUT | `/api/v1/posts/{postId}` | ✅ | Update own post |
+| DELETE | `/api/v1/posts/{postId}` | ✅ | Soft-delete own post |
+
+#### Forum - Post Visibility
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/posts/{postId}/visibility` | ✅ | List users excluded from post |
+| POST | `/api/v1/posts/{postId}/visibility/exclude` | ✅ | Exclude user from seeing post |
+| DELETE | `/api/v1/posts/{postId}/visibility/{userId}` | ✅ | Remove user exclusion |
+
+#### Forum - Categories
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/categories` | ✅ | List categories in user's group |
+| GET | `/api/v1/categories/{categoryId}/topics` | ✅ | List topics under a category |
+| POST | `/api/v1/admin/categories` | ✅🔑 | Create category (admin) |
+| PUT | `/api/v1/admin/categories/{categoryId}` | ✅🔑 | Update category (admin) |
+| DELETE | `/api/v1/admin/categories/{categoryId}` | ✅🔑 | Delete category (admin) |
+
+#### Forum - Group Browsing
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/groups` | ✅ | List accessible groups |
+| GET | `/api/v1/groups/{groupId}` | ✅ | Show group details |
+| GET | `/api/v1/groups/{groupId}/topics` | ✅ | List topics in a group |
+| GET | `/api/v1/groups/{groupId}/members` | ✅ | List members of a group |
+
+#### Admin - Warning Management
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/admin/warnings` | ✅🔑 | List warnings (group-scoped) |
+| GET | `/api/v1/admin/warnings/{warningId}` | ✅🔑 | Show warning detail |
+| POST | `/api/v1/admin/users/{userId}/warnings` | ✅🔑 | Issue warning to user |
+| POST | `/api/v1/admin/warnings/{warningId}/resolve` | ✅🔑 | Resolve a warning |
+
+#### Admin - Blacklist Management
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/admin/blacklist-records` | ✅🔑 | List blacklist records (group-scoped) |
+| POST | `/api/v1/admin/users/{userId}/blacklist` | ✅🔑 | Blacklist a user |
+| POST | `/api/v1/admin/blacklist-records/{recordId}/lift` | ✅🔑 | Lift a blacklist |
+
+#### Admin Bulk Operations
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/v1/admin/bulk/change-roles` | ✅🔑 | Change roles for multiple users |
+| POST | `/api/v1/admin/bulk/change-status` | ✅🔑 | Update account status for multiple users |
+| POST | `/api/v1/admin/bulk/assign-group` | ✅🔑 | Move multiple users to a group |
+| POST | `/api/v1/admin/bulk/blacklist` | ✅🔑 | Blacklist multiple users |
+| POST | `/api/v1/admin/bulk/lift-blacklist` | ✅🔑 | Lift blacklists for multiple users |
+| POST | `/api/v1/admin/bulk/warn` | ✅🔑 | Issue warnings to multiple users |
+| POST | `/api/v1/admin/bulk/assign-group-admins` | ✅🔑 | Assign group admins in bulk |
+
+#### Admin Advanced Search
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/v1/admin/search/users` | ✅🔑 | Search users with filters |
+| POST | `/api/v1/admin/search/groups` | ✅🔑 | Search groups with filters |
+| POST | `/api/v1/admin/search/audit-logs` | ✅🔑 | Search audit logs with filters |
+| POST | `/api/v1/admin/search/warnings` | ✅🔑 | Search warnings with filters |
+| GET | `/api/v1/admin/search/options/{model}` | ✅🔑 | Get filter options for a model |
+| GET | `/api/v1/admin/search/suggestions/{type}` | ✅🔑 | Get search suggestions |
+
+> ✅ = Authentication required | 🔑 = Admin role required (System Admin or Group Admin)
 
 ---
 
@@ -212,7 +324,7 @@ Content-Type: application/json
     "email": "user@example.com",
     "account_status": "active",
     "role": "Member",
-    "group": "General",
+    "group": "Default Group",
     "email_verified_at": "2026-06-26T10:30:00.000000Z",
     "last_active_at": "2026-06-26T15:45:00.000000Z"
   }
@@ -246,7 +358,7 @@ Content-Type: application/json
     "email": "user@example.com",
     "account_status": "warned",
     "role": "Member",
-    "group": "General",
+    "group": "Default Group",
     "email_verified_at": null,
     "last_active_at": "2026-06-20T10:00:00.000000Z"
   }
@@ -444,7 +556,7 @@ Authorization: Bearer your-token-here
     },
     "group": {
       "id": 1,
-      "name": "General"
+      "name": "Default Group"
     },
     "email_verified_at": "2026-06-26T10:30:00.000000Z",
     "last_active_at": "2026-06-26T15:45:00.000000Z",
@@ -924,6 +1036,1351 @@ Authorization: Bearer your-token-here
 ```json
 {
   "message": "Token not found"
+}
+```
+
+---
+
+## Forum Endpoints
+
+All forum endpoints enforce **group isolation**: users can only access topics, posts, and data within their own group. Admins may have cross-group visibility depending on their role.
+
+### Topics
+
+---
+
+#### GET /api/v1/topics
+
+**T1**: List active topics in the authenticated user's group, paginated and ordered by most recent.
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+GET /api/v1/topics
+Authorization: Bearer your-token-here
+```
+
+##### Success Response (200 OK)
+
+```json
+{
+  "data": {
+    "current_page": 1,
+    "data": [
+      {
+        "id": 1,
+        "title": "Welcome to the Forum",
+        "description": "Introduce yourself here",
+        "status": "active",
+        "post_type": "discussion",
+        "group_id": 1,
+        "created_by": 1,
+        "creator": {
+          "id": 1,
+          "full_name": "John Doe"
+        },
+        "posts_count": 5,
+        "created_at": "2026-06-30T10:00:00.000000Z",
+        "updated_at": "2026-06-30T10:00:00.000000Z"
+      }
+    ],
+    "last_page": 1,
+    "per_page": 20,
+    "total": 1
+  }
+}
+```
+
+---
+
+#### GET /api/v1/topics/type/{type}
+
+**T7**: Filter topics by post type (`discussion` or `question`).
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+GET /api/v1/topics/type/question
+Authorization: Bearer your-token-here
+```
+
+##### Path Parameters
+
+| Parameter | Type   | Required | Description                        |
+|-----------|--------|----------|------------------------------------|
+| type      | string | Yes      | Either `discussion` or `question`  |
+
+##### Success Response (200 OK)
+
+Same format as [GET /api/v1/topics](#get-apiv1topics), filtered by type.
+
+##### Error Responses
+
+**422 Invalid Type**
+```json
+{
+  "message": "Invalid type. Must be \"discussion\" or \"question\"."
+}
+```
+
+---
+
+#### POST /api/v1/topics
+
+**T3**: Create a new topic. The topic is automatically scoped to the user's group.
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+POST /api/v1/topics
+Authorization: Bearer your-token-here
+Content-Type: application/json
+
+{
+  "title": "How to use the forum?",
+  "description": "A guide for new members on how to participate in discussions.",
+  "post_type": "discussion"
+}
+```
+
+##### Request Parameters
+
+| Parameter   | Type   | Required | Description                              |
+|-------------|--------|----------|------------------------------------------|
+| title       | string | Yes      | Topic title (max 255, must be unique)    |
+| description | string | Yes      | Topic body (max 10000 chars)             |
+| post_type   | string | No       | `discussion` (default) or `question`     |
+
+##### Success Response (201 Created)
+
+```json
+{
+  "message": "Topic created successfully.",
+  "data": {
+    "topic": {
+      "id": 2,
+      "title": "How to use the forum?",
+      "description": "A guide for new members...",
+      "post_type": "discussion",
+      "status": "active",
+      "group_id": 1,
+      "creator": {
+        "id": 1,
+        "full_name": "John Doe"
+      },
+      "created_at": "2026-06-30T12:00:00.000000Z",
+      "updated_at": "2026-06-30T12:00:00.000000Z"
+    }
+  }
+}
+```
+
+---
+
+#### GET /api/v1/topics/{topicId}
+
+**T2**: Get topic detail with its posts (paginated). Posts are filtered by visibility and moderation status.
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+GET /api/v1/topics/1
+Authorization: Bearer your-token-here
+```
+
+##### Success Response (200 OK)
+
+```json
+{
+  "data": {
+    "topic": {
+      "id": 1,
+      "title": "Welcome to the Forum",
+      "description": "Introduce yourself here",
+      "status": "active",
+      "post_type": "discussion",
+      "group_id": 1,
+      "creator": {
+        "id": 1,
+        "full_name": "John Doe"
+      },
+      "posts_count": 5,
+      "created_at": "2026-06-30T10:00:00.000000Z",
+      "updated_at": "2026-06-30T10:00:00.000000Z"
+    },
+    "posts": {
+      "current_page": 1,
+      "data": [
+        {
+          "id": 1,
+          "topic_id": 1,
+          "content": "Hello everyone!",
+          "user_id": 1,
+          "is_removed": false,
+          "user": {
+            "id": 1,
+            "full_name": "John Doe"
+          },
+          "created_at": "2026-06-30T10:05:00.000000Z"
+        }
+      ],
+      "per_page": 20,
+      "total": 5
+    }
+  }
+}
+```
+
+##### Error Responses
+
+**403 Forbidden - Group Isolation**
+```json
+{
+  "message": "You do not have access to this topic."
+}
+```
+
+---
+
+#### PUT /api/v1/topics/{topicId}
+
+**T4**: Update a topic. Only the topic creator or an admin can update.
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+PUT /api/v1/topics/1
+Authorization: Bearer your-token-here
+Content-Type: application/json
+
+{
+  "title": "Updated Title",
+  "description": "Updated description"
+}
+```
+
+##### Request Parameters
+
+| Parameter   | Type   | Required | Description                          |
+|-------------|--------|----------|--------------------------------------|
+| title       | string | No       | New title (max 255, must be unique)  |
+| description | string | No       | New body (max 10000 chars)           |
+| status      | string | No       | `active` or `archived`               |
+| post_type   | string | No       | `discussion` or `question`           |
+
+##### Success Response (200 OK)
+
+```json
+{
+  "message": "Topic updated successfully.",
+  "data": {
+    "topic": {
+      "id": 1,
+      "title": "Updated Title",
+      "description": "Updated description",
+      "status": "active",
+      "post_type": "discussion",
+      "group_id": 1,
+      "creator": { "id": 1, "full_name": "John Doe" },
+      "created_at": "2026-06-30T10:00:00.000000Z",
+      "updated_at": "2026-06-30T12:30:00.000000Z"
+    }
+  }
+}
+```
+
+##### Error Responses
+
+**403 Forbidden**
+```json
+{
+  "message": "You are not authorized to update this topic."
+}
+```
+
+---
+
+#### DELETE /api/v1/topics/{topicId}
+
+**T5**: Archive (soft-delete) a topic. Sets status to `archived`. Only the creator or admin can delete.
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+DELETE /api/v1/topics/1
+Authorization: Bearer your-token-here
+```
+
+##### Success Response (200 OK)
+
+```json
+{
+  "message": "Topic archived successfully."
+}
+```
+
+##### Error Responses
+
+**403 Forbidden**
+```json
+{
+  "message": "You are not authorized to delete this topic."
+}
+```
+
+---
+
+#### GET /api/v1/topics/{topicId}/posts
+
+**T6**: List posts in a topic (paginated, filtered by visibility and moderation).
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+GET /api/v1/topics/1/posts
+Authorization: Bearer your-token-here
+```
+
+##### Success Response (200 OK)
+
+```json
+{
+  "data": {
+    "current_page": 1,
+    "data": [
+      {
+        "id": 1,
+        "topic_id": 1,
+        "content": "Hello everyone!",
+        "user_id": 1,
+        "is_removed": false,
+        "user": { "id": 1, "full_name": "John Doe" },
+        "created_at": "2026-06-30T10:05:00.000000Z"
+      }
+    ],
+    "per_page": 20,
+    "total": 5
+  }
+}
+```
+
+---
+
+### Posts
+
+---
+
+#### POST /api/v1/topics/{topicId}/posts
+
+**P1**: Create a reply in a topic. Topic must be active and in the user's group.
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+POST /api/v1/topics/1/posts
+Authorization: Bearer your-token-here
+Content-Type: application/json
+
+{
+  "content": "Thanks for the welcome! I'm excited to join."
+}
+```
+
+##### Request Parameters
+
+| Parameter | Type   | Required | Description                  |
+|-----------|--------|----------|------------------------------|
+| content   | string | Yes      | Post content (max 10000 chars) |
+
+##### Success Response (201 Created)
+
+```json
+{
+  "message": "Reply posted successfully.",
+  "data": {
+    "post": {
+      "id": 6,
+      "topic_id": 1,
+      "content": "Thanks for the welcome! I'm excited to join.",
+      "user": {
+        "id": 2,
+        "full_name": "Jane Smith"
+      },
+      "created_at": "2026-06-30T14:00:00.000000Z",
+      "updated_at": "2026-06-30T14:00:00.000000Z"
+    }
+  }
+}
+```
+
+##### Error Responses
+
+**403 Forbidden - Topic Closed**
+```json
+{
+  "message": "This topic is closed for replies."
+}
+```
+
+---
+
+#### PUT /api/v1/posts/{postId}
+
+**P2**: Update own post content. Only the post author can edit.
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+PUT /api/v1/posts/6
+Authorization: Bearer your-token-here
+Content-Type: application/json
+
+{
+  "content": "Updated: Thanks for the warm welcome!"
+}
+```
+
+##### Success Response (200 OK)
+
+```json
+{
+  "message": "Post updated successfully.",
+  "data": {
+    "post": {
+      "id": 6,
+      "topic_id": 1,
+      "content": "Updated: Thanks for the warm welcome!",
+      "user": { "id": 2, "full_name": "Jane Smith" },
+      "created_at": "2026-06-30T14:00:00.000000Z",
+      "updated_at": "2026-06-30T14:15:00.000000Z"
+    }
+  }
+}
+```
+
+##### Error Responses
+
+**403 Forbidden - Not Author**
+```json
+{
+  "message": "You can only edit your own posts."
+}
+```
+
+**403 Forbidden - Post Removed**
+```json
+{
+  "message": "This post has been removed and cannot be edited."
+}
+```
+
+---
+
+#### DELETE /api/v1/posts/{postId}
+
+**P3**: Soft-delete a post (sets `is_removed = true`). Only the post author or an admin can delete.
+
+**Authentication**: Required (Bearer token)
+
+##### Request
+
+```http
+DELETE /api/v1/posts/6
+Authorization: Bearer your-token-here
+```
+
+##### Success Response (200 OK)
+
+```json
+{
+  "message": "Post deleted successfully."
+}
+```
+
+##### Error Responses
+
+**403 Forbidden**
+```json
+{
+  "message": "You are not authorized to delete this post."
+}
+```
+
+---
+
+## Post Visibility Endpoints
+
+Post visibility allows a post author to exclude specific users from seeing their post. Only users in the same group can be excluded.
+
+---
+
+### POST /api/v1/posts/{postId}/visibility/exclude
+
+**P5**: Exclude a user from seeing a post. Only the post author can manage visibility.
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+```http
+POST /api/v1/posts/1/visibility/exclude
+Authorization: Bearer your-token-here
+Content-Type: application/json
+
+{
+  "user_id": 3
+}
+```
+
+#### Request Parameters
+
+| Parameter | Type    | Required | Description                    |
+|-----------|---------|----------|--------------------------------|
+| user_id   | integer | Yes      | ID of user to exclude          |
+
+#### Success Response (201 Created)
+
+```json
+{
+  "message": "User excluded from post successfully.",
+  "data": {
+    "visibility": {
+      "id": 1,
+      "post_id": 1,
+      "excluded_user": {
+        "id": 3,
+        "full_name": "Bob Wilson"
+      },
+      "created_at": "2026-06-30T15:00:00.000000Z"
+    }
+  }
+}
+```
+
+#### Error Responses
+
+**403 Forbidden - Not Author**
+```json
+{
+  "message": "Only the post author can manage visibility."
+}
+```
+
+**409 Conflict - Already Excluded**
+```json
+{
+  "message": "This user is already excluded from this post."
+}
+```
+
+**422 Validation Error**
+```json
+{
+  "message": "The specified user is not in your group."
+}
+```
+
+---
+
+### DELETE /api/v1/posts/{postId}/visibility/{userId}
+
+**P6**: Remove a user from the post's exclusion list. Only the post author can remove exclusions.
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+```http
+DELETE /api/v1/posts/1/visibility/3
+Authorization: Bearer your-token-here
+```
+
+#### Success Response (200 OK)
+
+```json
+{
+  "message": "User exclusion removed successfully."
+}
+```
+
+---
+
+### GET /api/v1/posts/{postId}/visibility
+
+**P7**: List all users excluded from seeing a post. Only the post author can view the exclusion list.
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+```http
+GET /api/v1/posts/1/visibility
+Authorization: Bearer your-token-here
+```
+
+#### Success Response (200 OK)
+
+```json
+{
+  "data": {
+    "post_id": 1,
+    "excluded_users_count": 1,
+    "excluded_users": [
+      {
+        "id": 1,
+        "post_id": 1,
+        "excluded_user": {
+          "id": 3,
+          "full_name": "Bob Wilson"
+        },
+        "excluded_at": "2026-06-30T15:00:00.000000Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## Category Endpoints
+
+Categories allow organizing posts within topics. Each group can have its own set of categories.
+
+---
+
+### GET /api/v1/categories
+
+**C1**: List all categories in the authenticated user's group.
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+```http
+GET /api/v1/categories
+Authorization: Bearer your-token-here
+```
+
+#### Success Response (200 OK)
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "group_id": 1,
+      "category_name": "General Discussion",
+      "keyword_hints": "general,chat,talk",
+      "posts_count": 12,
+      "created_at": "2026-06-30T08:00:00.000000Z",
+      "updated_at": "2026-06-30T08:00:00.000000Z"
+    }
+  ]
+}
+```
+
+---
+
+### GET /api/v1/categories/{categoryId}/topics
+
+**C2**: List all active topics that have posts classified under a given category.
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+```http
+GET /api/v1/categories/1/topics
+Authorization: Bearer your-token-here
+```
+
+#### Success Response (200 OK)
+
+```json
+{
+  "data": {
+    "current_page": 1,
+    "data": [
+      {
+        "id": 1,
+        "title": "Welcome to the Forum",
+        "description": "Introduce yourself here",
+        "status": "active",
+        "post_type": "discussion",
+        "group_id": 1,
+        "creator": { "id": 1, "full_name": "John Doe" },
+        "posts_count": 5,
+        "created_at": "2026-06-30T10:00:00.000000Z"
+      }
+    ],
+    "per_page": 20,
+    "total": 1
+  }
+}
+```
+
+---
+
+### Admin Category Management
+
+> These endpoints require **admin** role (System Administrator or Group Administrator). Group Admins can only manage categories in groups they administer.
+
+---
+
+#### POST /api/v1/admin/categories
+
+**C3**: Create a new category (admin only).
+
+**Authentication**: Required (Bearer token) + Admin role
+
+##### Request
+
+```http
+POST /api/v1/admin/categories
+Authorization: Bearer admin-token-here
+Content-Type: application/json
+
+{
+  "group_id": 1,
+  "category_name": "Q&A",
+  "keyword_hints": "question,answer,help"
+}
+```
+
+##### Request Parameters
+
+| Parameter     | Type   | Required | Description                    |
+|---------------|--------|----------|--------------------------------|
+| group_id      | int    | Yes      | Group to create category in    |
+| category_name | string | Yes      | Category name (max 100, unique per group) |
+| keyword_hints | string | No       | Comma-separated hints (max 5000) |
+
+##### Success Response (201 Created)
+
+```json
+{
+  "message": "Category created successfully.",
+  "data": {
+    "category": {
+      "id": 2,
+      "group_id": 1,
+      "category_name": "Q&A",
+      "keyword_hints": "question,answer,help",
+      "created_at": "2026-06-30T16:00:00.000000Z",
+      "updated_at": "2026-06-30T16:00:00.000000Z"
+    }
+  }
+}
+```
+
+##### Error Responses
+
+**409 Conflict**
+```json
+{
+  "message": "A category with this name already exists in this group."
+}
+```
+
+---
+
+#### PUT /api/v1/admin/categories/{categoryId}
+
+**C4**: Update a category (admin only).
+
+**Authentication**: Required (Bearer token) + Admin role
+
+##### Request
+
+```http
+PUT /api/v1/admin/categories/2
+Authorization: Bearer admin-token-here
+Content-Type: application/json
+
+{
+  "category_name": "Questions & Answers"
+}
+```
+
+##### Success Response (200 OK)
+
+```json
+{
+  "message": "Category updated successfully.",
+  "data": {
+    "category": {
+      "id": 2,
+      "group_id": 1,
+      "category_name": "Questions & Answers",
+      "keyword_hints": "question,answer,help",
+      "created_at": "2026-06-30T16:00:00.000000Z",
+      "updated_at": "2026-06-30T16:30:00.000000Z"
+    }
+  }
+}
+```
+
+---
+
+#### DELETE /api/v1/admin/categories/{categoryId}
+
+**C5**: Delete a category (admin only). Posts classified under this category will have `category_id` set to null.
+
+**Authentication**: Required (Bearer token) + Admin role
+
+##### Request
+
+```http
+DELETE /api/v1/admin/categories/2
+Authorization: Bearer admin-token-here
+```
+
+##### Success Response (200 OK)
+
+```json
+{
+  "message": "Category deleted successfully.",
+  "data": {
+    "affected_posts": 3
+  }
+}
+```
+
+---
+
+## Group Browsing Endpoints
+
+Browse groups, their topics, and members. Access is controlled by group membership and admin role.
+
+---
+
+### GET /api/v1/groups
+
+**G1**: List groups accessible to the authenticated user.
+
+- **System Admin**: sees all groups
+- **Group Admin**: sees groups they administer + their own group
+- **Regular user**: sees only their own group
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+```http
+GET /api/v1/groups
+Authorization: Bearer your-token-here
+```
+
+#### Success Response (200 OK)
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "group_name": "Default Group",
+      "description": "The default user group",
+      "users_count": 25,
+      "created_at": "2026-06-23T00:00:00.000000Z",
+      "updated_at": "2026-06-23T00:00:00.000000Z"
+    }
+  ]
+}
+```
+
+---
+
+### GET /api/v1/groups/{groupId}
+
+**G2**: Show a single group's details.
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+```http
+GET /api/v1/groups/1
+Authorization: Bearer your-token-here
+```
+
+#### Success Response (200 OK)
+
+```json
+{
+  "data": {
+    "id": 1,
+    "group_name": "Default Group",
+    "description": "The default user group",
+    "members_count": 25,
+    "created_by": {
+      "id": 1,
+      "full_name": "System Admin"
+    },
+    "created_at": "2026-06-23T00:00:00.000000Z",
+    "updated_at": "2026-06-23T00:00:00.000000Z"
+  }
+}
+```
+
+#### Error Responses
+
+**403 Forbidden**
+```json
+{
+  "message": "You do not have access to this group."
+}
+```
+
+---
+
+### GET /api/v1/groups/{groupId}/topics
+
+**G3**: List active topics in a specific group.
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+```http
+GET /api/v1/groups/1/topics
+Authorization: Bearer your-token-here
+```
+
+#### Success Response (200 OK)
+
+Same paginated format as [GET /api/v1/topics](#get-apiv1topics).
+
+---
+
+### GET /api/v1/groups/{groupId}/members
+
+**G4**: List members of a specific group.
+
+**Authentication**: Required (Bearer token)
+
+#### Request
+
+```http
+GET /api/v1/groups/1/members
+Authorization: Bearer your-token-here
+```
+
+#### Success Response (200 OK)
+
+```json
+{
+  "data": {
+    "current_page": 1,
+    "data": [
+      {
+        "id": 1,
+        "full_name": "John Doe",
+        "email": "john@example.com",
+        "role_id": 2,
+        "account_status": "active",
+        "last_active_at": "2026-06-30T15:45:00.000000Z",
+        "profile_picture": null,
+        "created_at": "2026-06-01T08:00:00.000000Z",
+        "role": {
+          "id": 2,
+          "role_name": "Member"
+        }
+      }
+    ],
+    "per_page": 20,
+    "total": 25
+  }
+}
+```
+
+---
+
+## Admin Warning Management
+
+> All warning endpoints require **admin** role (System Administrator or Group Administrator).
+> - **System Admin**: can manage warnings for all users
+> - **Group Admin**: can only manage warnings for users in their administered groups
+
+---
+
+### GET /api/v1/admin/warnings
+
+**W1**: List all warnings, with optional filtering. Group-scoped for Group Admins.
+
+**Authentication**: Required (Bearer token) + Admin role
+
+#### Request
+
+```http
+GET /api/v1/admin/warnings?is_resolved=false&per_page=15
+Authorization: Bearer admin-token-here
+```
+
+#### Query Parameters
+
+| Parameter       | Type    | Required | Description                          |
+|-----------------|---------|----------|--------------------------------------|
+| user_id         | integer | No       | Filter by specific user              |
+| is_resolved     | boolean | No       | Filter by resolved status            |
+| is_acknowledged | boolean | No       | Filter by acknowledged status        |
+| per_page        | integer | No       | Items per page (default: 15)         |
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "user_id": 3,
+      "warning_number": 1,
+      "reason": "Inactivity for 30 days",
+      "response_deadline": "2026-07-07T00:00:00.000000Z",
+      "is_acknowledged": false,
+      "is_resolved": false,
+      "resolved_at": null,
+      "created_by": 1,
+      "created_at": "2026-06-30T02:00:00.000000Z",
+      "user": { "id": 3, "full_name": "Bob Wilson" },
+      "createdBy": { "id": 1, "full_name": "System Admin" }
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "per_page": 15,
+    "current_page": 1,
+    "last_page": 1
+  }
+}
+```
+
+---
+
+### GET /api/v1/admin/warnings/{warningId}
+
+**W2**: Show a specific warning's details.
+
+**Authentication**: Required (Bearer token) + Admin role
+
+#### Request
+
+```http
+GET /api/v1/admin/warnings/1
+Authorization: Bearer admin-token-here
+```
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "user_id": 3,
+    "warning_number": 1,
+    "reason": "Inactivity for 30 days",
+    "response_deadline": "2026-07-07T00:00:00.000000Z",
+    "is_acknowledged": false,
+    "is_resolved": false,
+    "resolved_at": null,
+    "created_by": 1,
+    "created_at": "2026-06-30T02:00:00.000000Z",
+    "user": { "id": 3, "full_name": "Bob Wilson" },
+    "createdBy": { "id": 1, "full_name": "System Admin" }
+  }
+}
+```
+
+---
+
+### POST /api/v1/admin/users/{userId}/warnings
+
+**W3**: Issue a warning to a user. Automatically computes the escalating warning number (1→2→3). On the 3rd warning, the user is **automatically blacklisted**.
+
+**Authentication**: Required (Bearer token) + Admin role
+
+#### Request
+
+```http
+POST /api/v1/admin/users/3/warnings
+Authorization: Bearer admin-token-here
+Content-Type: application/json
+
+{
+  "reason": "Repeated violation of forum rules",
+  "response_deadline": "2026-07-07T23:59:59"
+}
+```
+
+#### Request Parameters
+
+| Parameter         | Type   | Required | Description                          |
+|-------------------|--------|----------|--------------------------------------|
+| reason            | string | Yes      | Reason for warning (max 500 chars)   |
+| response_deadline | string | Yes      | Deadline to respond (ISO date, must be future) |
+
+#### Success Response (201 Created)
+
+```json
+{
+  "success": true,
+  "message": "Warning #2 issued successfully.",
+  "data": {
+    "warning": {
+      "id": 2,
+      "user_id": 3,
+      "warning_number": 2,
+      "reason": "Repeated violation of forum rules",
+      "response_deadline": "2026-07-07T23:59:59.000000Z",
+      "is_acknowledged": false,
+      "is_resolved": false,
+      "created_by": 1,
+      "created_at": "2026-06-30T16:00:00.000000Z"
+    },
+    "warning_number": 2,
+    "auto_blacklisted": false
+  }
+}
+```
+
+**On 3rd warning (auto-blacklist)**:
+```json
+{
+  "success": true,
+  "message": "Warning #3 issued. User has been automatically blacklisted (3 warnings reached).",
+  "data": {
+    "warning": { ... },
+    "warning_number": 3,
+    "auto_blacklisted": true
+  }
+}
+```
+
+---
+
+### POST /api/v1/admin/warnings/{warningId}/resolve
+
+**W4**: Resolve a warning. If no unresolved warnings remain for the user, their status reverts from `warned` to `active`.
+
+**Authentication**: Required (Bearer token) + Admin role
+
+#### Request
+
+```http
+POST /api/v1/admin/warnings/1/resolve
+Authorization: Bearer admin-token-here
+```
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Warning resolved successfully.",
+  "data": {
+    "warning": {
+      "id": 1,
+      "user_id": 3,
+      "warning_number": 1,
+      "reason": "Inactivity for 30 days",
+      "is_resolved": true,
+      "resolved_at": "2026-06-30T17:00:00.000000Z"
+    },
+    "remaining_unresolved": 0,
+    "user_status": "active"
+  }
+}
+```
+
+#### Error Responses
+
+**409 Conflict - Already Resolved**
+```json
+{
+  "message": "This warning is already resolved."
+}
+```
+
+---
+
+## Admin Blacklist Management
+
+> All blacklist endpoints require **admin** role (System Administrator or Group Administrator).
+> - **System Admin**: can manage blacklists for all users
+> - **Group Admin**: can only manage blacklists for users in their administered groups
+
+---
+
+### GET /api/v1/admin/blacklist-records
+
+**W5**: List all blacklist records, with optional filtering. Group-scoped for Group Admins.
+
+**Authentication**: Required (Bearer token) + Admin role
+
+#### Request
+
+```http
+GET /api/v1/admin/blacklist-records?is_active=true&per_page=15
+Authorization: Bearer admin-token-here
+```
+
+#### Query Parameters
+
+| Parameter  | Type    | Required | Description                          |
+|------------|---------|----------|--------------------------------------|
+| user_id    | integer | No       | Filter by specific user              |
+| is_active  | boolean | No       | `true` = not yet lifted, `false` = lifted |
+| per_page   | integer | No       | Items per page (default: 15)         |
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "user_id": 3,
+      "reason": "Automatic blacklist: 3 warnings issued",
+      "expires_at": null,
+      "lifted_at": null,
+      "lifted_by": null,
+      "created_at": "2026-06-30T16:00:00.000000Z",
+      "user": { "id": 3, "full_name": "Bob Wilson" },
+      "liftedBy": null
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "per_page": 15,
+    "current_page": 1,
+    "last_page": 1
+  }
+}
+```
+
+---
+
+### POST /api/v1/admin/users/{userId}/blacklist
+
+**W6**: Blacklist a user. Creates a blacklist record and sets user status to `blacklisted`.
+
+**Authentication**: Required (Bearer token) + Admin role
+
+#### Request
+
+```http
+POST /api/v1/admin/users/3/blacklist
+Authorization: Bearer admin-token-here
+Content-Type: application/json
+
+{
+  "reason": "Severe violation of community guidelines",
+  "duration_days": 30
+}
+```
+
+#### Request Parameters
+
+| Parameter     | Type    | Required | Description                          |
+|---------------|---------|----------|--------------------------------------|
+| reason        | string  | Yes      | Reason for blacklisting (max 500)    |
+| duration_days | integer | No       | Blacklist duration in days (1-365). Omit for permanent. |
+
+#### Success Response (201 Created)
+
+```json
+{
+  "success": true,
+  "message": "User has been blacklisted successfully.",
+  "data": {
+    "blacklist_record": {
+      "id": 2,
+      "user_id": 3,
+      "reason": "Severe violation of community guidelines",
+      "expires_at": "2026-07-30T16:00:00.000000Z",
+      "lifted_at": null,
+      "lifted_by": null,
+      "created_at": "2026-06-30T16:00:00.000000Z"
+    },
+    "expires_at": "2026-07-30T16:00:00.000000Z",
+    "is_permanent": false
+  }
+}
+```
+
+#### Error Responses
+
+**409 Conflict - Already Blacklisted**
+```json
+{
+  "message": "User is already blacklisted."
+}
+```
+
+---
+
+### POST /api/v1/admin/blacklist-records/{recordId}/lift
+
+**W7**: Lift a blacklist record. Sets `lifted_at` and `lifted_by`. If no other active blacklists remain for the user, their status reverts to `active`.
+
+**Authentication**: Required (Bearer token) + Admin role
+
+#### Request
+
+```http
+POST /api/v1/admin/blacklist-records/1/lift
+Authorization: Bearer admin-token-here
+```
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Blacklist lifted successfully.",
+  "data": {
+    "blacklist_record": {
+      "id": 1,
+      "user_id": 3,
+      "reason": "Automatic blacklist: 3 warnings issued",
+      "expires_at": null,
+      "lifted_at": "2026-06-30T18:00:00.000000Z",
+      "lifted_by": 1,
+      "user": { "id": 3, "full_name": "Bob Wilson" },
+      "liftedBy": { "id": 1, "full_name": "System Admin" }
+    },
+    "remaining_active_blacklists": 0,
+    "user_status": "active"
+  }
+}
+```
+
+#### Error Responses
+
+**409 Conflict - Already Lifted**
+```json
+{
+  "message": "This blacklist record has already been lifted."
 }
 ```
 
