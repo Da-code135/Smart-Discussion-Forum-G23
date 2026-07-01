@@ -229,7 +229,7 @@ class GroupController extends Controller
 
         // Remove users currently in this group who are not in the selected list
         // Move them to the default group (group_id cannot be null)
-        $defaultGroupId = Group::where('group_name', 'Default Group')->value('id')
+        $defaultGroupId = Group::where('group_name', 'General')->value('id')
             ?? Group::min('id');
 
         if ($defaultGroupId != $group->id) {
