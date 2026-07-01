@@ -115,7 +115,7 @@ class ForumController extends Controller
                   ->visibleToUser(Auth::id())
                   ->orderBy('created_at', 'asc')//will list the replies in order of creation, newest appears at the bottom
                   ->with('user'); //this means "When loading posts, also load the related users immediately."
-        }]);
+        }, 'group']);//this eager loads the group, which is later accessed in the blade
 
         // Pre-load users eligible for exclusion (same group, not current user)
         // to avoid N+1 queries inside the Blade loop
