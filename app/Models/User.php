@@ -148,4 +148,24 @@ class User extends Authenticatable
 
         return false;
     }
+
+    /**
+     * Check if user is blacklisted
+     */
+    public function isBlacklisted(): bool
+    {
+        return $this->blacklisted_at !== null;
+    }
+
+    /**
+     * Get the user's warning status
+     */
+    public function getWarningStatus(): array
+    {
+        return [
+            'is_warned' => $this->is_warned,
+            'warning_count' => $this->warnings()->whereNull('is_resolved')->count(),
+            'blacklisted_at' => $this->blacklisted_at,
+        ];
+    }
 }
