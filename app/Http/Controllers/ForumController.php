@@ -33,9 +33,12 @@ class ForumController extends Controller
                         ->latest()//Sorts the results by the created_at column in descending order (newest first) It's a shortcut for ->orderBy('created_at', 'desc')
                         ->paginate(10);//Split the results into pages of 10 items each
 
-        return view('forum.index', compact('topics')); //compact passes data to the template compact('topics') is shorthand for ['topics' => $topics] It takes the variable $topics and makes it available in the view
+                        $group = Auth::user()->group; // Get the authenticated user's group
+
+        return view('forum.index', compact('topics', 'group')); //compact passes data to the template compact('topics') is shorthand for ['topics' => $topics] It takes the variable $topics and makes it available in the view
     }
 
+    
     /**
      * ============================================
      * Task 2a.2 — Show Create Topic Form
