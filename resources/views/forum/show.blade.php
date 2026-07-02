@@ -8,48 +8,48 @@
 <header class="page-header">
     <div class="page-header-row">
         <div>
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-                <a href="{{ route('forum.index') }}" class="btn btn-tertiary btn-sm" style="padding: 0.25rem 0.5rem;">
-                    <span class="material-symbols-outlined" style="font-size: 1rem;">arrow_back</span>
+            <div class="flex items-center gap-2 mb-1">
+                <a href="{{ route('forum.index') }}" class="btn btn-tertiary btn-sm !px-2 !py-1">
+                    <span class="material-symbols-outlined text-base">arrow_back</span>
                 </a>
-                <span style="font-size: 0.8rem; color: rgba(88, 103, 75, 0.6);">
+                <span class="text-xs text-[var(--on-surface-variant)] opacity-60">
                     {{ $topic->group->group_name ?? 'Forum' }}
                 </span>
                 @if ($topic->post_type === 'question')
-                    <span class="badge badge-secondary" style="font-size: 0.75rem;">Question</span>
+                    <span class="badge badge-secondary text-xs">Question</span>
                 @endif
             </div>
         </div>
-        <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+        <div class="flex gap-2 items-start">
             {{-- PDF Export Button --}}
-            <a href="{{ route('forum.export-pdf', $topic->id) }}" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.35rem 0.75rem; font-size: 0.8rem;">
-                <span class="material-symbols-outlined" style="font-size: 1rem;">download</span>
+            <a href="{{ route('forum.export-pdf', $topic->id) }}" class="btn btn-secondary btn-sm flex items-center gap-1 !px-3 !py-1.5 text-xs">
+                <span class="material-symbols-outlined text-base">download</span>
                 Export PDF
             </a>
             {{-- Social Sharing Dropdown --}}
-            <div style="position: relative;">
-                <button onclick="toggleShareMenu()" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.35rem 0.75rem; font-size: 0.8rem;">
-                    <span class="material-symbols-outlined" style="font-size: 1rem;">share</span>
+            <div class="relative">
+                <button onclick="toggleShareMenu()" class="btn btn-secondary btn-sm flex items-center gap-1 !px-3 !py-1.5 text-xs">
+                    <span class="material-symbols-outlined text-base">share</span>
                     Share
                 </button>
-                <div id="share-menu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 0.25rem; background: #fff; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 160px; z-index: 100; overflow: hidden;">
-                    <div style="padding: 0.5rem 1rem; font-size: 0.75rem; color: rgba(88,103,75,0.6); background: rgba(88,103,75,0.04); border-bottom: 1px solid rgba(0,0,0,0.05);">
+                <div id="share-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-black/10 rounded-lg shadow-lg min-w-[160px] z-[100] overflow-hidden">
+                    <div class="px-4 py-2 text-xs text-[var(--on-surface-variant)] opacity-60 bg-[var(--surface-container-low)] border-b border-black/5">
                         Recipients must be logged in to view this topic.
                     </div>
-                    <a href="https://wa.me/?text={{ urlencode('Check out this topic: ' . route('forum.show', $topic->id)) }}" target="_blank" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; text-decoration: none; color: #333; font-size: 0.85rem; border-bottom: 1px solid rgba(0,0,0,0.05);">
-                        <span class="material-symbols-outlined" style="font-size: 1.1rem; color: #25D366;">chat</span>
+                    <a href="https://wa.me/?text={{ urlencode('Check out this topic: ' . route('forum.show', $topic->id)) }}" target="_blank" class="flex items-center gap-2 px-4 py-2.5 no-underline text-[var(--on-surface)] text-sm border-b border-black/5 hover:bg-[var(--surface-container-low)]">
+                        <span class="material-symbols-outlined text-lg text-[#25D366]">chat</span>
                         WhatsApp
                     </a>
-                    <a href="https://twitter.com/intent/tweet?url={{ urlencode(route('forum.show', $topic->id)) }}&text={{ urlencode('Check out: ' . $topic->title) }}" target="_blank" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; text-decoration: none; color: #333; font-size: 0.85rem; border-bottom: 1px solid rgba(0,0,0,0.05);">
-                        <span class="material-symbols-outlined" style="font-size: 1.1rem; color: #1DA1F2;">tag</span>
+                    <a href="https://twitter.com/intent/tweet?url={{ urlencode(route('forum.show', $topic->id)) }}&text={{ urlencode('Check out: ' . $topic->title) }}" target="_blank" class="flex items-center gap-2 px-4 py-2.5 no-underline text-[var(--on-surface)] text-sm border-b border-black/5 hover:bg-[var(--surface-container-low)]">
+                        <span class="material-symbols-outlined text-lg text-[#1DA1F2]">tag</span>
                         Twitter / X
                     </a>
-                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ urlencode(route('forum.show', $topic->id)) }}" target="_blank" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; text-decoration: none; color: #333; font-size: 0.85rem; border-bottom: 1px solid rgba(0,0,0,0.05);">
-                        <span class="material-symbols-outlined" style="font-size: 1.1rem; color: #1877F2;">thumb_up</span>
+                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ urlencode(route('forum.show', $topic->id)) }}" target="_blank" class="flex items-center gap-2 px-4 py-2.5 no-underline text-[var(--on-surface)] text-sm border-b border-black/5 hover:bg-[var(--surface-container-low)]">
+                        <span class="material-symbols-outlined text-lg text-[#1877F2]">thumb_up</span>
                         Facebook
                     </a>
-                    <button onclick="copyToClipboard('{{ route('forum.show', $topic->id) }}')" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; background: none; border: none; width: 100%; cursor: pointer; color: #333; font-size: 0.85rem;">
-                        <span class="material-symbols-outlined" style="font-size: 1.1rem; color: #586747;">link</span>
+                    <button onclick="copyToClipboard('{{ route('forum.show', $topic->id) }}')" class="flex items-center gap-2 px-4 py-2.5 bg-transparent border-none w-full cursor-pointer text-[var(--on-surface)] text-sm hover:bg-[var(--surface-container-low)]">
+                        <span class="material-symbols-outlined text-lg text-[var(--primary-sage)]">link</span>
                         Copy Link
                     </button>
                 </div>
@@ -59,20 +59,20 @@
 </header>
 
 {{-- Opening Post (Topic description) --}}
-<article class="bento-card" style="margin-bottom: 1.5rem;">
-    <div style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem;">
-        <div class="app-topbar-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--secondary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.875rem; flex-shrink: 0;">
+<article class="bento-card mb-6">
+    <div class="flex items-start gap-3 mb-4">
+        <div class="app-topbar-avatar shrink-0 !w-10 !h-10 !rounded-full !bg-[var(--secondary)] !text-white !flex !items-center !justify-center !font-semibold !text-sm">
             {{ collect(explode(' ', $topic->creator->full_name))->map(fn($w) => strtoupper(substr($w, 0, 1)))->take(2)->join('') }}
         </div>
-        <div style="flex: 1;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <div class="flex-1">
+            <div class="flex items-center gap-2">
                 <strong>{{ $topic->creator->full_name }}</strong>
-                <span style="font-size: 0.75rem; color: rgba(88, 103, 75, 0.5);">
+                <span class="text-xs text-[var(--on-surface-variant)] opacity-50">
                     {{ $topic->created_at->format('M j, Y \a\t g:ia') }}
                 </span>
             </div>
-            <h1 style="margin: 0.25rem 0 0.75rem; font-size: 1.5rem;">{{ $topic->title }}</h1>
-            <div style="font-size: 0.95rem; line-height: 1.6; color: rgba(0,0,0,0.85); white-space: pre-wrap;">
+            <h1 class="mt-1 mb-3 text-2xl">{{ $topic->title }}</h1>
+            <div class="text-[0.95rem] leading-relaxed text-black/85 whitespace-pre-wrap">
                 {{ $topic->description }}
             </div>
         </div>
@@ -80,38 +80,38 @@
 </article>
 
 {{-- Reply Count --}}
-<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-    <h3 style="margin: 0; font-size: 1.1rem;">
+<div class="flex items-center justify-between mb-4">
+    <h3 class="m-0 text-lg">
         Replies ({{ $topic->posts->count() }})
     </h3>
 </div>
 
 {{-- Replies List --}}
-<section style="display: flex; flex-direction: column; gap: 0.75rem;">
+<section class="flex flex-col gap-3">
     @forelse ($topic->posts as $reply)
-        <article class="bento-card" style="padding: 1rem 1.25rem;">
-            <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
-                <div class="app-topbar-avatar" style="width: 36px; height: 36px; border-radius: 50%; background: var(--tertiary, #C49A6C); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.8rem; flex-shrink: 0;">
+        <article class="bento-card p-4">
+            <div class="flex items-start gap-3">
+                <div class="app-topbar-avatar shrink-0 !w-9 !h-9 !rounded-full !bg-[var(--tertiary,#C49A6C)] !text-white !flex !items-center !justify-center !font-semibold !text-xs">
                     {{ collect(explode(' ', $reply->user->full_name))->map(fn($w) => strtoupper(substr($w, 0, 1)))->take(2)->join('') }}
                 </div>
-                <div style="flex: 1; min-width: 0;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-                        <strong style="font-size: 0.9rem;">{{ $reply->user->full_name }}</strong>
-                        <span style="font-size: 0.75rem; color: rgba(88, 103, 75, 0.5);">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <strong class="text-sm">{{ $reply->user->full_name }}</strong>
+                        <span class="text-xs text-[var(--on-surface-variant)] opacity-50">
                             {{ $reply->created_at->format('M j, Y \a\t g:ia') }}
                             @if ($reply->created_at->ne($reply->updated_at))
                                 &middot; edited
                             @endif
                         </span>
                     </div>
-                    <div style="font-size: 0.9rem; line-height: 1.6; color: rgba(0,0,0,0.85); white-space: pre-wrap;">
+                    <div class="text-sm leading-relaxed text-black/85 whitespace-pre-wrap">
                         {{ $reply->content }}
                     </div>
 
                     {{-- Category badge if classified --}}
                     @if ($reply->category)
-                        <div style="margin-top: 0.5rem;">
-                            <span class="badge badge-secondary" style="font-size: 0.7rem;">
+                        <div class="mt-2">
+                            <span class="badge badge-secondary text-[0.7rem]">
                                 {{ $reply->category->category_name }}
                             </span>
                         </div>
@@ -119,21 +119,21 @@
 
                     {{-- Exclude user form for post author --}}
                     @if ($reply->user_id === auth()->id())
-                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.1);">
-                            <form method="POST" action="{{ route('forum.visibility.exclude', $reply->id) }}" class="exclude-form" style="display: flex; gap: 0.5rem; align-items: center;">
+                        <div class="mt-4 pt-4 border-t border-black/10">
+                            <form method="POST" action="{{ route('forum.visibility.exclude', $reply->id) }}" class="exclude-form flex gap-2 items-center">
                                 @csrf
-                                <select name="user_id" style="padding: 0.25rem; border: 1px solid #ccc; border-radius: 4px;">
+                                <select name="user_id" class="py-1 px-2 border border-[#ccc] rounded text-sm">
                                     <option value="">Choose user to exclude...</option>
                                     @foreach ($excludableUsers as $user)
                                         <option value="{{ $user->id }}">{{ $user->full_name }}</option>
                                     @endforeach
                                 </select>
-                                <button type="submit" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                <button type="submit" class="btn btn-secondary btn-sm !px-2 !py-1 text-xs">
                                     Exclude this user
                                 </button>
                             </form>
                             @if(session('success') && session('post_id') == $reply->id)
-                                <div class="alert alert-success" style="margin-top: 0.5rem; font-size: 0.8rem; color: green;">
+                                <div class="alert alert-success mt-2 text-xs text-green-700">
                                     {{ session('success') }}
                                 </div>
                             @endif
@@ -143,9 +143,9 @@
             </div>
         </article>
     @empty
-        <div class="bento-card" style="text-align: center; padding: 2.5rem 2rem;">
-            <span class="material-symbols-outlined" style="font-size: 2.5rem; color: var(--secondary); opacity: 0.4;">forum</span>
-            <p style="margin: 0.75rem 0 0; color: rgba(88, 103, 75, 0.7);">
+        <div class="bento-card text-center py-10 px-8">
+            <span class="material-symbols-outlined text-[2.5rem] text-[var(--secondary)] opacity-40">forum</span>
+            <p class="mt-3 mb-0 text-[var(--on-surface-variant)] opacity-70">
                 No replies yet. Be the first to respond!
             </p>
         </div>
@@ -153,10 +153,10 @@
 </section>
 
 {{-- Reply Form --}}
-<section class="mb-4" style="margin-top: 1.5rem;">
-    <div class="bento-card" style="padding: 1.25rem;">
-        <h3 style="margin: 0 0 1rem; font-size: 1rem;">
-            <span class="material-symbols-outlined" style="font-size: 1.25rem; vertical-align: middle; margin-right: 0.25rem;">reply</span>
+<section class="mb-4 mt-6">
+    <div class="bento-card p-5">
+        <h3 class="m-0 mb-4 text-base">
+            <span class="material-symbols-outlined text-xl align-middle mr-1">reply</span>
             Post a Reply
         </h3>
 
@@ -169,7 +169,7 @@
             <form method="POST" action="{{ route('forum.reply.store', $topic->id) }}">
                 @csrf
 
-                <div class="form-group" style="margin-bottom: 1rem;">
+                <div class="form-group mb-4">
                     <textarea id="content"
                               name="content"
                               rows="4"
@@ -178,16 +178,16 @@
                               placeholder="Write your reply..."
                               class="form-input @error('content') is-invalid @enderror">{{ old('content') }}</textarea>
                     @error('content')
-                        <p class="form-error" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin-top: 0.25rem;">
-                            <span class="material-symbols-outlined" style="font-size: 0.875rem; vertical-align: middle;">error</span>
+                        <p class="form-error text-[var(--error,#dc3545)] text-sm mt-1">
+                            <span class="material-symbols-outlined text-sm align-middle">error</span>
                             {{ $message }}
                         </p>
                     @enderror
                 </div>
 
-                <div style="display: flex; justify-content: flex-end;">
+                <div class="flex justify-end">
                     <button type="submit" class="btn btn-primary">
-                        <span class="material-symbols-outlined" style="font-size: 1.25rem;">send</span>
+                        <span class="material-symbols-outlined text-xl">send</span>
                         Post Reply
                     </button>
                 </div>
@@ -201,7 +201,7 @@
 <script>
 function toggleShareMenu() {
     const menu = document.getElementById('share-menu');
-    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    menu.classList.toggle('hidden');
 }
 
 function copyToClipboard(url) {
@@ -223,7 +223,7 @@ function copyToClipboard(url) {
 document.addEventListener('click', function(event) {
     const menu = document.getElementById('share-menu');
     if (menu && !event.target.closest('#share-menu') && !event.target.closest('[onclick*="toggleShareMenu"]')) {
-        menu.style.display = 'none';
+        menu.classList.add('hidden');
     }
 });
 </script>
