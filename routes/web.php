@@ -69,7 +69,7 @@ Route::middleware('auth')->group(function () {
 
 // Topic sharing route (outside auth middleware)
 Route::prefix('topics')->group(function () {
-    Route::post('/{topic}/share', [ForumController::class, 'shareTopic'])->name('topics.share');
+    Route::post('/{topic}/share', [\App\Http\Controllers\ForumController::class, 'shareTopic'])->name('topics.share');
 });
 
 // Route for accessing shared topics with signed URL
