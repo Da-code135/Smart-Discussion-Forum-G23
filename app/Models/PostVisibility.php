@@ -14,7 +14,11 @@ class PostVisibility extends Model
     /**
      * This table has no updated_at column — only created_at is tracked.
      */
-    public $timestamps = false;
+    protected $timestamps = true;
+
+    // Only created_at exists in the database (no updated_at)
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = null;
 
     protected $fillable = [
         'post_id',
