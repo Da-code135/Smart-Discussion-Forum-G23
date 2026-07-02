@@ -4,7 +4,7 @@
 @section('activeNav', 'topics')
 
 @section('content')
-@php $group = Auth::user()->group; @endphp
+
 
 {{-- Page Header --}}
 <header class="page-header">
