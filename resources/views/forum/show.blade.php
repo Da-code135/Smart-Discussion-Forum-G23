@@ -15,9 +15,9 @@
                 <span class="text-xs text-[var(--on-surface-variant)] opacity-60">
                     {{ $topic->group->group_name ?? 'Forum' }}
                 </span>
-                @if ($topic->post_type === 'question')
-                    <span class="badge badge-secondary text-xs">Question</span>
-                @endif
+                @if ($topic->post_type !== 'discussion')
+                    <span class="badge badge-secondary text-xs">{{ ucfirst($topic->post_type) }}</span>
+                @endif{{-- This caters for both possibilities of either question or discussion types --}}
             </div>
         </div>
         <div class="flex gap-2 items-start">
