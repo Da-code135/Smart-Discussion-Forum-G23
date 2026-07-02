@@ -235,9 +235,15 @@ class ForumController extends Controller
      *   1. Group isolation check — topic must belong to user's group
      *   2. Visibility rules — excluded posts are filtered from the PDF
      *   3. Moderation — removed posts are excluded
+     *   4. User must be authenticated
      */
     public function exportPDF(Topic $topic)
     {
+        // Ensure user is authenticated
+        if (!Auth::check()) {
+            abort(403, 'You must be logged in to export topics.');
+        }
+
         // === GROUP ISOLATION CHECK ===
         if ($topic->group_id !== Auth::user()->group_id) {
             abort(403, 'You do not have access to this topic.');
@@ -268,5 +274,61 @@ class ForumController extends Controller
         ]);
 
         return $pdf->download('topic-' . $topic->id . '.pdf');
+    }
+
+    /**
+     * ============================================
+     * Task 5.2 — Share Topic via Signed URL
+     * ============================================
+     *
+     * Generate a time-limited signed URL to share a topic with others.
+     * Uses Laravel's built-in signed URL functionality to ensure security.
+     *
+     * Security:
+     *   1. Group isolation check — topic must belong to user's group
+     *   2. Visibility rules — excluded posts are filtered from the shared view
+     *   3. Moderation — removed posts are excluded
+     *   4. User must be authenticated
+     */
+    public function shareTopic(Request $request, Topic $topic)
+    {
+        // Ensure user is authenticated
+        if (!Auth::check()) {
+            abort(403, 'You must be logged in to share topics.');
+        }
+
+        // === GROUP ISOLATION CHECK ===
+        if ($topic->group_id !== Auth::user()->group_id) {
+            abort(403, 'You do not have access to this topic.');
+        }
+
+        // Validate request data
+        $request->validate([
+            'expires_in_days' => 'required|integer|min:1|max:7',
+        ]);
+
+        // Calculate expiration time (current time + X days)
+        $expires = now()->addDays($request->input('expires_in_days'));
+
+        // Generate signed URL using Laravel's built-in functionality
+        $signedUrl = URL::temporarySignedRoute(
+            'shared.topic.show',
+            $expires,
+            [
+                'topic' => $topic->id,
+                'signedUserId' => Auth::id(),
+            ]
+        );
+
+        // Log the share action for audit trail
+        app(AuditLogService::class)->log(
+            action: 'topic.shared',
+            target: $topic,
+            newValues: ['expires_in_days' => $request->input('expires_in_days')],
+            description: Auth::user()->full_name . ' shared topic "' . $topic->title . '" via signed URL'
+        );
+
+        // Return the signed URL to the view
+        return back()->with('share_url', $signedUrl);
     }
 }
