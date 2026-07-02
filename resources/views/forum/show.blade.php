@@ -21,39 +21,17 @@
             </div>
         </div>
         <div class="flex gap-2 items-start">
-            {{-- PDF Export Button --}}
-            <a href="{{ route('forum.export-pdf', $topic->id) }}" class="btn btn-secondary btn-sm flex items-center gap-1 !px-3 !py-1.5 text-xs">
+            {{-- PDF Export Button with Modal --}}
+            <button type="button" class="btn btn-secondary btn-sm flex items-center gap-1 !px-3 !py-1.5 text-xs" data-bs-toggle="modal" data-bs-target="#exportPdfModal">
                 <span class="material-symbols-outlined text-base">download</span>
                 Export PDF
-            </a>
-            {{-- Social Sharing Dropdown --}}
-            <div class="relative">
-                <button onclick="toggleShareMenu()" class="btn btn-secondary btn-sm flex items-center gap-1 !px-3 !py-1.5 text-xs">
-                    <span class="material-symbols-outlined text-base">share</span>
-                    Share
-                </button>
-                <div id="share-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-black/10 rounded-lg shadow-lg min-w-[160px] z-[100] overflow-hidden">
-                    <div class="px-4 py-2 text-xs text-[var(--on-surface-variant)] opacity-60 bg-[var(--surface-container-low)] border-b border-black/5">
-                        Recipients must be logged in to view this topic.
-                    </div>
-                    <a href="https://wa.me/?text={{ urlencode('Check out this topic: ' . route('forum.show', $topic->id)) }}" target="_blank" class="flex items-center gap-2 px-4 py-2.5 no-underline text-[var(--on-surface)] text-sm border-b border-black/5 hover:bg-[var(--surface-container-low)]">
-                        <span class="material-symbols-outlined text-lg text-[#25D366]">chat</span>
-                        WhatsApp
-                    </a>
-                    <a href="https://twitter.com/intent/tweet?url={{ urlencode(route('forum.show', $topic->id)) }}&text={{ urlencode('Check out: ' . $topic->title) }}" target="_blank" class="flex items-center gap-2 px-4 py-2.5 no-underline text-[var(--on-surface)] text-sm border-b border-black/5 hover:bg-[var(--surface-container-low)]">
-                        <span class="material-symbols-outlined text-lg text-[#1DA1F2]">tag</span>
-                        Twitter / X
-                    </a>
-                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ urlencode(route('forum.show', $topic->id)) }}" target="_blank" class="flex items-center gap-2 px-4 py-2.5 no-underline text-[var(--on-surface)] text-sm border-b border-black/5 hover:bg-[var(--surface-container-low)]">
-                        <span class="material-symbols-outlined text-lg text-[#1877F2]">thumb_up</span>
-                        Facebook
-                    </a>
-                    <button onclick="copyToClipboard('{{ route('forum.show', $topic->id) }}')" class="flex items-center gap-2 px-4 py-2.5 bg-transparent border-none w-full cursor-pointer text-[var(--on-surface)] text-sm hover:bg-[var(--surface-container-low)]">
-                        <span class="material-symbols-outlined text-lg text-[var(--primary-sage)]">link</span>
-                        Copy Link
-                    </button>
-                </div>
-            </div>
+            </button>
+
+            {{-- Social Sharing Button with Modal --}}
+            <button type="button" class="btn btn-secondary btn-sm flex items-center gap-1 !px-3 !py-1.5 text-xs" data-bs-toggle="modal" data-bs-target="#shareModal">
+                <span class="material-symbols-outlined text-base">share</span>
+                Share
+            </button>
         </div>
     </div>
 </header>
@@ -84,6 +62,76 @@
     <h3 class="m-0 text-lg">
         Replies ({{ $topic->posts->count() }})
     </h3>
+</div>
+    
+<!-- Export PDF Modal -->
+<div class="modal fade" id="exportPdfModal" tabindex="-1" aria-labelledby="exportPdfModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exportPdfModalLabel">Export Topic to PDF</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ route('forum.export-pdf', $topic->id) }}" method="POST">
+                    @csrf
+                    <div class="mb-3">
+                        <label for="pdf_format" class="form-label">Select Format</label>
+                        <select name="pdf_format" id="pdf_format" class="form-select" required>
+                            <option value="basic">Basic PDF</option>
+                            <option value="letter">Letter Format (8.5" x 11")</option>
+                            <option value="a4">A4 Format (210mm x 297mm)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" name="include_comments" id="include_comments" class="form-check-input" checked>
+                        <label for="include_comments" class="form-check-label">Include Replies</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate PDF</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1" aria-labelledby="shareModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareModalLabel">Share Topic</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ route('topics.share', $topic) }}" method="POST">
+                    @csrf
+                    <div class="mb-3">
+                        <label for="expires_in_days" class="form-label">Link expiration</label>
+                        <select name="expires_in_days" id="expires_in_days" class="form-select" required>
+                            <option value="1">1 day</option>
+                            <option value="3">3 days</option>
+                            <option value="7">7 days</option>
+                        </select>
+                        <div class="form-text">Choose how long the shared link will be valid</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate Share Link</button>
+                </form>
+
+                @if(session('share_url'))
+                    <div class="mt-4">
+                        <label for="shareUrl" class="form-label">Your shareable link</label>
+                        <div class="input-group">
+                            <input type="text" id="shareUrl" class="form-control" value="{{ session('share_url') }}" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard()">Copy</button>
+                        </div>
+                        <div class="form-text mt-2">
+                            This link will expire on {{ date('Y-m-d H:i', parse_url(session('share_url'), PHP_URL_QUERY)['expires']) }}
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
 </div>
 
 {{-- Replies List --}}
@@ -226,5 +274,13 @@ document.addEventListener('click', function(event) {
         menu.classList.add('hidden');
     }
 });
+
+// New clipboard function for modal
+function copyToClipboard() {
+    const shareUrl = document.getElementById('shareUrl');
+    shareUrl.select();
+    document.execCommand('copy');
+    alert('Link copied to clipboard!');
+}
 </script>
 @endpush
