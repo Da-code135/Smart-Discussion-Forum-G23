@@ -51,6 +51,7 @@
                 <label class="form-label">Topic Type</label>
                 <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
                     <label class="radio-card" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border: 1px solid rgba(0,0,0,0.1); border-radius: 0.5rem; cursor: pointer; flex: 1;">
+                        {{-- Radio button: defaults to 'discussion', checked if previously selected --}}
                         <input type="radio" name="post_type" value="discussion" {{ old('post_type', 'discussion') === 'discussion' ? 'checked' : '' }}>
                         <div>
                             <strong>Discussion</strong>
