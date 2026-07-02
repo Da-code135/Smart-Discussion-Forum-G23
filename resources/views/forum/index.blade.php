@@ -10,7 +10,7 @@
 <header class="page-header">
     <div class="page-header-row">
         <div>
-            <h1>{{ $group?->group_name ?? 'My Group' }} Forum</h1>
+            <h1>{{ $group->group_name }} Forum</h1>
             <p>Browse discussions in your group or start a new topic</p>
         </div>
         <a href="{{ route('forum.create') }}" class="btn btn-primary">
