@@ -41,4 +41,20 @@ class Warning extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    /**
+     * Check if this warning is the third warning for the user
+     */
+    public function isThirdWarning(): bool
+    {
+        return $this->warning_number >= 3;
+    }
+
+    /**
+     * Check if this warning has expired (response deadline passed)
+     */
+    public function hasExpired(): bool
+    {
+        return now()->greaterThan($this->response_deadline);
+    }
 }
