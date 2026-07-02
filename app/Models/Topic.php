@@ -10,7 +10,7 @@ class Topic extends Model
     /** @use HasFactory<\Database\Factories\TopicFactory> */
     use HasFactory;
 
-    protected $table = 'topic';
+    
 
     protected $fillable = [
         'group_id',
