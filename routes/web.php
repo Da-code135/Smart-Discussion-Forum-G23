@@ -72,10 +72,10 @@ Route::prefix('topics')->group(function () {
     Route::post('/{topic}/share', [\App\Http\Controllers\ForumController::class, 'shareTopic'])->name('topics.share');
 });
 
-// Route for accessing shared topics with signed URL
-Route::get('/shared/topic/{topic}/{signedUserId}/{expires}/{signature}', [
-    App\Http\Controllers\SharedTopicController::class, 
-    'show'
+// Route for accessing shared topics with signed URL (?expires=...&signature=... appended by Laravel)
+Route::get('/shared/topic/{topic}/{signedUserId}', [
+    App\Http\Controllers\SharedTopicController::class,
+    'show',
 ])->name('shared.topic.show');
 
 // Group Management
