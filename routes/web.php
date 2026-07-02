@@ -67,6 +67,16 @@ Route::middleware('auth')->group(function () {
     });
 });
 
+// Topic sharing route (outside auth middleware)
+Route::prefix('topics')->group(function () {
+    Route::post('/{topic}/share', [ForumController::class, 'shareTopic'])->name('topics.share');
+});
+
+// Route for accessing shared topics with signed URL
+Route::get('/shared/topic/{topic}/{signedUserId}/{expires}/{signature}', [
+    App\Http\Controllers\SharedTopicController::class, 
+    'show'
+])->name('shared.topic.show');
 
 // Group Management
 Route::get('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'index'])
@@ -205,116 +215,132 @@ Route::middleware('auth')->group(function () {
 // ADMIN ROUTES (Authentication + Admin check required)
 // ============================================
 
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::prefix('admin')->middleware('admin')->group(function () {
     // User Management (#88-#91) - All admins can view, but actions are controlled by policies
     Route::get('/users', [\App\Http\Controllers\Admin\UserManagementController::class, 'index'])
-        ->name('users.index');
+        ->name('admin.users.index');
 
     // User creation & deletion - System Admin only (must be before {user} route to avoid route conflict)
     Route::middleware(['system-admin'])->group(function () {
         Route::get('/users/create', [\App\Http\Controllers\Admin\UserManagementController::class, 'create'])
-            ->name('users.create');
+            ->name('admin.users.create');
         Route::post('/users', [\App\Http\Controllers\Admin\UserManagementController::class, 'store'])
-            ->name('users.store');
+            ->name('admin.users.store');
         Route::delete('/users/{user}', [\App\Http\Controllers\Admin\UserManagementController::class, 'destroy'])
-            ->name('users.destroy');
+            ->name('admin.users.destroy');
         Route::get('/users/{user}/reset-password', [\App\Http\Controllers\Admin\UserManagementController::class, 'showResetPassword'])
-            ->name('users.reset-password');
+            ->name('admin.users.reset-password');
         Route::post('/users/{user}/reset-password', [\App\Http\Controllers\Admin\UserManagementController::class, 'resetPassword'])
-            ->name('users.reset-password.store');
+            ->name('admin.users.reset-password.store');
         Route::get('/users/{user}/blacklist', [\App\Http\Controllers\Admin\UserManagementController::class, 'showBlacklist'])
-            ->name('users.blacklist');
+            ->name('admin.users.blacklist');
         Route::post('/users/{user}/blacklist', [\App\Http\Controllers\Admin\UserManagementController::class, 'blacklist'])
-            ->name('users.blacklist.store');
+            ->name('admin.users.blacklist.store');
         Route::post('/warnings/{warning}/resolve', [\App\Http\Controllers\Admin\UserManagementController::class, 'resolveWarning'])
-            ->name('warnings.resolve');
+            ->name('admin.warnings.resolve');
     });
 
     Route::get('/users/{user}', [\App\Http\Controllers\Admin\UserManagementController::class, 'show'])
-        ->name('users.show');
+        ->name('admin.users.show');
     Route::get('/users/{user}/edit', [\App\Http\Controllers\Admin\UserManagementController::class, 'edit'])
-        ->name('users.edit');
+        ->name('admin.users.edit');
     Route::put('/users/{user}', [\App\Http\Controllers\Admin\UserManagementController::class, 'update'])
-        ->name('users.update');
+        ->name('admin.users.update');
     Route::post('/users/{user}/lift-blacklist', [\App\Http\Controllers\Admin\UserManagementController::class, 'liftBlacklist'])
-        ->name('users.lift-blacklist');
+        ->name('admin.users.lift-blacklist');
     Route::post('/users/{user}/change-role', [\App\Http\Controllers\Admin\UserManagementController::class, 'changeRole'])
-        ->name('users.change-role');
+        ->name('admin.users.change-role');
 
     // System Config (#92) - System Admin only
     Route::middleware(['system-admin'])->group(function () {
         Route::get('/system-config', [\App\Http\Controllers\Admin\SystemConfigController::class, 'index'])
-            ->name('system-config.index');
+            ->name('admin.system-config.index');
         Route::put('/system-config', [\App\Http\Controllers\Admin\SystemConfigController::class, 'update'])
-            ->name('system-config.update');
+            ->name('admin.system-config.update');
     });
 
     // Admin Dashboard - All admins
     Route::get('/dashboard', function () {
         return view('admin.dashboard');
-    })->name('dashboard');
+    })->name('admin.dashboard');
 
     // Moderation Panel - All admins (group-scoped in controller queries)
     Route::get('/moderation', [\App\Http\Controllers\Admin\ModerationController::class, 'index'])
-        ->name('moderation.index');
+        ->name('admin.moderation.index');
     Route::post('/moderation/{post}/remove', [\App\Http\Controllers\Admin\ModerationController::class, 'removePost'])
-        ->name('moderation.remove');
+        ->name('admin.moderation.remove');
     Route::post('/moderation/{post}/ignore', [\App\Http\Controllers\Admin\ModerationController::class, 'ignoreReport'])
-        ->name('moderation.ignore');
+        ->name('admin.moderation.ignore');
 
     // Audit Logs - All admins
     Route::get('/audit-logs', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])
-        ->name('audit-logs.index');
+        ->name('admin.audit-logs.index');
     Route::get('/audit-logs/{log}', [\App\Http\Controllers\Admin\AuditLogController::class, 'show'])
-        ->name('audit-logs.show');
+        ->name('admin.audit-logs.show');
     Route::get('/audit-logs/export/{format?}', [\App\Http\Controllers\Admin\AuditLogController::class, 'export'])
-        ->name('audit-logs.export');
+        ->name('admin.audit-logs.export');
 
     // IP Whitelist - System Admin only
     Route::middleware(['system-admin'])->group(function () {
         Route::get('/ip-whitelist', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'index'])
-            ->name('ip-whitelist.index');
+            ->name('admin.ip-whitelist.index');
         Route::get('/ip-whitelist/create', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'create'])
-            ->name('ip-whitelist.create');
+            ->name('admin.ip-whitelist.create');
         Route::post('/ip-whitelist', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'store'])
-            ->name('ip-whitelist.store');
+            ->name('admin.ip-whitelist.store');
         Route::get('/ip-whitelist/{ipWhitelist}/edit', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'edit'])
-            ->name('ip-whitelist.edit');
+            ->name('admin.ip-whitelist.edit');
         Route::put('/ip-whitelist/{ipWhitelist}', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'update'])
-            ->name('ip-whitelist.update');
+            ->name('admin.ip-whitelist.update');
         Route::delete('/ip-whitelist/{ipWhitelist}', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'destroy'])
-            ->name('ip-whitelist.destroy');
+            ->name('admin.ip-whitelist.destroy');
         Route::post('/ip-whitelist/{ipWhitelist}/activate', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'activate'])
-            ->name('ip-whitelist.activate');
+            ->name('admin.ip-whitelist.activate');
         Route::post('/ip-whitelist/{ipWhitelist}/deactivate', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'deactivate'])
-            ->name('ip-whitelist.deactivate');
+            ->name('admin.ip-whitelist.deactivate');
     });
 
     // Group Management - All admins can view their groups, but actions are controlled by policies
     Route::get('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'index'])
-        ->name('groups.index');
+        ->name('admin.groups.index');
 
     // Group creation - System Admin only
     Route::middleware(['system-admin'])->group(function () {
         Route::get('/groups/create', [\App\Http\Controllers\Admin\GroupController::class, 'create'])
-            ->name('groups.create');
+            ->name('admin.groups.create');
         Route::post('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'store'])
-            ->name('groups.store');
+            ->name('admin.groups.store');
         Route::post('/groups/bulk-assign', [\App\Http\Controllers\Admin\GroupController::class, 'bulkAssign'])
-            ->name('groups.bulk-assign');
+            ->name('admin.groups.bulk-assign');
     });
 
     // Group-specific actions - controlled by can-admin-group middleware
     Route::middleware(['can-admin-group'])->group(function () {
         Route::get('/groups/{group}/edit', [\App\Http\Controllers\Admin\GroupController::class, 'edit'])
-            ->name('groups.edit');
+            ->name('admin.groups.edit');
         Route::put('/groups/{group}', [\App\Http\Controllers\Admin\GroupController::class, 'update'])
-            ->name('groups.update');
+            ->name('admin.groups.update');
         Route::delete('/groups/{group}', [\App\Http\Controllers\Admin\GroupController::class, 'destroy'])
-            ->name('groups.destroy');
+            ->name('admin.groups.destroy');
         Route::get('/groups/{group}/members', [\App\Http\Controllers\Admin\GroupController::class, 'showMembers'])
-            ->name('groups.members');
+            ->name('admin.groups.members');
         Route::put('/groups/{group}/members', [\App\Http\Controllers\Admin\GroupController::class, 'updateMembers'])
-            ->name('groups.update-members');
+            ->name('admin.groups.update-members');
+    });
+
+    // Warning routes
+    Route::prefix('warnings')->group(function () {
+        Route::get('/', [WarningController::class, 'index'])->name('admin.warnings.index');
+        Route::get('/{warning}', [WarningController::class, 'show'])->name('admin.warnings.show');
+        Route::post('/', [WarningController::class, 'store'])->name('admin.warnings.store');
+        Route::post('/{warning}', [WarningController::class, 'update'])->name('admin.warnings.update');
+    });
+
+    // Blacklist routes
+    Route::prefix('blacklist')->group(function () {
+        Route::get('/', [BlacklistController::class, 'index'])->name('admin.blacklist.index');
+        Route::get('/{blacklistRecord}', [BlacklistController::class, 'show'])->name('admin.blacklist.show');
+        Route::post('/', [BlacklistController::class, 'store'])->name('admin.blacklist.store');
+        Route::post('/{blacklistRecord}', [BlacklistController::class, 'update'])->name('admin.blacklist.update');
     });
 });

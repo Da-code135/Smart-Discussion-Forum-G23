@@ -62,7 +62,22 @@
         </main>
     </div>
 
-    @stack('scripts')
+    <!-- Footer -->
+    <footer class="py-4 bg-light mt-auto">
+        <div class="container">
+            <div class="text-center">
+                &copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.
+            </div>
+        </div>
+    </footer>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Scripts section -->
+@stack('scripts')
+
 </body>
 </html>
 
