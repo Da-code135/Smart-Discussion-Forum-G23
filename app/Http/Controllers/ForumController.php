@@ -10,6 +10,7 @@ use App\Services\AuditLogService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL;
 
 class ForumController extends Controller
 {
@@ -274,6 +275,7 @@ class ForumController extends Controller
         $pdf = Pdf::loadView('forum.export-pdf', [
             'topic' => $topic,
             'replies' => $replies,
+            'exportedBy' => Auth::user(),
         ]);
 
         return $pdf->download('topic-' . $topic->id . '.pdf');
@@ -306,12 +308,14 @@ class ForumController extends Controller
         }
 
         // Validate request data
-        $request->validate([
+        $validated = $request->validate([
             'expires_in_days' => 'required|integer|min:1|max:7',
         ]);
 
+        $expiresInDays = (int) $validated['expires_in_days'];
+
         // Calculate expiration time (current time + X days)
-        $expires = now()->addDays($request->input('expires_in_days'));
+        $expires = now()->addDays($expiresInDays);
 
         // Generate signed URL using Laravel's built-in functionality
         $signedUrl = URL::temporarySignedRoute(
@@ -327,7 +331,7 @@ class ForumController extends Controller
         app(AuditLogService::class)->log(
             action: 'topic.shared',
             target: $topic,
-            newValues: ['expires_in_days' => $request->input('expires_in_days')],
+            newValues: ['expires_in_days' => $expiresInDays],
             description: Auth::user()->full_name . ' shared topic "' . $topic->title . '" via signed URL'
         );
 
