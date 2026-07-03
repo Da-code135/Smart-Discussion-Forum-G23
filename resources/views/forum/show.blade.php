@@ -209,6 +209,17 @@
         @endif
     </div>
 </section>
+
+<div class="topic-actions">
+    @can('update', $topic)
+        <a href="{{ route('topics.edit', $topic) }}" class="btn btn-primary">Edit Topic</a>
+    @endcan
+    
+    @auth
+        <x-report-button type="topic" :id="$topic->id" />
+    @endauth
+</div>
+
 @endsection
 
 @push('styles')
