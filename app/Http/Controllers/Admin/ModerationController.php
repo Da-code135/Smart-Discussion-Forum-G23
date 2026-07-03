@@ -74,7 +74,7 @@ class ModerationController extends Controller
             $query->whereHas('topic', function ($q) use ($adminGroupIds) {
                 $q->whereIn('group_id', $adminGroupIds);
             });
-        } else (! $user->isSystemAdmin()) {
+        } elseif(! $user->isSystemAdmin()) {
             $query->whereHas('topic', function ($q) use ($user) {
                 $q->where('group_id', $user->group_id);
             });
