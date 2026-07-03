@@ -5,24 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="description" content="@yield('meta-description', 'Smart Discussion Forum Dashboard')">
-
-    <title>@yield('title', 'Dashboard') - {{ config('app.name') }}</title>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/components.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/forms.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/layout.css') }}">
-
-    @hasSection('admin')
-        <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
-    @endif
-
+    <meta name="description" content="@yield('meta-description', 'Studdit academic discussion platform')">
+    <title>@yield('title', 'Dashboard') - Studdit</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
 </head>
 <body class="app-layout">
@@ -30,54 +15,40 @@
 
     <div class="app-shell">
         <main class="app-main">
-            @if (session('success'))
-                <div class="alert alert-success flash-alert" role="alert">
-                    <span class="material-symbols-outlined">check_circle</span>
-                    {{ session('success') }}
-                </div>
-            @endif
+            <div class="flash-stack">
+                @if (session('success'))
+                    <div class="alert alert-success" role="alert">
+                        <span class="material-symbols-outlined">check_circle</span>
+                        <span>{{ session('success') }}</span>
+                    </div>
+                @endif
 
-            @if (session('error'))
-                <div class="alert alert-error flash-alert" role="alert">
-                    <span class="material-symbols-outlined">error</span>
-                    {{ session('error') }}
-                </div>
-            @endif
+                @if (session('error'))
+                    <div class="alert alert-error" role="alert">
+                        <span class="material-symbols-outlined">error</span>
+                        <span>{{ session('error') }}</span>
+                    </div>
+                @endif
 
-            @if (session('warning'))
-                <div class="alert alert-warning flash-alert" role="alert">
-                    <span class="material-symbols-outlined">warning</span>
-                    {{ session('warning') }}
-                </div>
-            @endif
+                @if (session('warning'))
+                    <div class="alert alert-warning" role="alert">
+                        <span class="material-symbols-outlined">warning</span>
+                        <span>{{ session('warning') }}</span>
+                    </div>
+                @endif
 
-            @if (session('info'))
-                <div class="alert alert-info flash-alert" role="alert">
-                    <span class="material-symbols-outlined">info</span>
-                    {{ session('info') }}
-                </div>
-            @endif
+                @if (session('info'))
+                    <div class="alert alert-info" role="alert">
+                        <span class="material-symbols-outlined">info</span>
+                        <span>{{ session('info') }}</span>
+                    </div>
+                @endif
+            </div>
 
             @yield('content')
         </main>
     </div>
 
-    <!-- Footer -->
-    <footer class="py-4 bg-light mt-auto">
-        <div class="container">
-            <div class="text-center">
-                &copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.
-            </div>
-        </div>
-    </footer>
-</div>
-
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- Scripts section -->
-@stack('scripts')
-
+    @stack('scripts')
 </body>
 </html>
-

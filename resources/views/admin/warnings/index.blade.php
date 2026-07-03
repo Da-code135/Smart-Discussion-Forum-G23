@@ -1,68 +1,86 @@
-@extends('admin.layouts.app')
+@extends('layouts.app')
+
+@section('title', 'Warnings')
+@section('activeNav', 'admin-users')
+@section('admin')
 
 @section('content')
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Warnings</h1>
-        <a href="{{ route('admin.warnings.create') }}" class="btn btn-primary">Issue Warning</a>
+<div class="page-stack">
+    <div class="admin-header page-stack">
+        <div class="admin-header__row">
+            <div>
+                <h1>Warnings</h1>
+                <p>Track and resolve warnings issued to members.</p>
+            </div>
+            <a href="{{ route('admin.users.index') }}" class="btn btn-primary">Go to users to issue a warning</a>
+        </div>
+
+        <form method="GET" action="{{ route('admin.warnings.index') }}" class="filter-section">
+            <div class="form-group">
+                <label for="search" class="form-label">Search by user name or email</label>
+                <input type="text" id="search" name="search" value="{{ request('search') }}" placeholder="Search warnings..." class="form-control">
+            </div>
+            <div class="filter-button-group">
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </form>
     </div>
 
-    <!-- Search Form -->
-    <form method="GET" action="{{ route('admin.warnings.index') }}" class="mb-4">
-        <div class="input-group">
-            <input type="text" name="search" class="form-control" placeholder="Search warnings..." value="{{ request('search') }}">
-            <button class="btn btn-outline-secondary" type="submit">Search</button>
-        </div>
-    </form>
-
-    <!-- Warnings Table -->
-    <div class="table-responsive">
-        <table class="table table-striped">
+    <div class="table-container">
+        <table>
             <thead>
                 <tr>
                     <th>User</th>
                     <th>Warning #</th>
                     <th>Reason</th>
-                    <th>Issued By</th>
-                    <th>Issued At</th>
+                    <th>Issued by</th>
+                    <th>Issued at</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($warnings as $warning)
+                @forelse ($warnings as $warning)
                     <tr>
-                        <td>{{ $warning->user->full_name }}<br><small>{{ $warning->user->email }}</small></td>
+                        <td>
+                            <strong>{{ $warning->user->full_name }}</strong><br>
+                            <span class="meta-text">{{ $warning->user->email }}</span>
+                        </td>
                         <td>{{ $warning->warning_number }}</td>
                         <td>{{ Str::limit($warning->reason, 50) }}</td>
-                        <td>{{ $warning->createdBy->full_name }}</td>
-                        <td>{{ $warning->created_at->format('Y-m-d H:i') }}</td>
+                        <td>{{ $warning->createdBy->full_name ?? 'System' }}</td>
+                        <td>{{ $warning->created_at->format('M d, Y H:i') }}</td>
                         <td>
-                            @if($warning->is_resolved)
-                                <span class="badge bg-success">Resolved</span>
+                            @if ($warning->is_resolved)
+                                <span class="badge badge-success">Resolved</span>
                             @else
-                                <span class="badge bg-warning text-dark">Pending</span>
+                                <span class="badge badge-warning">Pending</span>
                             @endif
                         </td>
                         <td>
-                            <a href="{{ route('admin.warnings.show', $warning) }}" class="btn btn-sm btn-info">View</a>
-                            @if(!$warning->is_resolved)
-                                <form action="{{ route('admin.warnings.update', $warning) }}" method="POST" class="d-inline">
-                                    @csrf
-                                    @method('PUT')
-                                    <button type="submit" class="btn btn-sm btn-success">Resolve</button>
-                                </form>
-                            @endif
+                            <div class="table-actions">
+                                <a href="{{ route('admin.warnings.show', $warning) }}" class="btn btn-secondary btn-sm">View</a>
+                                @if (!$warning->is_resolved)
+                                    <form method="POST" action="{{ route('admin.warnings.update', $warning) }}">
+                                        @csrf
+                                        @method('PUT')
+                                        <button type="submit" class="btn btn-success btn-sm">Resolve</button>
+                                    </form>
+                                @endif
+                            </div>
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr>
+                        <td colspan="7" class="text-center">No warnings found.</td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
     </div>
 
-    <!-- Pagination -->
-    <div class="d-flex justify-content-center">
-        {{ $warnings->links() }}
+    <div class="pagination">
+        {{ $warnings->appends(request()->query())->links() }}
     </div>
 </div>
 @endsection

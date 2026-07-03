@@ -5,7 +5,11 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Auth\WarningAcknowledgementController;
 use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\Admin\WarningController;
+use App\Http\Controllers\Admin\BlacklistController;
 use App\Http\Controllers\ReportController;
+use App\Models\Topic;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -26,9 +30,43 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // ============================================
 
 Route::middleware('auth')->group(function () {
-    // DASHBOARD 
+    // DASHBOARD
     Route::get('/dashboard', function () {
-        return view('auth.dashboard');
+        $user = Auth::user();
+
+        $recentTopics = collect();
+        $recommendedTopics = collect();
+
+        if ($user->group_id) {
+            $recentTopics = Topic::where('group_id', $user->group_id)
+                ->where('status', 'active')
+                ->with('creator')
+                ->withCount('posts')
+                ->latest()
+                ->take(5)
+                ->get()
+                ->map(fn (Topic $topic) => [
+                    'id' => $topic->id,
+                    'title' => $topic->title,
+                    'creator_name' => $topic->creator->full_name,
+                    'reply_count' => $topic->posts_count,
+                    'created_at' => $topic->created_at,
+                ]);
+
+            $recommendedTopics = Topic::where('group_id', $user->group_id)
+                ->where('status', 'active')
+                ->withCount('posts')
+                ->orderByDesc('posts_count')
+                ->take(2)
+                ->get()
+                ->map(fn (Topic $topic) => [
+                    'id' => $topic->id,
+                    'title' => $topic->title,
+                    'member_count' => $topic->posts_count,
+                ]);
+        }
+
+        return view('auth.dashboard', compact('recentTopics', 'recommendedTopics'));
     })->name('dashboard');
 
     // WARNING ACKNOWLEDGEMENT
@@ -57,11 +95,11 @@ Route::middleware('auth')->group(function () {
         // Task 2b.1 & 2b.2: Topic detail with replies & reply form
         Route::get('/{topic}', [\App\Http\Controllers\ForumController::class, 'show'])->name('show');
         Route::post('/{topic}/reply', [\App\Http\Controllers\ForumController::class, 'replyStore'])->name('reply.store');
-        
+
         // Task 4.1: Exclude user from post visibility
 
         Route::post('/post/{post}/visibility/exclude', [\App\Http\Controllers\ForumController::class, 'excludeUser'])->name('visibility.exclude');
-        
+
 
         // Task 5.1: Export topic thread as PDF (throttled: 5 requests/minute to prevent DoS)
         Route::get('/{topic}/export-pdf', [
@@ -80,26 +118,6 @@ Route::get('/shared/topic/{topic}/{signedUserId}', [
     App\Http\Controllers\SharedTopicController::class,
     'show',
 ])->name('shared.topic.show');
-
-// Group Management
-Route::get('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'index'])
-    ->name('groups.index');
-Route::get('/groups/create', [\App\Http\Controllers\Admin\GroupController::class, 'create'])
-    ->name('groups.create');
-Route::post('/groups', [\App\Http\Controllers\Admin\GroupController::class, 'store'])
-    ->name('groups.store');
-Route::get('/groups/{group}/edit', [\App\Http\Controllers\Admin\GroupController::class, 'edit'])
-    ->name('groups.edit');
-Route::put('/groups/{group}', [\App\Http\Controllers\Admin\GroupController::class, 'update'])
-    ->name('groups.update');
-Route::delete('/groups/{group}', [\App\Http\Controllers\Admin\GroupController::class, 'destroy'])
-    ->name('groups.destroy');
-Route::get('/groups/{group}/members', [\App\Http\Controllers\Admin\GroupController::class, 'showMembers'])
-    ->name('groups.members');
-Route::put('/groups/{group}/members', [\App\Http\Controllers\Admin\GroupController::class, 'updateMembers'])
-    ->name('groups.update-members');
-Route::post('/groups/bulk-assign', [\App\Http\Controllers\Admin\GroupController::class, 'bulkAssign'])
-    ->name('groups.bulk-assign');
 
 // Email Verification Routes
 Route::get('/verify-email', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'show'])->name('verify-email');
