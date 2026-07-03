@@ -264,6 +264,13 @@ Route::prefix('admin')->middleware('admin')->group(function () {
             ->name('admin.system-config.index');
         Route::put('/system-config', [\App\Http\Controllers\Admin\SystemConfigController::class, 'update'])
             ->name('admin.system-config.update');
+
+            // Group Statistics - System Admin only
+    Route::get('/group-statistics', [\App\Http\Controllers\Admin\GroupStatisticsController::class, 'index'])
+    ->name('admin.group-statistics.index');
+    Route::get('/group-statistics/{group}', [\App\Http\Controllers\Admin\GroupStatisticsController::class, 'show'])
+    ->name('admin.group-statistics.show');
+
     });
 
     // Admin Dashboard - All admins

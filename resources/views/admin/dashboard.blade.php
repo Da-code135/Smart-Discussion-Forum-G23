@@ -69,6 +69,21 @@
                 </a>
             @endif
 
+             {{-- System Configuration - System Admin only --}}
+            @if (auth()->user()->isSystemAdmin())
+                <a href="{{ route('admin.group-statistics.index') }}" class="link-btn">
+                    📊 Group Statistics
+                </a>
+
+                <a href="{{ route('admin.system-config.index') }}" class="link-btn">
+                    ⚙️ System Configuration
+                </a>
+
+                <a href="{{ route('admin.ip-whitelist.index') }}" class="link-btn">
+                    🔒 IP Whitelist
+                </a>
+            @endif
+
             {{-- Back to regular dashboard --}}
             <a href="{{ route('dashboard') }}" class="link-btn">
                 🏠 Back to Dashboard
