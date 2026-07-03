@@ -125,7 +125,9 @@ Route::middleware("auth")->group(function () {
             Route::post("/", [
                 \App\Http\Controllers\ForumController::class,
                 "store",
-            ])->name("store");
+            ])
+                ->middleware("throttle.posts:topic")
+                ->name("store");
 
             // Task 2b.1 & 2b.2: Topic detail with replies & reply form
             Route::get("/{topic}", [
@@ -135,7 +137,9 @@ Route::middleware("auth")->group(function () {
             Route::post("/{topic}/reply", [
                 \App\Http\Controllers\ForumController::class,
                 "replyStore",
-            ])->name("reply.store");
+            ])
+                ->middleware("throttle.posts:reply")
+                ->name("reply.store");
 
             // Task 4.1: Exclude user from post visibility
 
