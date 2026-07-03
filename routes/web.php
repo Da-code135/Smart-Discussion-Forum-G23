@@ -58,7 +58,24 @@ Route::middleware('auth')->group(function () {
         Route::post('/{topic}/reply', [\App\Http\Controllers\ForumController::class, 'replyStore'])->name('reply.store');
         
         // Task 4.1: Exclude user from post visibility
-        Route::post('/post/{post}/visibility/exclude', [\App\Http\Controllers\ForumController::class, 'excludeUser'])->name('visibility.exclude');
+        
+        Route::post('/forum/{post}/visibility/exclude', [ForumController::class, 'excludeUser'])
+        ->name('forum.visibility.exclude');
+
+        Route::post('/forum/{post}/visibility/remove-exclusion', [ForumController::class, 'removeExclusion'])
+        ->name('forum.visibility.remove-exclusion');
+
+        Route::get('/forum/visibility/users', [ForumController::class, 'getGroupUsers'])
+        ->name('forum.visibility.users');
+
+        Route::post('/forum/{post}/visibility/exclude-batch', [ForumController::class, 'excludeBatch'])
+        ->name('forum.visibility.exclude-batch');
+
+        Route::get('/forum/{post}/visibility/rules', [ForumController::class, 'viewVisibilityRules'])
+       ->name('forum.visibility.rules');
+
+        Route::get('/debug/forum/{topic}/access', [ForumController::class, 'debugTopicAccess'])
+        ->name('forum.debug.access');
 
         // Task 5.1: Export topic thread as PDF (throttled: 5 requests/minute to prevent DoS)
         Route::get('/{topic}/export-pdf', [
