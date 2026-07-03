@@ -154,7 +154,8 @@ Route::prefix($API_VERSION)->group(function () {
                 TopicController::class,
                 "byType",
             ]); // T7: Filter by type
-            Route::post("/topics", [TopicController::class, "store"]); // T3: Create topic
+            Route::post("/topics", [TopicController::class, "store"])
+                ->middleware("throttle.posts:topic"); // T3: Create topic (anti-flood)
             Route::get("/topics/{topicId}", [TopicController::class, "show"]); // T2: Topic detail
             Route::put("/topics/{topicId}", [TopicController::class, "update"]); // T4: Update topic
             Route::delete("/topics/{topicId}", [
@@ -188,7 +189,7 @@ Route::prefix($API_VERSION)->group(function () {
             Route::post("/topics/{topicId}/posts", [
                 PostController::class,
                 "store",
-            ]); // P1: Create reply
+            ])->middleware("throttle.posts:reply"); // P1: Create reply (anti-flood)
 
             // Standalone post operations
             Route::put("/posts/{postId}", [PostController::class, "update"]); // P2: Update post
