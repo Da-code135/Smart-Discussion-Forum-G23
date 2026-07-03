@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Auth\WarningAcknowledgementController;
 use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -209,6 +210,10 @@ Route::middleware('auth')->group(function () {
      */
     Route::post('/change-password', [PasswordController::class, 'updatePassword'])
         ->name('password.change.update');
+
+    // Reports
+    Route::post('/report', [ReportController::class, 'store'])->name('report.store');
+
 });
 
 // ============================================
