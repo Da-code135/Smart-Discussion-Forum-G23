@@ -58,6 +58,11 @@ class User extends Authenticatable
         return $this->belongsTo(Group::class);
     }
 
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
+    }
+
     public function warnings()
     {
         return $this->hasMany(Warning::class);

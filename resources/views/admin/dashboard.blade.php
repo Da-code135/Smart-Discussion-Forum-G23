@@ -58,18 +58,7 @@
                 📋 Audit Logs
             </a>
 
-            {{-- System Configuration - System Admin only --}}
-            @if (auth()->user()->isSystemAdmin())
-                <a href="{{ route('admin.system-config.index') }}" class="link-btn">
-                    ⚙️ System Configuration
-                </a>
-
-                <a href="{{ route('admin.ip-whitelist.index') }}" class="link-btn">
-                    🔒 IP Whitelist
-                </a>
-            @endif
-
-             {{-- System Configuration - System Admin only --}}
+            {{-- System Admin only links --}}
             @if (auth()->user()->isSystemAdmin())
                 <a href="{{ route('admin.group-statistics.index') }}" class="link-btn">
                     📊 Group Statistics
