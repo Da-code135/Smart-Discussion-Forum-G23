@@ -394,7 +394,7 @@ After posting, the user is redirected back to the same topic detail page. They s
 
 ## 5. The Views (Blade Templates)
 
-All views extend `layouts.app`, which provides the HTML skeleton, navbar, sidebar, and flash message alerts. Each view only provides the content that goes inside the `<main>` tag.
+All views extend `layouts.app`, which provides the HTML skeleton, the persistent top navbar (brand, nav links, notifications, user avatar dropdown), and flash message alerts. Each view only provides the content that goes inside the `<main>` tag. See `docs/DOCUMENTATION.md` Section 1.11 for the shared Studdit design system (colors, typography, and component classes like `.card`, `.btn`, `.badge`) that these views are built from.
 
 ### 5.1 forum/index.blade.php
 

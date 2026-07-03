@@ -2,7 +2,7 @@
 
 > **Project:** Smart-Discussion-Forum-G23  
 > **Framework:** Laravel 13.16.1 | PHP 8.4.22 | PHPUnit 12  
-> **Last Updated:** June 2026  
+> **Last Updated:** July 2026 (frontend redesign + view/controller wiring audit)  
 > **Test Suite:** 144 tests, 397 assertions, 0 failures
 
 ---
@@ -21,6 +21,7 @@
   - [1.8 Blade Layout Inheritance](#18-blade-layout-inheritance)
   - [1.9 Artisan Commands](#19-artisan-commands)
   - [1.10 Database Seeding](#110-database-seeding)
+  - [1.11 Frontend Design System (Studdit)](#111-frontend-design-system-studdit)
 - [Chapter 2: Authentication Features](#chapter-2-authentication-features)
   - [2.1 Registration — The 3-Step Onboarding Flow](#21-registration--the-3-step-onboarding-flow)
   - [2.2 Login (Web)](#22-login-web)
@@ -160,6 +161,7 @@ Thresholds are stored in the `system_configs` table and cached via the `SystemCo
 | `database/seeders/` | Role, group, and super-admin seeders plus the database seed orchestrator |
 | `tests/Feature/` | Feature tests covering web, admin, API, and console flows |
 | `resources/views/admin/users/` | Blade templates for admin user management |
+| `resources/css/app.css`, `resources/js/app.js` | The Studdit design system (CSS custom properties + shared component classes) and its Vite entry points — see Section 1.11 |
 | `bootstrap/app.php` | Middleware registration, route configuration, exception handling |
 
 ### Test Suite
@@ -274,7 +276,7 @@ Cache invalidation happens via `clearCache()` (line 35) which calls `Cache::forg
 
 ## 1.8 Blade Layout Inheritance
 
-The application has two base layouts. `resources/views/layouts/app.blade.php` (68 lines) is the authenticated layout — it includes a navigation bar with links to dashboard, profile, admin sections (conditionally shown for admin users), and a logout button. It yields content via `@yield('content')` and conditionally loads admin CSS. `resources/views/layouts/guest.blade.php` (54 lines) is the unauthenticated layout — it has a simpler header, a site title, and a footer.
+The application has two base layouts, both loading compiled assets through Vite via `@vite(['resources/css/app.css', 'resources/js/app.js'])` instead of static `public/css/*.css` files. `resources/views/layouts/app.blade.php` is the authenticated layout — it renders a persistent top navbar (`components/navbar.blade.php`) with the app brand, primary navigation links, a notifications icon, and a user avatar dropdown (profile link, admin shortcuts when applicable, and logout), then yields page content via `@yield('content')`. Flash messages (`success`, `error`, `warning`, `info`) are rendered automatically above the page content. `resources/views/layouts/guest.blade.php` is the unauthenticated layout — it centers a single card (login, register, onboarding, password reset) on the page, with the Studdit brand mark above it.
 
 Individual pages declare which layout they want with `@extends('layouts.guest')` or `@extends('layouts.app')` and inject their content with `@section('content')`. For example, the login page at `resources/views/auth/login.blade.php` extends `layouts.guest`, while the dashboard at `resources/views/auth/dashboard.blade.php` extends `layouts.app`.
 
@@ -301,6 +303,22 @@ The `RoleSeeder` at `database/seeders/RoleSeeder.php` (lines 14–53) seeds five
 Using `updateOrInsert` with `id` as the lookup key ensures idempotent seeding — running the seeder multiple times will not create duplicates, and the IDs are deterministic so application code and tests can rely on them. The migrations `2026_06_28_000001` and `2026_06_28_000002` are simplified to no-ops; all role data is owned by the seeder.
 
 The `GroupSeeder` creates a `Default Group` and a `General` group. The `SuperAdminSeeder` creates a default System Administrator account.
+
+---
+
+## 1.11 Frontend Design System (Studdit)
+
+The web UI implements a single design system, branded "Studdit," defined entirely with CSS custom properties so the whole palette, type scale, and spacing rhythm can be changed from one file.
+
+**Design tokens.** All tokens live under `:root` in `resources/css/app.css`: colors (`--app-accent`, `--app-secondary`, `--app-page-bg`, `--app-card-bg`, `--app-text-primary`, `--app-success`, `--app-warning`, `--app-danger`, `--app-locked`, each with a `-soft` tinted-background variant), typography (`--font-headline` = Manrope, `--font-body` = Work Sans), corner radii (`--radius-card`, `--radius-input`, `--radius-modal`, `--radius-button`, `--radius-avatar`), an 8px spacing scale (`--space-1` … `--space-8`), and shadow tokens (`--shadow-card`, `--shadow-card-hover`, `--shadow-modal`). Views and components reference these variables (`var(--app-*)`) rather than hardcoded hex values or ad-hoc inline styles.
+
+**Shared component classes.** A small set of classes is reused everywhere instead of one-off styling per page: `.card` / `.bento-card` (white surface, `8px` radius, soft ambient shadow — the single card style used for feed rows, forms, sidebar widgets, and admin panels), `.btn` with `.btn-primary` / `.btn-secondary` / `.btn-ghost` / `.btn-danger` / `.btn-success` variants (always a full pill via `--radius-button: 999px`), `.badge` / `.status-badge` (soft-background + saturated-text pairing for `active`/`warned`/`blacklisted` states), `.form-control` / `.form-input` (bordered, `4px` radius, uppercase label above the field), and `.avatar` / `.app-topbar-avatar` (circular initials avatars colored from a 5-tone rotating palette — `--avatar-tone-1` … `--avatar-tone-5` — keyed by `user->id % 5` so the same person always gets the same color).
+
+**Layout shell.** `.app-shell` / `.app-main` center content at a `1280px` max width. Pages that need a secondary column (dashboard, forum feed, profile, topic thread) use `.page-shell`, a two-column grid (`minmax(0, 1fr)` main column + a fixed `280px` `.page-shell__sidebar`) that collapses to a single column with the sidebar moved above the main content below `768px`, per the responsive rules at the bottom of `resources/css/app.css`.
+
+**Asset pipeline.** `resources/css/app.css` and `resources/js/app.js` are the only two Vite entry points (`vite.config.js`), built with `npm run build` (`public/build/manifest.json` + hashed `app-*.css`/`app-*.js`) or served live with `npm run dev`. The old static `public/css/{app,components,forms,layout,admin}.css` files and the CDN-loaded Bootstrap JS bundle referenced by the previous layouts are no longer used by any Blade view — if `public/build` is ever empty (no manifest, no dev-server `hot` file), `@vite(...)` cannot resolve the compiled assets and pages will render with no styling at all, so a build step (`npm run build`) is required after every deployment or fresh clone.
+
+**Table-based admin screens.** Per the design brief, admin data screens (`admin/users/index.blade.php`, `admin/groups/index.blade.php`, `admin/warnings/index.blade.php`, `admin/blacklist/index.blade.php`) intentionally keep a `.table-container` / `<table>` layout rather than a card-feed layout — only the color and component tokens are shared with the rest of the app, not the row structure.
 
 ---
 
@@ -964,3 +982,31 @@ Some areas still lack automated test coverage:
 7. **Concurrent access** — No tests for race conditions in role changes, blacklist operations, or group membership updates.
 
 *Note: Item 7 from the original list (legacy method authorization) is no longer a gap as the authorization has been fixed and tests pass.*
+
+## 6.13 Missing Controller Imports Broke Warning/Blacklist Admin Pages — ✅ RESOLVED
+
+`routes/web.php` referenced `WarningController::class` and `BlacklistController::class` (bare, unqualified) inside the `admin` route group without importing `App\Http\Controllers\Admin\WarningController` or `App\Http\Controllers\Admin\BlacklistController`. Because route files have no namespace, PHP resolved these against the global namespace, so visiting `/admin/warnings` or `/admin/blacklist` threw `Target class [WarningController] does not exist.` / `Target class [BlacklistController] does not exist.` Fixed by adding the two missing `use` imports.
+
+## 6.14 Warning/Blacklist Admin Views Extended a Nonexistent Layout — ✅ RESOLVED
+
+`admin/warnings/index.blade.php`, `admin/warnings/show.blade.php`, `admin/blacklist/index.blade.php`, and `admin/blacklist/show.blade.php` all used `@extends('admin.layouts.app')`, but no `admin/layouts/app.blade.php` view ever existed anywhere in the project (every other admin view correctly extends `layouts.app`). This would throw `View [admin.layouts.app] not found` on every visit. Fixed by switching all four views to `@extends('layouts.app')` and restyling them onto the shared Studdit component classes (Section 1.11) so they render consistently with the rest of the admin section.
+
+## 6.15 Dead Route References on Warning/Blacklist Index Pages — ✅ RESOLVED
+
+Both index views linked to `admin.warnings.create` and `admin.blacklist.create` routes that were never registered (only `index`/`show`/`store`/`update` exist for each resource), which would throw `RouteNotFoundException` unconditionally on page load. There is no dedicated "create" form for either resource — warnings and blacklist entries are issued from the target user's row in User Management. Fixed by pointing both buttons to `admin.users.index` instead of a nonexistent route.
+
+## 6.16 Warning and Blacklist Admin Pages Were Unreachable From the UI — ✅ RESOLVED
+
+Even after routes/imports/layouts were fixed, no view linked to `admin.warnings.index` or `admin.blacklist.index` — the pages were only reachable by typing the URL directly. Added "Warnings" and "Blacklist" links to the admin dashboard's management tools grid (`resources/views/admin/dashboard.blade.php`).
+
+## 6.17 Duplicate Unauthenticated Group-Management Routes — ✅ RESOLVED
+
+`routes/web.php` defined a second, top-level set of group-management routes (`groups.index`, `groups.create`, `groups.store`, `groups.edit`, `groups.update`, `groups.destroy`, `groups.members`, `groups.update-members`, `groups.bulk-assign`) outside any `auth`/`admin` middleware group, pointing at the same `Admin\GroupController` already correctly protected under `admin.groups.*`. No view referenced the plain route names (only `admin.groups.*` is used anywhere), so this duplicate set was both dead code and a privilege-escalation risk — an authenticated non-admin user could reach `/groups` and its `Admin\GroupController` actions without passing the `admin` middleware at all. Removed the unprotected duplicate block entirely.
+
+## 6.18 Dashboard Never Received Its Topic Data — ✅ RESOLVED
+
+The `/dashboard` route was an inline closure that returned `view('auth.dashboard')` with no data, even though the view reads `$recentTopics` and `$recommendedTopics` to render the "Recent Discussions" and "Recommended for you" sections. Both variables were always undefined, so those sections silently rendered as empty state for every user. Fixed by populating both collections from the `Topic` model (recent: latest 5 active topics in the user's group; recommended: the 2 most-replied active topics in the user's group), scoped the same way `ForumController::index()` scopes the main feed.
+
+## 6.19 Nested `<form>` Broke the "Post Reply" Button — ✅ RESOLVED
+
+`forum/show.blade.php` originally rendered the `<x-report-button>` component — which contains its own `<form method="POST">` — *inside* the topic reply `<form>`. Nested `<form>` elements are invalid HTML; browsers implicitly close the outer form as soon as they encounter the inner one, which detached the "Post Reply" submit button from its form and made the button silently do nothing. Fixed by moving the report button to its own block after the reply `</form>` closes.
