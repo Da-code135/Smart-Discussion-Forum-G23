@@ -386,9 +386,14 @@ Content-Type: application/json
 
 ### POST /api/v1/password/forgot
 
-Request a password reset link via email.
+Send a 6-digit OTP to the user's email address to begin the password reset flow.
 
-**Authentication**: Not required (public endpoint)
+The desktop client calls this endpoint, then immediately shows an OTP input screen inside the app. The user reads the code from their email and types it in — they never leave the application to click a link in a browser.
+
+> **Web interface note:** The web app (`/forgot-password`) continues to use the original token-link flow. This OTP flow is **API / desktop client only**.
+
+**Authentication**: Not required (public endpoint)  
+**Rate limit**: 3 requests per 15 minutes per email address
 
 #### Request
 
@@ -403,21 +408,26 @@ Content-Type: application/json
 
 #### Request Parameters
 
-| Parameter | Type   | Required | Description              |
-|-----------|--------|----------|--------------------------|
-| email     | string | Yes      | User email address       |
+| Parameter | Type   | Required | Description        |
+|-----------|--------|----------|--------------------|
+| email     | string | Yes      | Registered email   |
 
 #### Success Response (200 OK)
 
 ```json
 {
-  "message": "Password reset link sent to your email"
+  "message": "A 6-digit reset code has been sent to your email. It expires in 10 minutes."
 }
 ```
 
-**Note**: For security, this endpoint returns success even if the email doesn't exist.
-
 #### Error Responses
+
+**429 Too Many Requests**
+```json
+{
+  "message": "Too many reset requests. Try again in 847 seconds."
+}
+```
 
 **422 Validation Error**
 ```json
@@ -433,9 +443,12 @@ Content-Type: application/json
 
 ### POST /api/v1/password/reset
 
-Reset password using the token received via email.
+Validate the 6-digit OTP and set a new password.
 
-**Authentication**: Not required (public endpoint)
+On success all existing API tokens for the account are revoked — the user must log in again with the new password.
+
+**Authentication**: Not required (public endpoint)  
+**Rate limit**: 5 guess attempts per 10 minutes per email address (prevents brute-forcing the OTP)
 
 #### Request
 
@@ -444,8 +457,8 @@ POST /api/v1/password/reset
 Content-Type: application/json
 
 {
-  "token": "reset-token-from-email",
   "email": "user@example.com",
+  "otp": "482910",
   "password": "NewPassword123",
   "password_confirmation": "NewPassword123"
 }
@@ -453,34 +466,50 @@ Content-Type: application/json
 
 #### Request Parameters
 
-| Parameter             | Type   | Required | Description                          |
-|-----------------------|--------|----------|--------------------------------------|
-| token                 | string | Yes      | Reset token from email               |
-| email                 | string | Yes      | User email address                   |
-| password              | string | Yes      | New password (min 8 chars)           |
-| password_confirmation | string | Yes      | Must match password                  |
+| Parameter             | Type   | Required | Description                                   |
+|-----------------------|--------|----------|-----------------------------------------------|
+| email                 | string | Yes      | Registered email address                      |
+| otp                   | string | Yes      | 6-digit code from the reset email             |
+| password              | string | Yes      | New password (see requirements below)         |
+| password_confirmation | string | Yes      | Must match `password`                         |
 
 #### Password Requirements
 
 - Minimum 8 characters
-- Must contain uppercase letters
-- Must contain lowercase letters
-- Must contain numbers
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
 
 #### Success Response (200 OK)
 
 ```json
 {
-  "message": "Password reset successfully"
+  "message": "Password reset successfully. Please log in with your new password."
 }
 ```
 
+> All existing Sanctum tokens are revoked on success. The client must call `POST /api/v1/login` to obtain a new token before making any further authenticated requests.
+
 #### Error Responses
 
-**400 Bad Request - Invalid Token**
+**400 Bad Request — wrong OTP**
 ```json
 {
-  "message": "Unable to reset password"
+  "message": "Invalid reset code. Please check the code and try again."
+}
+```
+
+**400 Bad Request — expired OTP**
+```json
+{
+  "message": "This reset code has expired. Please request a new one."
+}
+```
+
+**429 Too Many Requests**
+```json
+{
+  "message": "Too many attempts. Try again in 523 seconds."
 }
 ```
 
