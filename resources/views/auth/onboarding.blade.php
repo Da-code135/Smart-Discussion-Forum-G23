@@ -52,6 +52,23 @@
             <p class="rules-scroll-hint">Agreement version: {{ config('app.agreement_version', '1.0') }}</p>
         </div>
 
+        {{-- Group Selection --}}
+        <div class="onboarding-group-selection">
+            <label for="group-select" class="group-select-label">
+                <span class="material-symbols-outlined">group</span>
+                Select your student group <span class="required">*</span>
+            </label>
+            <select id="group-select" name="group_id" form="agree-form" class="group-select-dropdown" required>
+                <option value="" disabled selected>— Choose your group —</option>
+                @foreach ($groups as $group)
+                    <option value="{{ $group->id }}">{{ $group->group_name }}</option>
+                @endforeach
+            </select>
+            @if ($groups->isEmpty())
+                <p class="group-select-error">No student groups available. Please contact an administrator.</p>
+            @endif
+        </div>
+
         <div class="onboarding-actions">
             <div class="form-check">
                 <input type="checkbox" id="agreement-checkbox" aria-describedby="agreement-label">
@@ -73,7 +90,7 @@
     </section>
 
     @if (session('info'))
-        <div class="alert alert-error" role="alert">You declined the rules. Registration has been cancelled.</div>
+        <div class="alert alert-info" role="alert">{{ session('info') }}</div>
     @endif
 </div>
 @endsection
@@ -83,13 +100,29 @@
     const checkbox = document.getElementById('agreement-checkbox');
     const agreeBtn = document.getElementById('agree-btn');
     const agreeForm = document.getElementById('agree-form');
+    const groupSelect = document.getElementById('group-select');
 
-    checkbox.addEventListener('change', function () {
-        agreeBtn.disabled = !this.checked;
-    });
+    function updateAgreeButton() {
+        // Button is only enabled if BOTH conditions are met:
+        // 1. Checkbox is checked
+        // 2. A group has been selected from the dropdown
+        agreeBtn.disabled = !(checkbox.checked && groupSelect && groupSelect.value !== '');
+    }
+
+    checkbox.addEventListener('change', updateAgreeButton);
+
+    if (groupSelect) {
+        groupSelect.addEventListener('change', updateAgreeButton);
+    }
 
     agreeForm.addEventListener('submit', function (e) {
-        if (!checkbox.checked) {
+        if (!checkbox.checked || !groupSelect || groupSelect.value === '') {
+            e.preventDefault();
+            return;
+        }
+
+        // Double-check that group_id is set
+        if (!document.querySelector('input[name="group_id"]') && !document.querySelector('select[name="group_id"]')) {
             e.preventDefault();
         }
     });
