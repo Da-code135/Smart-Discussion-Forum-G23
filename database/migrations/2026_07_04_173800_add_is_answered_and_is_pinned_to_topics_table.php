@@ -2,7 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Blueprint;
+use Illuminate\Database\Schema\Blueprint;
 
 class AddIsAnsweredAndIsPinnedToTopicsTable extends Migration
 {
@@ -11,9 +11,9 @@ class AddIsAnsweredAndIsPinnedToTopicsTable extends Migration
      */
     public function up(): void
     {
-        Schema::table('topics', function (Blueprint $table) {
-            $table->boolean('is_answered')->default(false);
-            $table->boolean('is_pinned')->default(false);
+        Schema::table("topics", function (Blueprint $table) {
+            $table->boolean("is_answered")->default(false);
+            $table->boolean("is_pinned")->default(false);
         });
     }
 
@@ -22,8 +22,8 @@ class AddIsAnsweredAndIsPinnedToTopicsTable extends Migration
      */
     public function down(): void
     {
-        Schema::table('topics', function (Blueprint $table) {
-            $table->dropColumn(['is_answered', 'is_pinned']);
+        Schema::table("topics", function (Blueprint $table) {
+            $table->dropColumn(["is_answered", "is_pinned"]);
         });
     }
 }
