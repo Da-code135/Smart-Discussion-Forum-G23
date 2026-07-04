@@ -373,4 +373,19 @@ class ForumController extends Controller
         // Return the signed URL to the view
         return back()->with("share_url", $signedUrl);
     }
+
+    /**
+     * Display the authenticated user's notifications.
+     *
+     * Shows paginated notifications, unread first, then by most recent.
+     */
+    public function notifications()
+    {
+        $notifications = Notification::where("user_id", Auth::id())
+            ->orderByRaw("read_at IS NULL DESC")
+            ->orderByDesc("created_at")
+            ->paginate(20);
+
+        return view("notifications.index", compact("notifications"));
+    }
 }
