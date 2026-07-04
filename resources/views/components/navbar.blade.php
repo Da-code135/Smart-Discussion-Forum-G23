@@ -42,7 +42,7 @@
         </nav>
 
         <div class="app-topbar-actions">
-            <a href="{{ route('verify-email') }}" class="app-topbar-icon-btn" aria-label="Notifications and verification">
+            <a href="{{ route('notifications') }}" class="app-topbar-icon-btn" aria-label="Notifications">
                 <span class="material-symbols-outlined">notifications</span>
             </a>
 
