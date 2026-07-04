@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Notification;
 use App\Models\Topic;
 use App\Models\Post;
 use App\Models\PostVisibility;
@@ -25,21 +26,21 @@ class ForumController extends Controller
      * Security: group_id is hard-filtered so topics from other groups
      * never leak into this view (defense in depth).
      */
-    public function index()//this fetches all topics from the user's group and displays them in a list
+    public function index()
     {
-        $topics = Topic::where('group_id', Auth::user()->group_id)//this queries the Topic model to fetch topics where groupId matches the logged-in user's group. This prevents cross-group data leaks
-                        ->where('status', 'active')//only show topics whose status is active
-                        ->with('creator') // Eager load creator (avoids N+1) -> this line tells laravel "When you fetch the topics, also fetch the creator (user) for each topic"
-                        ->withCount('posts')// // Add posts_count property (total replies) without extra database queries> Adds a count of related records to each topic
-                        ->latest()//Sorts the results by the created_at column in descending order (newest first) It's a shortcut for ->orderBy('created_at', 'desc')
-                        ->paginate(10);//Split the results into pages of 10 items each
+        //this fetches all topics from the user's group and displays them in a list
+        $topics = Topic::where("group_id", Auth::user()->group_id) //this queries the Topic model to fetch topics where groupId matches the logged-in user's group. This prevents cross-group data leaks
+            ->where("status", "active") //only show topics whose status is active
+            ->with("creator") // Eager load creator (avoids N+1) -> this line tells laravel "When you fetch the topics, also fetch the creator (user) for each topic"
+            ->withCount("posts") // // Add posts_count property (total replies) without extra database queries> Adds a count of related records to each topic
+            ->latest() //Sorts the results by the created_at column in descending order (newest first) It's a shortcut for ->orderBy('created_at', 'desc')
+            ->paginate(10); //Split the results into pages of 10 items each
 
-                        $group = Auth::user()->group; // Get the authenticated user's group
+        $group = Auth::user()->group; // Get the authenticated user's group
 
-        return view('forum.index', compact('topics', 'group')); //compact passes data to the template compact('topics') is shorthand for ['topics' => $topics] It takes the variable $topics and makes it available in the view
+        return view("forum.index", compact("topics", "group")); //compact passes data to the template compact('topics') is shorthand for ['topics' => $topics] It takes the variable $topics and makes it available in the view
     }
 
-    
     /**
      * ============================================
      * Task 2a.2 — Show Create Topic Form
@@ -50,7 +51,7 @@ class ForumController extends Controller
      */
     public function create()
     {
-        return view('forum.create-topic');
+        return view("forum.create-topic");
     }
 
     /**
@@ -64,25 +65,30 @@ class ForumController extends Controller
      * Security: group_id is taken from Auth::user() — the user cannot
      * override it via the form payload. This prevents cross-group topic creation.
      */
-    public function store(Request $request)//validates the from data, saves the topic to the database, and redirects to the forum feed
+    public function store(Request $request)
     {
+        //validates the from data, saves the topic to the database, and redirects to the forum feed
         $request->validate([
-            'title' => 'required|max:255|unique:topics,title,NULL,id,group_id,' . Auth::user()->group_id,/*"Check the topics table. The title column must be unique, BUT only check rows where group_id equals [current user's group_id]."*/
-            'description' => 'required|string|max:10000',
-            'post_type'   => 'sometimes|in:discussion,question',//sometimes means the field is optional and validation can pass without it being submitted
-        ]);                                                     //in:discussion,question means the value must be on of these two
+            "title" =>
+                "required|max:255|unique:topics,title,NULL,id,group_id," .
+                Auth::user()
+                    ->group_id /*"Check the topics table. The title column must be unique, BUT only check rows where group_id equals [current user's group_id]."*/,
+            "description" => "required|string|max:10000",
+            "post_type" => "sometimes|in:discussion,question", //sometimes means the field is optional and validation can pass without it being submitted
+        ]); //in:discussion,question means the value must be on of these two
 
         Topic::create([
-            'title'       => $request->title,
-            'description' => $request->description,
-            'post_type'   => $request->post_type ?? 'discussion',
-            'created_by'  => Auth::id(), //sets the creator to the logged in user's ID
-            'group_id'    => Auth::user()->group_id,   // Critical: scoped to user's group
-            'status'      => 'active',
+            "title" => $request->title,
+            "description" => $request->description,
+            "post_type" => $request->post_type ?? "discussion",
+            "created_by" => Auth::id(), //sets the creator to the logged in user's ID
+            "group_id" => Auth::user()->group_id, // Critical: scoped to user's group
+            "status" => "active",
         ]);
 
-        return redirect()->route('forum.index')
-                         ->with('success', 'Topic created successfully!');
+        return redirect()
+            ->route("forum.index")
+            ->with("success", "Topic created successfully!");
     }
 
     /**
@@ -104,8 +110,9 @@ class ForumController extends Controller
     public function show(Topic $topic)
     {
         // === GROUP ISOLATION CHECK (Defense in depth) ===
-        if ($topic->group_id !== Auth::user()->group_id) {//checks whether the groupId for the topic is the same as that for the logged in user
-            abort(403, 'You do not have access to this topic.');
+        if ($topic->group_id !== Auth::user()->group_id) {
+            //checks whether the groupId for the topic is the same as that for the logged in user
+            abort(403, "You do not have access to this topic.");
         }
 
         // === NESTED EAGER LOADING ===
@@ -114,19 +121,23 @@ class ForumController extends Controller
         //   2. Only posts the current user is not excluded from (visibility rules)
         //   3. Order by oldest first (chronological thread)
         //   4. Eager load the author to avoid N+1
-        $topic->load(['posts' => function ($query) {
-            $query->notRemoved()
-                  ->visibleToUser(Auth::id())
-                  ->orderBy('created_at', 'asc')//will list the replies in order of creation, newest appears at the bottom
-                  ->with('user'); //this means "When loading posts, also load the related users immediately."
-        }, 'group']);//this eager loads the group, which is later accessed in the blade
+        $topic->load([
+            "posts" => function ($query) {
+                $query
+                    ->notRemoved()
+                    ->visibleToUser(Auth::id())
+                    ->orderBy("created_at", "asc") //will list the replies in order of creation, newest appears at the bottom
+                    ->with("user"); //this means "When loading posts, also load the related users immediately."
+            },
+            "group",
+        ]); //this eager loads the group, which is later accessed in the blade
 
         //Eager loading = "Load related data upfront, in the controller, before the view runs."
 
         // Pre-load users eligible for exclusion (same group, not current user)
         // to avoid N+1 queries inside the Blade loop
-        $excludableUsers = User::where('group_id', Auth::user()->group_id)
-            ->where('id', '!=', Auth::id())
+        $excludableUsers = User::where("group_id", Auth::user()->group_id)
+            ->where("id", "!=", Auth::id())
             ->get();
 
         /*Get all users in the same group as the logged-in user,
@@ -134,7 +145,7 @@ class ForumController extends Controller
            These users will be displayed as options that the author
            can choose to exclude from viewing individual posts.*/
 
-        return view('forum.show', compact('topic', 'excludableUsers'));//this just makes the topic and excludableUsers available in the blade template
+        return view("forum.show", compact("topic", "excludableUsers")); //this just makes the topic and excludableUsers available in the blade template
     }
 
     /**
@@ -157,26 +168,46 @@ class ForumController extends Controller
     {
         // === GROUP ISOLATION CHECK ===
         if ($topic->group_id !== Auth::user()->group_id) {
-            abort(403, 'You do not have access to this topic.');
+            abort(403, "You do not have access to this topic.");
         }
 
         // === STATUS CHECK — Only active topics accept replies ===
-        if ($topic->status !== 'active') {
-            return back()->with('error', 'This topic is closed for replies.');
+        if ($topic->status !== "active") {
+            return back()->with("error", "This topic is closed for replies.");
         }
 
         $request->validate([
-            'content' => 'required|string|max:10000',
+            "content" => "required|string|max:10000",
         ]);
 
-        Post::create([
-            'topic_id' => $topic->id,
-            'user_id'  => Auth::id(),
-            'content'  => $request->content,
+        $post = Post::create([
+            "topic_id" => $topic->id,
+            "user_id" => Auth::id(),
+            "content" => $request->content,
         ]);
 
-        return redirect()->route('forum.show', $topic->id)
-                         ->with('success', 'Reply posted successfully!');
+        $replyAuthor = Auth::user();
+
+        // Notify the original asker when a question is answered
+        if (
+            $topic->post_type === "question" &&
+            $topic->created_by !== $replyAuthor->id
+        ) {
+            Notification::create([
+                "user_id" => $topic->created_by,
+                "type" => "question_answered",
+                "data" => ["topic_id" => $topic->id, "post_id" => $post->id],
+            ]);
+        }
+
+        // Auto-mark question as answered
+        if ($topic->post_type === "question" && !$topic->is_answered) {
+            $topic->update(["is_answered" => true]);
+        }
+
+        return redirect()
+            ->route("forum.show", $topic->id)
+            ->with("success", "Reply posted successfully!");
     }
 
     /**
@@ -186,19 +217,19 @@ class ForumController extends Controller
      *
      * Allow the post author to exclude specific users from seeing their post.
      * This creates a record in the post_visibility table to hide the post from the excluded user.
-     * 
+     *
      * Security: Users can only exclude others in their own group
      */
     public function excludeUser(Request $request, Post $post)
     {
         // Only the post author can exclude users
         if ($post->user_id !== Auth::id()) {
-            abort(403, 'Only the post author can exclude users.');
+            abort(403, "Only the post author can exclude users.");
         }
 
         // Validate the user_id input
         $request->validate([
-            'user_id' => 'required|exists:users,id'
+            "user_id" => "required|exists:users,id",
         ]);
 
         // Get the user to be excluded
@@ -206,25 +237,27 @@ class ForumController extends Controller
 
         // Ensure the user being excluded belongs to the same group as the post author
         if ($userToExclude->group_id !== Auth::user()->group_id) {
-            abort(403, 'You can only exclude users in your own group.');
+            abort(403, "You can only exclude users in your own group.");
         }
 
         // Check if rule already exists
-        $existing = PostVisibility::where('post_id', $post->id)
-                                  ->where('excluded_user_id', $request->user_id)
-                                  ->first();
+        $existing = PostVisibility::where("post_id", $post->id)
+            ->where("excluded_user_id", $request->user_id)
+            ->first();
 
         if (!$existing) {
             PostVisibility::create([
-                'post_id' => $post->id,
-                'excluded_user_id' => $request->user_id,
+                "post_id" => $post->id,
+                "excluded_user_id" => $request->user_id,
             ]);
         }
 
-        return redirect()->back()->with([
-            'success' => 'User excluded from this post.',
-            'post_id' => $post->id
-        ]);
+        return redirect()
+            ->back()
+            ->with([
+                "success" => "User excluded from this post.",
+                "post_id" => $post->id,
+            ]);
     }
 
     /**
@@ -245,40 +278,43 @@ class ForumController extends Controller
     {
         // Ensure user is authenticated
         if (!Auth::check()) {
-            abort(403, 'You must be logged in to export topics.');
+            abort(403, "You must be logged in to export topics.");
         }
 
         // === GROUP ISOLATION CHECK ===
         if ($topic->group_id !== Auth::user()->group_id) {
-            abort(403, 'You do not have access to this topic.');
+            abort(403, "You do not have access to this topic.");
         }
 
         // Load visible, non-removed replies with their authors
-        $replies = Post::where('topic_id', $topic->id)
+        $replies = Post::where("topic_id", $topic->id)
             ->notRemoved()
             ->visibleToUser(Auth::id())
-            ->with('user')
-            ->orderBy('created_at', 'asc')
+            ->with("user")
+            ->orderBy("created_at", "asc")
             ->get();
 
         // Load the topic creator and group for the PDF
-        $topic->load(['creator', 'group']);
+        $topic->load(["creator", "group"]);
 
         // Log the export for audit trail
         app(AuditLogService::class)->log(
-            action: 'topic.exported',
+            action: "topic.exported",
             target: $topic,
-            newValues: ['format' => 'pdf'],
-            description: Auth::user()->full_name . ' exported topic "' . $topic->title . '" as PDF'
+            newValues: ["format" => "pdf"],
+            description: Auth::user()->full_name .
+                ' exported topic "' .
+                $topic->title .
+                '" as PDF',
         );
 
-        $pdf = Pdf::loadView('forum.export-pdf', [
-            'topic' => $topic,
-            'replies' => $replies,
-            'exportedBy' => Auth::user(),
+        $pdf = Pdf::loadView("forum.export-pdf", [
+            "topic" => $topic,
+            "replies" => $replies,
+            "exportedBy" => Auth::user(),
         ]);
 
-        return $pdf->download('topic-' . $topic->id . '.pdf');
+        return $pdf->download("topic-" . $topic->id . ".pdf");
     }
 
     /**
@@ -299,43 +335,42 @@ class ForumController extends Controller
     {
         // Ensure user is authenticated
         if (!Auth::check()) {
-            abort(403, 'You must be logged in to share topics.');
+            abort(403, "You must be logged in to share topics.");
         }
 
         // === GROUP ISOLATION CHECK ===
         if ($topic->group_id !== Auth::user()->group_id) {
-            abort(403, 'You do not have access to this topic.');
+            abort(403, "You do not have access to this topic.");
         }
 
         // Validate request data
         $validated = $request->validate([
-            'expires_in_days' => 'required|integer|min:1|max:7',
+            "expires_in_days" => "required|integer|min:1|max:7",
         ]);
 
-        $expiresInDays = (int) $validated['expires_in_days'];
+        $expiresInDays = (int) $validated["expires_in_days"];
 
         // Calculate expiration time (current time + X days)
         $expires = now()->addDays($expiresInDays);
 
         // Generate signed URL using Laravel's built-in functionality
-        $signedUrl = URL::temporarySignedRoute(
-            'shared.topic.show',
-            $expires,
-            [
-                'topic' => $topic->id,
-                'signedUserId' => Auth::id(),
-            ]
-        );
+        $signedUrl = URL::temporarySignedRoute("shared.topic.show", $expires, [
+            "topic" => $topic->id,
+            "signedUserId" => Auth::id(),
+        ]);
 
         // Log the share action for audit trail
         app(AuditLogService::class)->log(
-            action: 'topic.shared',
+            action: "topic.shared",
             target: $topic,
-            newValues: ['expires_in_days' => $expiresInDays],
-            description: Auth::user()->full_name . ' shared topic "' . $topic->title . '" via signed URL'
+            newValues: ["expires_in_days" => $expiresInDays],
+            description: Auth::user()->full_name .
+                ' shared topic "' .
+                $topic->title .
+                '" via signed URL',
         );
 
         // Return the signed URL to the view
-        return back()->with('share_url', $signedUrl);
+        return back()->with("share_url", $signedUrl);
     }
 }

@@ -13,16 +13,18 @@ class Topic extends Model
 
     public function reports(): MorphMany
     {
-        return $this->morphMany(Report::class, 'reportable');
+        return $this->morphMany(Report::class, "reportable");
     }
 
     protected $fillable = [
-        'group_id',
-        'created_by',
-        'title',
-        'description',
-        'status',
-        'post_type',
+        "group_id",
+        "created_by",
+        "title",
+        "description",
+        "status",
+        "post_type",
+        "is_answered",
+        "is_pinned",
     ];
 
     /**
@@ -39,7 +41,7 @@ class Topic extends Model
      */
     public function creator()
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, "created_by");
     }
 
     /**
@@ -55,7 +57,7 @@ class Topic extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('status', 'active');
+        return $query->where("status", "active");
     }
 
     /**
@@ -63,7 +65,7 @@ class Topic extends Model
      */
     public function scopeForGroup($query, int $groupId)
     {
-        return $query->where('group_id', $groupId);
+        return $query->where("group_id", $groupId);
     }
 
     /**
@@ -71,6 +73,6 @@ class Topic extends Model
      */
     public function scopeByType($query, string $type)
     {
-        return $query->where('post_type', $type);
+        return $query->where("post_type", $type);
     }
 }

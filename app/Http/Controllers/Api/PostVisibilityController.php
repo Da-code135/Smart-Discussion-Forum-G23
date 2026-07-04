@@ -52,8 +52,8 @@ class PostVisibilityController extends Controller
             ], 422);
         }
 
-        // Validate excluded user is in the same group
-        if ($targetUser->group_id !== $user->group_id) {
+        // Validate excluded user is in the same group (SysAdmin bypass)
+        if ($targetUser->group_id !== $user->group_id && !$user->isSystemAdmin()) {
             return response()->json([
                 'message' => 'The specified user is not in your group.',
             ], 422);
@@ -104,10 +104,10 @@ class PostVisibilityController extends Controller
     {
         $user = $request->user();
 
-        $post = Post::with('topic')->findOrFail($postId);
+        $post = Post::with("topic")->findOrFail($postId);
 
-        // Group isolation check via topic
-        if ($post->topic->group_id !== $user->group_id) {
+        // Group isolation check via topic (SysAdmin bypass)
+        if ($post->topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
             return response()->json([
                 'message' => 'You do not have access to this post.',
             ], 403);
@@ -120,7 +120,7 @@ class PostVisibilityController extends Controller
             ], 403);
         }
 
-        $visibility = PostVisibility::where('post_id', $post->id)
+        $visibility = PostVisibility::where("post_id", $post->id)
             ->where('excluded_user_id', $userId)
             ->firstOrFail();
 
@@ -142,10 +142,10 @@ class PostVisibilityController extends Controller
     {
         $user = $request->user();
 
-        $post = Post::with('topic')->findOrFail($postId);
+        $post = Post::with("topic")->findOrFail($postId);
 
-        // Group isolation check via topic
-        if ($post->topic->group_id !== $user->group_id) {
+        // Group isolation check via topic (SysAdmin bypass)
+        if ($post->topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
             return response()->json([
                 'message' => 'You do not have access to this post.',
             ], 403);

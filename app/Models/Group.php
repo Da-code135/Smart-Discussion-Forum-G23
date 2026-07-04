@@ -11,8 +11,13 @@ class Group extends Model
     use HasFactory;
     use SoftDeletes;
 
-    protected $fillable = ['group_name', 'description', 'created_by'];
-    
+    protected $fillable = [
+        "group_name",
+        "description",
+        "created_by",
+        "group_type",
+    ];
+
     public function users()
     {
         return $this->hasMany(User::class);
@@ -20,7 +25,7 @@ class Group extends Model
 
     public function createdBy()
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, "created_by");
     }
 
     /**
@@ -28,9 +33,9 @@ class Group extends Model
      */
     public function admins()
     {
-        return $this->belongsToMany(User::class, 'group_admins')
-                    ->withPivot('assigned_by', 'assigned_at')
-                    ->withTimestamps();
+        return $this->belongsToMany(User::class, "group_admins")
+            ->withPivot("assigned_by", "assigned_at")
+            ->withTimestamps();
     }
 
     /**
@@ -38,7 +43,7 @@ class Group extends Model
      */
     public function hasAdmin(User $user): bool
     {
-        return $this->admins()->where('users.id', $user->id)->exists();
+        return $this->admins()->where("users.id", $user->id)->exists();
     }
 
     /**
@@ -48,7 +53,7 @@ class Group extends Model
     {
         if (!$this->hasAdmin($user)) {
             $this->admins()->attach($user->id, [
-                'assigned_by' => $assignedBy,
+                "assigned_by" => $assignedBy,
             ]);
         }
     }
