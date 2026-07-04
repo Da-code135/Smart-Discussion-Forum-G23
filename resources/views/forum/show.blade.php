@@ -31,6 +31,13 @@
             </div>
 
             <div class="topic-actions">
+                @if ($topic->created_by === auth()->id() || auth()->user()->isAdmin())
+                    <a href="{{ route('forum.edit', $topic->id) }}" class="btn btn-secondary btn-sm">
+                        <span class="material-symbols-outlined">edit</span>
+                        Edit
+                    </a>
+                @endif
+
                 <a href="{{ route('forum.export-pdf', $topic->id) }}" class="btn btn-secondary btn-sm">
                     <span class="material-symbols-outlined">download</span>
                     Export PDF

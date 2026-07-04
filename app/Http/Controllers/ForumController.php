@@ -93,6 +93,87 @@ class ForumController extends Controller
 
     /**
      * ============================================
+     * Task 6.27 — Show Edit Topic Form
+     * ============================================
+     *
+     * Display the form to edit an existing topic.
+     *
+     * Security:
+     *   1. Group isolation check (SysAdmin bypass)
+     *   2. Only the topic creator or an admin can edit
+     */
+    public function edit(Topic $topic)
+    {
+        // Group isolation (SysAdmin bypass)
+        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
+            abort(403, "You do not have access to this topic.");
+        }
+
+        // Only topic creator or admin can edit
+        if ($topic->created_by !== Auth::id() && !Auth::user()->isAdmin()) {
+            abort(403, "You are not authorized to edit this topic.");
+        }
+
+        return view("forum.edit-topic", compact("topic"));
+    }
+
+    /**
+     * ============================================
+     * Task 6.27 — Update an Existing Topic
+     * ============================================
+     *
+     * Validate input, update the Topic record.
+     *
+     * Security:
+     *   1. Group isolation check (SysAdmin bypass)
+     *   2. Only the topic creator or an admin can update
+     *   3. group_id cannot be changed (scoped to original group)
+     */
+    public function update(Request $request, Topic $topic)
+    {
+        // Group isolation (SysAdmin bypass)
+        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
+            abort(403, "You do not have access to this topic.");
+        }
+
+        // Only topic creator or admin can update
+        if ($topic->created_by !== Auth::id() && !Auth::user()->isAdmin()) {
+            abort(403, "You are not authorized to update this topic.");
+        }
+
+        $validated = $request->validate([
+            "title" => "required|max:255|unique:topics,title," . $topic->id . ",id,group_id," . $topic->group_id,
+            "description" => "required|string|max:10000",
+            "post_type" => "sometimes|in:discussion,question",
+        ]);
+
+        $oldValues = $topic->only(["title", "description", "post_type"]);
+
+        $topic->update([
+            "title" => $validated["title"],
+            "description" => $validated["description"],
+            "post_type" => $validated["post_type"] ?? $topic->post_type,
+        ]);
+
+        // Audit log
+        app(AuditLogService::class)->log(
+            action: "topic.updated",
+            target: $topic,
+            oldValues: $oldValues,
+            newValues: $topic->only(["title", "description", "post_type"]),
+            description: Auth::user()->full_name .
+                ' updated topic "' .
+                $topic->title .
+                '"',
+        );
+
+        return redirect()
+            ->route("forum.show", $topic->id)
+            ->with("success", "Topic updated successfully!");
+    }
+
+    /**
+     * ============================================
      * Task 2b.1 — Topic Detail with Threading
      * ============================================
      *
@@ -110,7 +191,7 @@ class ForumController extends Controller
     public function show(Topic $topic)
     {
         // === GROUP ISOLATION CHECK (Defense in depth) ===
-        if ($topic->group_id !== Auth::user()->group_id) {
+        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
             //checks whether the groupId for the topic is the same as that for the logged in user
             abort(403, "You do not have access to this topic.");
         }
@@ -167,7 +248,7 @@ class ForumController extends Controller
     public function replyStore(Request $request, Topic $topic)
     {
         // === GROUP ISOLATION CHECK ===
-        if ($topic->group_id !== Auth::user()->group_id) {
+        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
             abort(403, "You do not have access to this topic.");
         }
 
@@ -185,6 +266,17 @@ class ForumController extends Controller
             "user_id" => Auth::id(),
             "content" => $request->content,
         ]);
+
+        // Log the reply for audit trail
+        app(AuditLogService::class)->log(
+            action: "post.created",
+            target: $post,
+            newValues: $post->toArray(),
+            description: Auth::user()->full_name .
+                ' replied to topic "' .
+                $topic->title .
+                '"',
+        );
 
         $replyAuthor = Auth::user();
 
@@ -282,7 +374,7 @@ class ForumController extends Controller
         }
 
         // === GROUP ISOLATION CHECK ===
-        if ($topic->group_id !== Auth::user()->group_id) {
+        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
             abort(403, "You do not have access to this topic.");
         }
 
@@ -339,7 +431,7 @@ class ForumController extends Controller
         }
 
         // === GROUP ISOLATION CHECK ===
-        if ($topic->group_id !== Auth::user()->group_id) {
+        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
             abort(403, "You do not have access to this topic.");
         }
 
@@ -387,5 +479,26 @@ class ForumController extends Controller
             ->paginate(20);
 
         return view("notifications.index", compact("notifications"));
+    }
+
+    /**
+     * ============================================
+     * Task 6.36 — Mark a Notification as Read (Web)
+     * ============================================
+     *
+     * Mark a single notification as read via POST from the web UI.
+     * Only the notification owner can mark it as read.
+     */
+    public function markNotificationAsRead(int $notificationId)
+    {
+        $notification = Notification::where("id", $notificationId)
+            ->where("user_id", Auth::id())
+            ->firstOrFail();
+
+        $notification->update(["read_at" => now()]);
+
+        return redirect()
+            ->route("notifications")
+            ->with("success", "Notification marked as read.");
     }
 }

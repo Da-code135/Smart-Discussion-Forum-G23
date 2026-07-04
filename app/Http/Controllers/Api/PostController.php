@@ -54,6 +54,17 @@ class PostController extends Controller
             "content" => $validated["content"],
         ]);
 
+        // Log the reply for audit trail
+        app(AuditLogService::class)->log(
+            action: "post.created",
+            target: $post,
+            newValues: $post->toArray(),
+            description: $user->full_name .
+                ' replied to topic "' .
+                $topic->title .
+                '"',
+        );
+
         // Notify the original asker when a question is answered
         if (
             $topic->post_type === "question" &&

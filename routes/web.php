@@ -141,6 +141,16 @@ Route::middleware("auth")->group(function () {
                 ->middleware("throttle.posts:reply")
                 ->name("reply.store");
 
+            // Task 6.27: Edit & update topic
+            Route::get("/{topic}/edit", [
+                \App\Http\Controllers\ForumController::class,
+                "edit",
+            ])->name("edit");
+            Route::put("/{topic}", [
+                \App\Http\Controllers\ForumController::class,
+                "update",
+            ])->name("update");
+
             // Task 4.1: Exclude user from post visibility
 
             Route::post("/post/{post}/visibility/exclude", [
@@ -162,6 +172,10 @@ Route::middleware("auth")->group(function () {
         \App\Http\Controllers\ForumController::class,
         "notifications",
     ])->name("notifications");
+    Route::post("/notifications/{notificationId}/read", [
+        \App\Http\Controllers\ForumController::class,
+        "markNotificationAsRead",
+    ])->name("notifications.read");
 });
 
 // Topic sharing route (outside auth middleware)

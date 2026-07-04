@@ -11,6 +11,12 @@
             <p>Stay up to date with activity in your groups.</p>
         </header>
 
+        @if (session('success'))
+            <div class="alert alert-success" role="alert">
+                {{ session('success') }}
+            </div>
+        @endif
+
         @if ($notifications->count() === 0)
             <div class="empty-state">
                 <span class="material-symbols-outlined" style="font-size: 40px;">notifications</span>
@@ -29,6 +35,16 @@
                             <p class="notification-item__type">{{ str_replace('_', ' ', ucfirst($notification->type)) }}</p>
                             <p class="notification-item__meta">{{ $notification->created_at->diffForHumans() }}</p>
                         </div>
+                        @if (!$notification->read_at)
+                            <div class="notification-item__action">
+                                <form method="POST" action="{{ route('notifications.read', $notification->id) }}">
+                                    @csrf
+                                    <button type="submit" class="btn btn-secondary btn-sm" title="Mark as read">
+                                        <span class="material-symbols-outlined" style="font-size: 18px;">done</span>
+                                    </button>
+                                </form>
+                            </div>
+                        @endif
                     </div>
                 @endforeach
             </div>
