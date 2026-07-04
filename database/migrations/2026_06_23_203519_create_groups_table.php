@@ -17,6 +17,8 @@ return new class extends Migration
             $table->text('description')->nullable(); 
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
+            $table->enum('group_type', ['sysadmin', 'lecturer', 'student'])
+                  ->default('student');
         });
     }
 
