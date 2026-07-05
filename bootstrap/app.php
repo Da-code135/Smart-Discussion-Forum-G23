@@ -12,6 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withEvents([
+        \App\Events\QuizPublished::class => [
+            \App\Listeners\SendQuizAnnouncement::class,
+        ],
+        \App\Events\QuizWentLive::class => [
+            \App\Listeners\NotifyQuizLive::class,
+        ],
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         // API rate limiting: 60 requests per minute
         $middleware->throttleApi(60, 0);
