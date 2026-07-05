@@ -32,6 +32,11 @@ class ReportController extends Controller
 
         $model->reports()->save($report);
 
+        // Flag the post so it appears in the moderation panel
+        if ($model instanceof Post) {
+            $model->update(['is_reported' => true]);
+        }
+
         return back()->with('success', 'Thank you for reporting this content. Our moderators will review it shortly.');
     }
 }

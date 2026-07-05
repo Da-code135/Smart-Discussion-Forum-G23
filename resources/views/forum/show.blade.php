@@ -164,6 +164,9 @@
                                     @endif
                                 </div>
                             @endif
+                            <div style="margin-top: 0.5rem;">
+                                <x-report-button type="post" :id="$reply->id" />
+                            </div>
                         </div>
                     </article>
                 @endforeach

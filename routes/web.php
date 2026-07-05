@@ -444,6 +444,10 @@ Route::prefix("admin")
             \App\Http\Controllers\Admin\ModerationController::class,
             "ignoreReport",
         ])->name("admin.moderation.ignore");
+        Route::post("/moderation/topic/{topic}/ignore", [
+            \App\Http\Controllers\Admin\ModerationController::class,
+            "ignoreTopicReport",
+        ])->name("admin.moderation.ignore-topic");
 
         // Audit Logs - All admins
         Route::get("/audit-logs", [
