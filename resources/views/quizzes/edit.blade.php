@@ -121,20 +121,20 @@
 
                                             {{-- Show answers --}}
                                             @if ($question->answers->isNotEmpty())
-                                                <div style="margin-top: 0.5rem; padding-left: 1rem; border-left: 2px solid var(--border-color);">
-                                                    @foreach ($question->answers as $answer)
-                                                        <p style="margin: 0.25rem 0; font-size: 0.875rem;">
-                                                            {{ $answer->is_correct ? '✓' : '○' }}
-                                                            {{ $answer->answer_text }}
-                                                            <form method="POST" action="{{ route('answers.destroy', $answer->answer_id) }}" style="display: inline;">
-                                                                @csrf
-                                                                @method('DELETE')
-                                                                <button type="submit" class="btn btn-danger btn-sm" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;" onclick="return confirm('Delete this answer?')">x</button>
-                                                            </form>
-                                                        </p>
-                                                    @endforeach
+                                        <div style="margin-top: 0.5rem; padding-left: 1rem; border-left: 2px solid var(--border-color);">
+                                            @foreach ($question->answers as $answer)
+                                                <div style="margin: 0.25rem 0; font-size: 0.875rem; display: flex; align-items: center; gap: 0.25rem;">
+                                                    <span>{{ $answer->is_correct ? '✓' : '○' }}</span>
+                                                    <span>{{ $answer->answer_text }}</span>
+                                                    <form method="POST" action="{{ route('answers.destroy', $answer->answer_id) }}" style="display: inline;">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="btn btn-danger btn-sm" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;" onclick="return confirm('Delete this answer?')">x</button>
+                                                    </form>
                                                 </div>
-                                            @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
 
                                             {{-- Add Answer Form --}}
                                             <form method="POST" action="{{ route('answers.store', $question->question_id) }}" style="display: flex; gap: 0.5rem; margin-top: 0.5rem; align-items: center;">
@@ -161,7 +161,7 @@
                     {{-- Add Question Form --}}
                     <div class="card" style="padding: 1rem; border: 1px dashed var(--border-color);">
                         <h3 style="margin-top: 0;">Add New Question</h3>
-                        <form action="{{ route('questions.store', $quiz->quiz_id) }}" method="POST" class="form-stack">
+                        <form action="{{ route('quizzes.questions.store', $quiz->quiz_id) }}" method="POST" class="form-stack">
                             @csrf
 
                             <div class="form-group">
