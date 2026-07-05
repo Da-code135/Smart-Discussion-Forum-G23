@@ -93,8 +93,12 @@ class QuizController extends Controller
             abort(403, 'You can only edit your own quizzes.');
         }
 
-        // Load relationships
-        $quiz->load('questions.answers', 'configuration');
+        // Load relationships with proper ordering
+        $quiz->load([
+            'questions' => fn ($q) => $q->orderBy('question_order'),
+            'questions.answers',
+            'configuration',
+        ]);
 
         return view('quizzes.edit', compact('quiz'));
     }
@@ -107,6 +111,7 @@ class QuizController extends Controller
      */
     public function update(Request $request, Quiz $quiz)
     {
+        // Only quiz creator can update
         if ($quiz->lecturer_id !== Auth::id()) {
             abort(403, 'You can only edit your own quizzes.');
         }
@@ -159,6 +164,7 @@ class QuizController extends Controller
      */
     public function destroy(Quiz $quiz)
     {
+        // Only quiz creator can delete
         if ($quiz->lecturer_id !== Auth::id()) {
             abort(403, 'You can only delete your own quizzes.');
         }
@@ -187,6 +193,7 @@ class QuizController extends Controller
      */
     public function publish(Request $request, Quiz $quiz)
     {
+        // Only quiz creator can publish
         if ($quiz->lecturer_id !== Auth::id()) {
             abort(403, 'You can only publish your own quizzes.');
         }
