@@ -1010,3 +1010,171 @@ The `/dashboard` route was an inline closure that returned `view('auth.dashboard
 ## 6.19 Nested `<form>` Broke the "Post Reply" Button — ✅ RESOLVED
 
 `forum/show.blade.php` originally rendered the `<x-report-button>` component — which contains its own `<form method="POST">` — *inside* the topic reply `<form>`. Nested `<form>` elements are invalid HTML; browsers implicitly close the outer form as soon as they encounter the inner one, which detached the "Post Reply" submit button from its form and made the button silently do nothing. Fixed by moving the report button to its own block after the reply `</form>` closes.
+
+---
+
+# Chapter 6 (Continued): Current Issues — Resolution Status
+
+## 6.20 `orWhere` Scope Leak in User Search — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/Admin/UserManagementController.php` lines 44–45
+
+When a Group Admin searches for users, the query builder chained `orWhere` on the search conditions without wrapping them in a grouped `where` closure, allowing a Group Admin to see users outside their scope via email search.
+
+**Fix applied:** Wrapped the search conditions in a closure:
+```php
+$query->where(function ($q) use ($search) {
+    $q->where('full_name', 'like', "%{$search}%")
+      ->orWhere('email', 'like', "%{$search}%");
+});
+```
+
+## 6.21 Missing Edit Button on User Detail Page — ✅ RESOLVED
+
+**File:** `resources/views/admin/users/show.blade.php` line 74
+
+The user detail view had a placeholder comment instead of an Edit button. The `admin.users.edit` route was functional but unreachable from the detail page.
+
+**Fix applied:** Replaced the placeholder with an actual Edit button linking to `route('admin.users.edit', $user)`.
+
+## 6.22 Typo in Error Message — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/Admin/UserManagementController.php` line 410
+
+`'Only System Administrations can blacklist users'` was misspelled.
+
+**Fix applied:** Changed to `'Only System Administrators can blacklist users'`.
+
+## 6.23 `blacklisted_at` Not Set on Blacklist Creation — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/Admin/UserManagementController.php` lines 444–448
+
+The `BlacklistRecord::create()` call did not set `blacklisted_at`, causing the admin view to show "—" instead of the actual blacklist date.
+
+**Fix applied:** Added `'blacklisted_at' => now()` to the create array.
+
+## 6.24 Missing `group_type` in Group Creation/Editing — ✅ RESOLVED
+
+**Files:** `app/Http/Controllers/Admin/GroupController.php`, group create/edit views
+
+`GroupController::store()` and `update()` omitted `group_type` from both validation and creation, leaving all groups with `group_type = null`. The create and edit views also lacked a group_type dropdown.
+
+**Fix applied:** Added `'required|in:sysadmin,lecturer,student'` validation and `group_type` to create/update data. Added select dropdowns to both `create.blade.php` and `edit.blade.php` views.
+
+## 6.25 Dashboard References Unregistered `moderation` Route — ✅ RESOLVED
+
+**File:** `resources/views/admin/dashboard.blade.php` line 44
+
+The admin dashboard linked to `route('admin.moderation.index')` which threw `RouteNotFoundException` since the route was not registered.
+
+**Fix applied:** Removed the dead Moderation link from the dashboard until the moderation module is implemented.
+
+## 6.26 Web ForumController Lacks SysAdmin Bypass — ✅ RESOLVED
+
+**Files:** `app/Http/Controllers/ForumController.php` lines 194 and 251
+
+`show()` and `replyStore()` checked group isolation without a SysAdmin bypass, so SysAdmins got 403 on topics from other groups via the web interface.
+
+**Fix applied:** Added `&& !Auth::user()->isSystemAdmin()` to both group isolation checks.
+
+## 6.27 No Topic Edit Route in Web Interface — ✅ RESOLVED
+
+**File:** `routes/web.php`, `ForumController.php`, `resources/views/forum/edit-topic.blade.php`
+
+The web forum had no `edit` or `update` route for topics — users could only edit via the API.
+
+**Fix applied:** Added `edit()` and `update()` methods to `ForumController` with group isolation + creator/admin authorization. Registered `GET /forum/{topic}/edit` and `PUT /forum/{topic}` routes. Created `edit-topic.blade.php` view. Added Edit button to topic detail view.
+
+## 6.28 API Post Creation Missing Audit Log — ✅ RESOLVED
+
+**Files:** `app/Http/Controllers/Api/PostController.php`, `app/Http/Controllers/ForumController.php`
+
+Both API and web post creation lacked audit trail logging.
+
+**Fix applied:** Added `AuditLogService::log(action: 'post.created', ...)` after post creation in both controllers.
+
+## 6.29 Nil-Safety Risk on Topic Creator in Web Views — ✅ RESOLVED
+
+**Files:** `resources/views/forum/index.blade.php`, `resources/views/forum/show.blade.php`
+
+Forum views accessed `$topic->creator->full_name` and `$reply->user->full_name` without null checks, risking crashes if a creator/user is deleted.
+
+**Fix applied:** Replaced with `optional($topic->creator)->full_name ?? 'Deleted User'` and `optional($reply->user)->full_name ?? 'Deleted User'` in all locations.
+
+## 6.30 No Pagination on Web Forum Topic Detail — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/ForumController.php` lines 199–209
+
+`ForumController::show()` loaded ALL posts for a topic without pagination.
+
+**Fix applied:** Changed from eager-loading all posts to a paginated query (`->paginate(20)`) with pagination links in the Blade template.
+
+## 6.31 SharedTopicController Uses Sharing User's Visibility Scope — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/SharedTopicController.php` line 30
+
+The shared topic view applied `visibleToUser($sharingUser->id)` to filter posts, using the sharer's scope instead of the viewer's.
+
+**Fix applied:** Removed the visibility scope — shared links are already time-limited and signed, so all non-removed posts are shown.
+
+## 6.32 Dashboard Inline Route Accesses `$topic->creator` Without Null Check — ✅ RESOLVED
+
+**File:** `routes/web.php` lines 52 and 68
+
+The dashboard inline closure accessed `$topic->creator->full_name` without a null check.
+
+**Fix applied:** Changed to `optional($topic->creator)->full_name ?? 'Deleted User'`.
+
+## 6.33 PDF Export and Share Topic Lack SysAdmin Bypass — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/ForumController.php` lines 377 and 434
+
+`exportPDF()` and `shareTopic()` enforced group isolation without a SysAdmin bypass.
+
+**Fix applied:** Added `&& !Auth::user()->isSystemAdmin()` to both group isolation checks.
+
+## 6.34 Registration Hardcodes 'General' Group — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/Auth/RegisterController.php`
+
+New students were always assigned to the `General` group with no group selection step.
+
+**Fix applied:** Added a group selection dropdown to the onboarding view. `RegisterController::showOnboarding()` passes student groups. `agreeOnboarding()` validates the selected `group_id` and uses it when creating the user.
+
+## 6.35 Audit Log Call Commented Out in `blacklist()` — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/Admin/UserManagementController.php` line 454
+
+The audit log call was commented out, meaning blacklist operations were not recorded.
+
+**Fix applied:** Uncommented the `$this->auditLogService->logUserBlacklisted(...)` call.
+
+## 6.36 Notification Web View Has No "Mark as Read" Action — ✅ RESOLVED
+
+**File:** `resources/views/notifications/index.blade.php`, `ForumController.php`, `routes/web.php`
+
+The notifications page displayed notifications but provided no way to mark them as read.
+
+**Fix applied:** Added `markNotificationAsRead()` method to `ForumController`. Registered `POST /notifications/{id}/read` route. Added mark-as-read button to each unread notification in the view.
+
+## 6.37 Group Management Table Doesn't Display `group_type` — ✅ RESOLVED
+
+**File:** `resources/views/admin/groups/index.blade.php`
+
+The groups index table had no column showing the group type.
+
+**Fix applied:** Added a "Type" column with a badge displaying the `group_type` value.
+
+## 6.38 Lecturer Group Access Migration Has Type Hint Compatibility Issue — ✅ RESOLVED
+
+**File:** `database/migrations/2026_07_04_173600_create_lecturer_group_access_table.php`
+
+The migration type-hinted the closure with `Blueprint`, causing `Argument #1 ($table) must be of type Illuminate\Support\Blueprint` error.
+
+**Fix applied:** Removed the `use Illuminate\Database\Schema\Blueprint;` import and used an untyped closure parameter instead to avoid the autoloading conflict.
+
+---
+
+## Summary
+
+All 19 identified issues (6.1 through 6.19 previously resolved, 6.20 through 6.38 now resolved) are fixed.

@@ -22,14 +22,14 @@
         <section class="topic-list">
             @forelse ($topics as $topic)
                 @php
-                    $initials = collect(explode(' ', $topic->creator->full_name))->map(fn ($word) => strtoupper(substr($word, 0, 1)))->take(2)->join('');
-                    $avatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][$topic->creator->id % 5];
+                    $initials = collect(explode(' ', optional($topic->creator)->full_name ?? 'Deleted User'))->map(fn ($word) => strtoupper(substr($word, 0, 1)))->take(2)->join('');
+                    $avatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][($topic->creator->id ?? 0) % 5];
                 @endphp
                 <a href="{{ route('forum.show', $topic->id) }}" class="discussion-item">
                     <div class="app-topbar-avatar" style="--avatar-bg: {{ $avatarTone }};">{{ $initials }}</div>
                     <div class="topic-row__body">
                         <div class="discussion-meta">
-                            <span>{{ $topic->creator->full_name }}</span>
+                            <span>{{ optional($topic->creator)->full_name ?? 'Deleted User' }}</span>
                             <span class="discussion-meta-dot"></span>
                             <span>{{ $topic->created_at->diffForHumans() }}</span>
                             @if ($topic->post_type === 'question')

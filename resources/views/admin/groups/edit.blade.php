@@ -43,6 +43,19 @@
                     @enderror
                 </div>
 
+                <div class="form-group">
+                    <label for="group_type" class="form-label">Group Type *</label>
+                    <select id="group_type" name="group_type" class="form-control" required>
+                        <option value="" disabled {{ old('group_type', $group->group_type) ? '' : 'selected' }}>— Select type —</option>
+                        <option value="student" {{ (old('group_type', $group->group_type) === 'student') ? 'selected' : '' }}>Student</option>
+                        <option value="lecturer" {{ (old('group_type', $group->group_type) === 'lecturer') ? 'selected' : '' }}>Lecturer</option>
+                        <option value="sysadmin" {{ (old('group_type', $group->group_type) === 'sysadmin') ? 'selected' : '' }}>System Admin</option>
+                    </select>
+                    @error('group_type')
+                        <span class="form-error">{{ $message }}</span>
+                    @enderror
+                </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                     <a href="{{ route('admin.groups.index') }}" class="btn btn-secondary">Cancel</a>

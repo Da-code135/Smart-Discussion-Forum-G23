@@ -49,7 +49,7 @@ Route::middleware("auth")->group(function () {
                     fn(Topic $topic) => [
                         "id" => $topic->id,
                         "title" => $topic->title,
-                        "creator_name" => $topic->creator->full_name,
+                        "creator_name" => optional($topic->creator)->full_name ?? 'Deleted User',
                         "reply_count" => $topic->posts_count,
                         "created_at" => $topic->created_at,
                     ],

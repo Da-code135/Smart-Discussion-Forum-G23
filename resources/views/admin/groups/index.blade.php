@@ -42,6 +42,7 @@
             <thead>
                 <tr>
                     <th>Group name</th>
+                    <th>Type</th>
                     <th>Description</th>
                     <th>Members</th>
                     <th>Created by</th>
@@ -53,6 +54,7 @@
                 @forelse ($groups as $group)
                     <tr>
                         <td><strong>{{ $group->group_name }}</strong></td>
+                        <td><span class="badge badge-secondary">{{ $group->group_type ?? '—' }}</span></td>
                         <td>{{ $group->description ? Str::limit($group->description, 50) : 'N/A' }}</td>
                         <td><span class="member-badge">{{ $group->users_count }} members</span></td>
                         <td>{{ $group->createdBy->full_name ?? 'Unknown' }}</td>
@@ -75,7 +77,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="text-center">No groups found.</td>
+                        <td colspan="7" class="text-center">No groups found.</td>
                     </tr>
                 @endforelse
             </tbody>

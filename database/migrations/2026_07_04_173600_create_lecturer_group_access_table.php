@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
 
 class CreateLecturerGroupAccessTable extends Migration
 {
@@ -11,7 +10,7 @@ class CreateLecturerGroupAccessTable extends Migration
      */
     public function up(): void
     {
-        Schema::create("lecturer_group_access", function (Blueprint $table) {
+        Schema::create("lecturer_group_access", function ($table) {
             $table->foreignId("lecturer_id")->constrained("users");
             $table->foreignId("group_id")->constrained("groups");
             $table->timestamps();

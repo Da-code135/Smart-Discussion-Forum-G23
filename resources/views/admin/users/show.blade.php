@@ -71,7 +71,10 @@
         <div class="card-header">Actions</div>
         <div class="card-body">
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                {{-- Edit button placeholder (will link to edit page in Phase 3) --}}
+                <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-primary btn-sm">
+                    <span class="material-symbols-outlined">edit</span>
+                    Edit User
+                </a>
 
                 {{-- Lift Blacklist (if currently blacklisted) --}}
                 @if ($user->account_status === 'blacklisted')

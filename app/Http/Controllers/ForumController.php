@@ -196,24 +196,17 @@ class ForumController extends Controller
             abort(403, "You do not have access to this topic.");
         }
 
-        // === NESTED EAGER LOADING ===
-        // Load all replies (posts) for this topic, filtered:
-        //   1. Only non-removed posts (moderation soft-delete)
-        //   2. Only posts the current user is not excluded from (visibility rules)
-        //   3. Order by oldest first (chronological thread)
-        //   4. Eager load the author to avoid N+1
-        $topic->load([
-            "posts" => function ($query) {
-                $query
-                    ->notRemoved()
-                    ->visibleToUser(Auth::id())
-                    ->orderBy("created_at", "asc") //will list the replies in order of creation, newest appears at the bottom
-                    ->with("user"); //this means "When loading posts, also load the related users immediately."
-            },
-            "group",
-        ]); //this eager loads the group, which is later accessed in the blade
+        // Load the topic with its group
+        $topic->load(["group"]);
 
-        //Eager loading = "Load related data upfront, in the controller, before the view runs."
+        // === PAGINATED POSTS ===
+        // Load replies with pagination instead of eager-loading all at once
+        $posts = Post::where("topic_id", $topic->id)
+            ->notRemoved()
+            ->visibleToUser(Auth::id())
+            ->with("user")
+            ->orderBy("created_at", "asc")
+            ->paginate(20);
 
         // Pre-load users eligible for exclusion (same group, not current user)
         // to avoid N+1 queries inside the Blade loop
@@ -221,12 +214,7 @@ class ForumController extends Controller
             ->where("id", "!=", Auth::id())
             ->get();
 
-        /*Get all users in the same group as the logged-in user,
-           excluding the logged-in user themselves.
-           These users will be displayed as options that the author
-           can choose to exclude from viewing individual posts.*/
-
-        return view("forum.show", compact("topic", "excludableUsers")); //this just makes the topic and excludableUsers available in the blade template
+        return view("forum.show", compact("topic", "posts", "excludableUsers"));
     }
 
     /**

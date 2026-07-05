@@ -84,12 +84,14 @@ class GroupController extends Controller
         $validated = $request->validate([
             'group_name' => 'required|string|max:100|unique:groups',
             'description' => 'nullable|string|max:500',
+            'group_type' => 'required|in:sysadmin,lecturer,student',
         ]);
 
         // #145: Store with created_by = auth()->id()
         $group = Group::create([
             'group_name' => $validated['group_name'],
             'description' => $validated['description'],
+            'group_type' => $validated['group_type'],
             'created_by' => Auth::id(),
         ]);
 
@@ -129,9 +131,10 @@ class GroupController extends Controller
         $validated = $request->validate([
             'group_name' => 'required|string|max:100|unique:groups,group_name,' . $group->id,
             'description' => 'nullable|string|max:500',
+            'group_type' => 'required|in:sysadmin,lecturer,student',
         ]);
 
-        $oldValues = $group->only(['group_name', 'description']);
+        $oldValues = $group->only(['group_name', 'description', 'group_type']);
 
         // #146: Update group
         $group->update($validated);

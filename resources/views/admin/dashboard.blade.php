@@ -41,7 +41,6 @@
             <a href="{{ route('admin.groups.index') }}" class="link-btn">Group management</a>
             <a href="{{ route('admin.warnings.index') }}" class="link-btn">Warnings</a>
             <a href="{{ route('admin.blacklist.index') }}" class="link-btn">Blacklist</a>
-            <a href="{{ route('admin.moderation.index') }}" class="link-btn">Moderation</a>
             <a href="{{ route('admin.audit-logs.index') }}" class="link-btn">Audit logs</a>
             @if (auth()->user()->isSystemAdmin())
                 <a href="{{ route('admin.group-statistics.index') }}" class="link-btn">Group statistics</a>

@@ -7,8 +7,8 @@
     $shareUrl = route('forum.show', $topic->id);
     $encodedShareUrl = urlencode($shareUrl);
     $shareText = urlencode($topic->title);
-    $creatorInitials = collect(explode(' ', $topic->creator->full_name))->map(fn ($w) => strtoupper(substr($w, 0, 1)))->take(2)->join('');
-    $creatorAvatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][$topic->creator->id % 5];
+    $creatorInitials = collect(explode(' ', optional($topic->creator)->full_name ?? 'Deleted User'))->map(fn ($w) => strtoupper(substr($w, 0, 1)))->take(2)->join('');
+    $creatorAvatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][($topic->creator->id ?? 0) % 5];
 @endphp
 
 @section('content')
@@ -97,7 +97,7 @@
             <div class="app-topbar-avatar" style="--avatar-bg: {{ $creatorAvatarTone }}; width: 56px; height: 56px; font-size: 18px;">{{ $creatorInitials }}</div>
             <div class="page-stack">
                 <div class="topic-meta">
-                    <strong>{{ $topic->creator->full_name }}</strong>
+                    <strong>{{ optional($topic->creator)->full_name ?? 'Deleted User' }}</strong>
                     <span class="discussion-meta-dot"></span>
                     <span>{{ $topic->created_at->format('M j, Y \a\t g:ia') }}</span>
                 </div>
@@ -110,27 +110,27 @@
         <div class="section-header">
             <div>
                 <h2>Replies</h2>
-                <p>{{ $topic->posts->count() }} {{ Str::plural('reply', $topic->posts->count()) }}</p>
+                <p>{{ $posts->total() }} {{ Str::plural('reply', $posts->total()) }}</p>
             </div>
         </div>
 
-        @if ($topic->posts->isEmpty())
+        @if ($posts->isEmpty())
             <div class="empty-state">
                 <span class="material-symbols-outlined" style="font-size: 40px;">forum</span>
                 <p>No replies yet. Be the first to respond.</p>
             </div>
         @else
             <div class="reply-stream">
-                @foreach ($topic->posts as $reply)
+                @foreach ($posts as $reply)
                     @php
-                        $replyInitials = collect(explode(' ', $reply->user->full_name))->map(fn ($w) => strtoupper(substr($w, 0, 1)))->take(2)->join('');
-                        $replyAvatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][$reply->user->id % 5];
+                        $replyInitials = collect(explode(' ', optional($reply->user)->full_name ?? 'Deleted User'))->map(fn ($w) => strtoupper(substr($w, 0, 1)))->take(2)->join('');
+                        $replyAvatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][($reply->user->id ?? 0) % 5];
                     @endphp
                     <article class="reply-item">
                         <div class="app-topbar-avatar" style="--avatar-bg: {{ $replyAvatarTone }}; width: 44px; height: 44px;">{{ $replyInitials }}</div>
                         <div class="page-stack">
                             <div class="reply-meta">
-                                <strong>{{ $reply->user->full_name }}</strong>
+                                <strong>{{ optional($reply->user)->full_name ?? 'Deleted User' }}</strong>
                                 <span class="discussion-meta-dot"></span>
                                 <span>{{ $reply->created_at->format('M j, Y \a\t g:ia') }}</span>
                                 @if ($reply->created_at->ne($reply->updated_at))
@@ -167,6 +167,10 @@
                         </div>
                     </article>
                 @endforeach
+            </div>
+
+            <div class="pagination-shell">
+                {{ $posts->links() }}
             </div>
         @endif
     </section>

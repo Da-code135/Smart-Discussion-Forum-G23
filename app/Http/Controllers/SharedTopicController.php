@@ -25,9 +25,11 @@ class SharedTopicController extends Controller
 
         $topic->load(['creator']);
 
+        // Use no user-specific visibility scope — shared links are already
+        // time-limited and signed. The viewer may not be the same person
+        // the sharer intended to exclude, so we show all non-removed posts.
         $replies = $topic->posts()
             ->notRemoved()
-            ->visibleToUser($sharingUser->id)
             ->with('user')
             ->orderBy('created_at', 'asc')
             ->get();

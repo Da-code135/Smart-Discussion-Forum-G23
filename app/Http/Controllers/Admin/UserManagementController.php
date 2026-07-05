@@ -41,8 +41,10 @@ class UserManagementController extends Controller
         // #89: SEARCH FUNCTIONALITY
         if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where('full_name', 'like', "%{$search}%")
+            $query->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
+            });
         }
 
         // #89: FILTER BY ACCOUNT STATUS
@@ -407,7 +409,7 @@ class UserManagementController extends Controller
     public function showBlacklist($userId)
     {
         if (!auth()->user()->isSystemAdmin()) {
-            abort(403, 'Only System Administrations can blacklist users');
+            abort(403, 'Only System Administrators can blacklist users');
         }
 
         $user = User::findOrFail($userId);
@@ -445,13 +447,14 @@ class UserManagementController extends Controller
             'user_id' => $user->id,
             'reason' => $validated['reason'],
             'expires_at' => $expiresAt,
+            'blacklisted_at' => now(),
         ]);
 
         // Update user status
         $user->update(['account_status' => 'blacklisted']);
 
         // Audit log
-        //$this->auditLogService->logUserBlacklisted($user, $validated['reason'], $expiresAt);
+        $this->auditLogService->logUserBlacklisted($user, $validated['reason'], $expiresAt);
 
         return redirect()->route('admin.users.show', $user)
             ->with('success', "User '{$user->full_name}' has been blacklisted");
