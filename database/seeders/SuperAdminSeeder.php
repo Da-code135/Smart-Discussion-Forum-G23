@@ -42,7 +42,7 @@ class SuperAdminSeeder extends Seeder
 
         $this->command->info('✅ Super Admin user created/updated successfully!');
         $this->command->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        $this->command->info("  Email:    admin@admin.com");
+        $this->command->info("  Email:    superadmin@example.com");
         $this->command->info("  Password: password");
         $this->command->info("  Role:     {$adminRole->role_name}");
         $this->command->info("  User ID:  {$superAdmin->id}");
