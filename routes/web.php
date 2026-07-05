@@ -335,10 +335,58 @@ Route::middleware("auth")->group(function () {
 });
 
 // ============================================
-// QUIZ ROUTES (Lecturer quiz management)
+// STUDENT QUIZ ROUTES (Quiz execution & timer — Person 3)
 // ============================================
 
 Route::middleware("auth")->group(function () {
+    Route::prefix("quizzes")->name("quizzes.")->group(function () {
+        // Student: Quiz announcement page (shown BEFORE quiz starts)
+        Route::get("/{quiz}/announcement", [
+            \App\Http\Controllers\StudentQuizController::class,
+            "showAnnouncement",
+        ])->name("announcement");
+
+        // Student: Active quiz interface (countdown timer + questions)
+        Route::get("/{quiz}/attempt", [
+            \App\Http\Controllers\StudentQuizController::class,
+            "showQuiz",
+        ])->name("attempt");
+
+        // Student: Save a single answer (AJAX — called on each selection)
+        Route::post("/{quiz}/answer", [
+            \App\Http\Controllers\StudentQuizController::class,
+            "saveAnswer",
+        ])->name("answer");
+
+        // Student: Manual submit button
+        Route::post("/{quiz}/submit", [
+            \App\Http\Controllers\StudentQuizController::class,
+            "submitQuiz",
+        ])->name("submit");
+
+        // Student: Auto-submit when timer expires (JS-driven)
+        Route::post("/{quiz}/auto-submit", [
+            \App\Http\Controllers\StudentQuizController::class,
+            "autoSubmit",
+        ])->name("auto-submit");
+
+        // Student: Real-time quiz status (JSON — polled by JS every second)
+        Route::get("/{quiz}/status", [
+            \App\Http\Controllers\StudentQuizController::class,
+            "getStatus",
+        ])->name("status");
+
+        // Result page (stub — Person 4/5 will flesh out grading & results)
+        Route::get("/{quiz}/result", [
+            \App\Http\Controllers\StudentQuizController::class,
+            "showResult",
+        ])->name("result");
+    });
+
+    // ============================================
+    // QUIZ ROUTES (Lecturer quiz management)
+    // ============================================
+
     Route::prefix("quizzes")->name("quizzes.")->group(function () {
         Route::get("/", [\App\Http\Controllers\QuizController::class, "index"])->name("index");
         Route::get("/create", [\App\Http\Controllers\QuizController::class, "create"])->name("create");
