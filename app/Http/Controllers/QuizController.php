@@ -6,6 +6,7 @@ use App\Models\Quiz;
 use App\Models\Question;
 use App\Models\Answer;
 use App\Models\QuizConfiguration;
+use App\Events\QuizPublished;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -217,10 +218,9 @@ class QuizController extends Controller
         // Mark as published
         $quiz->update(['published_at' => now()]);
 
-        // Create announcement notification
-        // (This triggers Person 4's Notification system)
-        // For now, just log it
-        \Log::info("Quiz {$quiz->quiz_id} published as announcement for {$quiz->target_category}");
+        // Dispatch event — SendQuizAnnouncement listener creates
+        // notifications for all students in the target audience.
+        QuizPublished::dispatch($quiz);
 
         return back()->with('success', 'Quiz published! Students have been notified.');
     }
