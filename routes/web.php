@@ -335,6 +335,30 @@ Route::middleware("auth")->group(function () {
 });
 
 // ============================================
+// QUIZ ROUTES (Lecturer quiz management)
+// ============================================
+
+Route::middleware("auth")->group(function () {
+    Route::prefix("quizzes")->name("quizzes.")->group(function () {
+        Route::get("/", [\App\Http\Controllers\QuizController::class, "index"])->name("index");
+        Route::get("/create", [\App\Http\Controllers\QuizController::class, "create"])->name("create");
+        Route::post("/", [\App\Http\Controllers\QuizController::class, "store"])->name("store");
+        Route::get("/{quiz}/edit", [\App\Http\Controllers\QuizController::class, "edit"])->name("edit");
+        Route::put("/{quiz}", [\App\Http\Controllers\QuizController::class, "update"])->name("update");
+        Route::delete("/{quiz}", [\App\Http\Controllers\QuizController::class, "destroy"])->name("destroy");
+        Route::post("/{quiz}/publish", [\App\Http\Controllers\QuizController::class, "publish"])->name("publish");
+
+        // Nested: questions under quiz
+        Route::post("/{quiz}/questions", [\App\Http\Controllers\QuestionController::class, "store"])->name("questions.store");
+    });
+
+    // Flat: question/answer delete routes (no nesting needed)
+    Route::delete("/questions/{question}", [\App\Http\Controllers\QuestionController::class, "destroy"])->name("questions.destroy");
+    Route::post("/questions/{question}/answers", [\App\Http\Controllers\AnswerController::class, "store"])->name("answers.store");
+    Route::delete("/answers/{answer}", [\App\Http\Controllers\AnswerController::class, "destroy"])->name("answers.destroy");
+});
+
+// ============================================
 // ADMIN ROUTES (Authentication + Admin check required)
 // ============================================
 
