@@ -396,6 +396,9 @@ Route::middleware("auth")->group(function () {
         Route::delete("/{quiz}", [\App\Http\Controllers\QuizController::class, "destroy"])->name("destroy");
         Route::post("/{quiz}/publish", [\App\Http\Controllers\QuizController::class, "publish"])->name("publish");
 
+        // Performance report (lecturer/admin only)
+        Route::get("/{quiz}/report", [\App\Http\Controllers\QuizController::class, "showPerformanceReport"])->name("report");
+
         // Nested: questions under quiz
         Route::post("/{quiz}/questions", [\App\Http\Controllers\QuestionController::class, "store"])->name("questions.store");
     });
