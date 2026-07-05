@@ -83,11 +83,16 @@ class RegisterController extends Controller
      * GET /onboarding
      * Route name: 'onboarding'
      *
+     * Passes available student groups for the user to select from.
+     *
      * @return \Illuminate\View\View
      */
     public function showOnboarding()
     {
-        return view('auth.onboarding');
+        // Get all student-type groups for the dropdown
+        $groups = Group::where('group_type', 'student')->get();
+
+        return view('auth.onboarding', compact('groups'));
     }
 
     /**
@@ -96,8 +101,12 @@ class RegisterController extends Controller
      * POST /onboarding/agree
      * Route name: 'onboarding.agree'
      *
+     * ATOMIC: User creation and agreement are wrapped in a DB transaction.
+     * If any step fails (invalid group, validation error, DB exception),
+     * the entire transaction rolls back and no user record is created.
+     *
      * Creates:
-     * 1. User record with role_id = Member, group_id = 1, hashed password
+     * 1. User record with role_id = Member, group_id from request
      * 2. OnboardingAgreement record with agreed = true
      * 3. Logs in the user automatically
      *
@@ -115,18 +124,27 @@ class RegisterController extends Controller
                 ->with('error', 'Registration data expired. Please register again.');
         }
 
-        // Look up role and group by name (dynamic, not hardcoded)
-        $role = Role::where('role_name', 'Member')->first();
-        $group = Group::where('group_name', 'Default Group')->first();
+        // Validate that the user selected a valid student group
+        $validated = $request->validate([
+            'group_id' => 'required|exists:groups,id',
+        ]);
 
-        if (!$role || !$group) {
+        // Look up role by name (dynamic, not hardcoded)
+        $role = Role::where('role_name', 'Member')->first();
+
+        if (!$role) {
             return redirect()->route('register')
-                ->with('error', 'Required role or group not found. Please contact administrator.');
+                ->with('error', 'Required role not found. Please contact administrator.');
         }
 
-        // Wrap user creation and agreement in DB transaction for data consistency
-        $user = DB::transaction(function () use ($registrationData, $role, $group, $request) {
-            // Create User with looked-up role and group
+        // ATOMIC: Wrap user creation and agreement in a DB transaction
+        // If the group is invalid, a DB exception occurs and everything rolls back.
+        // No partial user records are ever created.
+        $user = DB::transaction(function () use ($registrationData, $role, $validated, $request) {
+            // Find the selected group inside the transaction
+            $group = Group::findOrFail($validated['group_id']);
+
+            // Create User with the selected group (no fallback)
             $user = User::create([
                 'full_name' => $registrationData['full_name'],
                 'email' => $registrationData['email'],
@@ -142,6 +160,9 @@ class RegisterController extends Controller
                 'ip_address' => $request->ip(),
                 'agreement_version' => config('app.agreement_version', '1.0'),
             ]);
+
+            // Auto-promote first student in a student group to Group Admin
+            $group->autoPromoteFirstStudent($user);
 
             return $user;
         });

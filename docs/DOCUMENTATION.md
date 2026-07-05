@@ -2,7 +2,7 @@
 
 > **Project:** Smart-Discussion-Forum-G23  
 > **Framework:** Laravel 13.16.1 | PHP 8.4.22 | PHPUnit 12  
-> **Last Updated:** June 2026  
+> **Last Updated:** July 2026 (frontend redesign + view/controller wiring audit)  
 > **Test Suite:** 144 tests, 397 assertions, 0 failures
 
 ---
@@ -21,6 +21,7 @@
   - [1.8 Blade Layout Inheritance](#18-blade-layout-inheritance)
   - [1.9 Artisan Commands](#19-artisan-commands)
   - [1.10 Database Seeding](#110-database-seeding)
+  - [1.11 Frontend Design System (Studdit)](#111-frontend-design-system-studdit)
 - [Chapter 2: Authentication Features](#chapter-2-authentication-features)
   - [2.1 Registration — The 3-Step Onboarding Flow](#21-registration--the-3-step-onboarding-flow)
   - [2.2 Login (Web)](#22-login-web)
@@ -63,7 +64,7 @@
 
 ### What Is the Smart Discussion Forum?
 
-The Smart Discussion Forum is a web-based academic platform built with Laravel. It serves two interfaces: a browser-based web application for students and administrators, and a RESTful API (versioned under `/api/v1/`) for a companion desktop client. Both interfaces share the same user database but use different authentication mechanisms — sessions for the web, Laravel Sanctum tokens for the API.
+The Smart Discussion Forum is a Laravel-based academic discussion platform. It serves two interfaces: a browser-based web application for students and administrators, and a RESTful API (versioned under `/api/v1/`) for a companion desktop client. Both interfaces share the same user database but use different authentication mechanisms — sessions for the web, Laravel Sanctum tokens for the API. Some web routes such as `/groups` and `/verify-email` are registered at the top level of `routes/web.php`, so this documentation calls out both route-group protection and controller-level authorization where relevant.
 
 ### Core Purpose
 
@@ -75,9 +76,9 @@ The system defines five roles arranged in a hierarchy:
 
 - **System Administrator** (id=1) — Full system-wide access: manage all users, all groups, system configuration, and IP whitelists.
 - **Group Administrator** (id=2) — Can view and manage only the groups assigned to them via a pivot table (`group_admins`). Can edit groups, manage members, and view users within their scope.
-- **Student** (id=3) — Access to quiz attempts, discussion features, and performance reports.
-- **Lecturer** (id=4) — Access to quiz configuration, participation marking criteria, and discussion features.
-- **Member** (id=5) — Default role assigned during registration. Access to discussion features, topic filtering, PDF export, and social media forwarding.
+- **Student** (id=3) — Standard authenticated forum user with access to discussion features within their group.
+- **Lecturer** (id=4) — Standard authenticated forum user with access to discussion features within their group.
+- **Member** (id=5) — Default role assigned during registration. Access to discussion features, topic filtering, PDF export, and post visibility controls.
 
 ### Account Lifecycle
 
@@ -93,7 +94,7 @@ Registration uses a deliberate 3-step process:
 
 1. The user fills out a registration form (name, email, password).
 2. Validated data is stored in the session (no database write yet).
-3. The user must read and accept the platform rules on an onboarding page. Only then is the user record created (within a `DB::transaction`), assigned the `Member` role and `Default Group`, and auto-logged in. The session stores only the hashed password (never plaintext).
+3. The user must read and accept the platform rules on an onboarding page. Only then is the user record created (within a `DB::transaction`), assigned the `Member` role and the `General` group, and auto-logged in. The session stores only the hashed password (never plaintext).
 
 Declining the rules discards the session data — no account is created.
 
@@ -109,7 +110,7 @@ Both systems enforce the same blacklist and warned gates — blacklisted users a
 
 Access control is enforced at three levels:
 
-1. **Route middleware** — `auth`, `admin`, `system-admin`, and `can-admin-group` middleware in `bootstrap/app.php` and `routes/web.php` block unauthorised requests before they reach the controller.
+1. **Route middleware** — `auth`, `admin`, `system-admin`, and `can-admin-group` middleware in `bootstrap/app.php` and `routes/web.php` block unauthorised requests before they reach the controller. A few top-level web routes are intentionally defined outside the main admin/auth route groups, so those endpoints rely on controller or policy checks as an additional safeguard.
 2. **Policy checks** — The `GroupPolicy` at `app/Policies/GroupPolicy.php` governs who can create, edit, delete, and manage members of each group. Controllers invoke these via `Gate::allows()`.
 3. **Model helpers** — Methods on the `User` model (`isSystemAdmin()`, `isGroupAdmin()`, `isAdmin()`, `canAdminGroup()`, `canAdminUser()`) provide reusable authorization logic that both middleware and policies delegate to.
 
@@ -148,18 +149,19 @@ Thresholds are stored in the `system_configs` table and cached via the `SystemCo
 
 | Directory | Contents |
 |-----------|----------|
-| `app/Models/` | 10 Eloquent models: User, Role, Group, Warning, BlacklistRecord, OnboardingAgreement, EmailVerificationToken, SystemConfig, AuditLog, AdminIpWhitelist |
-| `app/Http/Controllers/Auth/` | 6 controllers: Login, Register, Password, EmailVerification, WarningAcknowledgement, Profile |
-| `app/Http/Controllers/Admin/` | 5 controllers: UserManagement, GroupController, SystemConfigController, AuditLogController, IpWhitelistController |
-| `app/Http/Controllers/Api/` | API controllers for the desktop client (AuthController, UserController, ProfileController, PasswordController, EmailVerificationController) |
-| `app/Http/Middleware/` | 6 custom middleware: IsAdmin, IsSystemAdmin, IsGroupAdmin, CanAdminGroup, IpWhitelist, ApiSecurityHeaders |
+| `app/Models/` | 15 Eloquent models covering users, roles, groups, forum content, moderation, audit logs, and runtime config |
+| `app/Http/Controllers/Auth/` | Auth and onboarding controllers for web login, registration, profile, passwords, and email verification |
+| `app/Http/Controllers/Admin/` | Web admin controllers for users, groups, moderation, audit logs, IP whitelist, and system config |
+| `app/Http/Controllers/Api/` | API controllers for auth, profile, passwords, email verification, forum topics/posts, categories, groups, warnings, blacklist, bulk operations, search, audit logs, and more |
+| `app/Http/Middleware/` | Custom middleware for admin scoping, system-admin checks, group access, IP whitelist, and API security headers |
 | `app/Policies/` | GroupPolicy and UserPolicy for authorization |
-| `app/Console/Commands/` | MonitorMemberActivity artisan command |
-| `routes/` | `web.php` (294 lines, all web routes), `api.php` (201 lines, all API routes) |
-| `database/migrations/` | 20 migration files defining the schema |
-| `database/seeders/` | RoleSeeder (5 roles), GroupSeeder, SuperAdminSeeder, DatabaseSeeder |
-| `tests/Feature/` | 14 test files covering web, admin, API, and console features |
-| `resources/views/admin/users/` | 6 Blade templates: index, show, create, edit, reset-password, blacklist |
+| `app/Console/Commands/` | `MonitorMemberActivity` artisan command |
+| `routes/` | `web.php` and `api.php` route definitions for the web app and versioned API |
+| `database/migrations/` | Schema migrations for the forum, auth, moderation, config, and security features |
+| `database/seeders/` | Role, group, and super-admin seeders plus the database seed orchestrator |
+| `tests/Feature/` | Feature tests covering web, admin, API, and console flows |
+| `resources/views/admin/users/` | Blade templates for admin user management |
+| `resources/css/app.css`, `resources/js/app.js` | The Studdit design system (CSS custom properties + shared component classes) and its Vite entry points — see Section 1.11 |
 | `bootstrap/app.php` | Middleware registration, route configuration, exception handling |
 
 ### Test Suite
@@ -274,7 +276,7 @@ Cache invalidation happens via `clearCache()` (line 35) which calls `Cache::forg
 
 ## 1.8 Blade Layout Inheritance
 
-The application has two base layouts. `resources/views/layouts/app.blade.php` (68 lines) is the authenticated layout — it includes a navigation bar with links to dashboard, profile, admin sections (conditionally shown for admin users), and a logout button. It yields content via `@yield('content')` and conditionally loads admin CSS. `resources/views/layouts/guest.blade.php` (54 lines) is the unauthenticated layout — it has a simpler header, a site title, and a footer.
+The application has two base layouts, both loading compiled assets through Vite via `@vite(['resources/css/app.css', 'resources/js/app.js'])` instead of static `public/css/*.css` files. `resources/views/layouts/app.blade.php` is the authenticated layout — it renders a persistent top navbar (`components/navbar.blade.php`) with the app brand, primary navigation links, a notifications icon, and a user avatar dropdown (profile link, admin shortcuts when applicable, and logout), then yields page content via `@yield('content')`. Flash messages (`success`, `error`, `warning`, `info`) are rendered automatically above the page content. `resources/views/layouts/guest.blade.php` is the unauthenticated layout — it centers a single card (login, register, onboarding, password reset) on the page, with the Studdit brand mark above it.
 
 Individual pages declare which layout they want with `@extends('layouts.guest')` or `@extends('layouts.app')` and inject their content with `@section('content')`. For example, the login page at `resources/views/auth/login.blade.php` extends `layouts.guest`, while the dashboard at `resources/views/auth/dashboard.blade.php` extends `layouts.app`.
 
@@ -294,13 +296,29 @@ The `RoleSeeder` at `database/seeders/RoleSeeder.php` (lines 14–53) seeds five
 |----|-----------|-------------|
 | 1 | System Administrator | Full system-wide access |
 | 2 | Group Administrator | Can manage assigned groups |
-| 3 | Student | Access to quiz attempts, discussion features |
-| 4 | Lecturer | Access to quiz configuration, discussion features |
+| 3 | Student | Access to discussion features within their group |
+| 4 | Lecturer | Access to discussion features within their group |
 | 5 | Member | Access to discussion features, topic filtering, PDF export |
 
 Using `updateOrInsert` with `id` as the lookup key ensures idempotent seeding — running the seeder multiple times will not create duplicates, and the IDs are deterministic so application code and tests can rely on them. The migrations `2026_06_28_000001` and `2026_06_28_000002` are simplified to no-ops; all role data is owned by the seeder.
 
 The `GroupSeeder` creates a `Default Group` and a `General` group. The `SuperAdminSeeder` creates a default System Administrator account.
+
+---
+
+## 1.11 Frontend Design System (Studdit)
+
+The web UI implements a single design system, branded "Studdit," defined entirely with CSS custom properties so the whole palette, type scale, and spacing rhythm can be changed from one file.
+
+**Design tokens.** All tokens live under `:root` in `resources/css/app.css`: colors (`--app-accent`, `--app-secondary`, `--app-page-bg`, `--app-card-bg`, `--app-text-primary`, `--app-success`, `--app-warning`, `--app-danger`, `--app-locked`, each with a `-soft` tinted-background variant), typography (`--font-headline` = Manrope, `--font-body` = Work Sans), corner radii (`--radius-card`, `--radius-input`, `--radius-modal`, `--radius-button`, `--radius-avatar`), an 8px spacing scale (`--space-1` … `--space-8`), and shadow tokens (`--shadow-card`, `--shadow-card-hover`, `--shadow-modal`). Views and components reference these variables (`var(--app-*)`) rather than hardcoded hex values or ad-hoc inline styles.
+
+**Shared component classes.** A small set of classes is reused everywhere instead of one-off styling per page: `.card` / `.bento-card` (white surface, `8px` radius, soft ambient shadow — the single card style used for feed rows, forms, sidebar widgets, and admin panels), `.btn` with `.btn-primary` / `.btn-secondary` / `.btn-ghost` / `.btn-danger` / `.btn-success` variants (always a full pill via `--radius-button: 999px`), `.badge` / `.status-badge` (soft-background + saturated-text pairing for `active`/`warned`/`blacklisted` states), `.form-control` / `.form-input` (bordered, `4px` radius, uppercase label above the field), and `.avatar` / `.app-topbar-avatar` (circular initials avatars colored from a 5-tone rotating palette — `--avatar-tone-1` … `--avatar-tone-5` — keyed by `user->id % 5` so the same person always gets the same color).
+
+**Layout shell.** `.app-shell` / `.app-main` center content at a `1280px` max width. Pages that need a secondary column (dashboard, forum feed, profile, topic thread) use `.page-shell`, a two-column grid (`minmax(0, 1fr)` main column + a fixed `280px` `.page-shell__sidebar`) that collapses to a single column with the sidebar moved above the main content below `768px`, per the responsive rules at the bottom of `resources/css/app.css`.
+
+**Asset pipeline.** `resources/css/app.css` and `resources/js/app.js` are the only two Vite entry points (`vite.config.js`), built with `npm run build` (`public/build/manifest.json` + hashed `app-*.css`/`app-*.js`) or served live with `npm run dev`. The old static `public/css/{app,components,forms,layout,admin}.css` files and the CDN-loaded Bootstrap JS bundle referenced by the previous layouts are no longer used by any Blade view — if `public/build` is ever empty (no manifest, no dev-server `hot` file), `@vite(...)` cannot resolve the compiled assets and pages will render with no styling at all, so a build step (`npm run build`) is required after every deployment or fresh clone.
+
+**Table-based admin screens.** Per the design brief, admin data screens (`admin/users/index.blade.php`, `admin/groups/index.blade.php`, `admin/warnings/index.blade.php`, `admin/blacklist/index.blade.php`) intentionally keep a `.table-container` / `<table>` layout rather than a card-feed layout — only the color and component tokens are shared with the rest of the app, not the row structure.
 
 ---
 
@@ -318,11 +336,11 @@ The route at `routes/web.php` line 100 has `throttle:3,60` middleware, limiting 
 
 **Step 3 — Accept or decline onboarding.** The onboarding page at `resources/views/auth/onboarding.blade.php` (124 lines) displays the platform rules with a checkbox and Agree/Decline buttons. JavaScript disables the Agree button until the checkbox is checked.
 
-If the user agrees, POST to `/onboarding/agree` hits `agreeOnboarding()` at lines 107–163. This method: (1) retrieves the session data — if it's missing (expired or tampered), redirects back to register with an error; (2) looks up the `Member` role and `Default Group` by name from the database (not by hardcoded ID, which would be fragile); (3) wraps user creation and agreement creation in a `DB::transaction()` for data consistency — the `User` record is created with the pre-hashed password from the session, and an `OnboardingAgreement` record is created capturing the user's acceptance, IP address, and agreement version; (4) clears the session data; (5) auto-logs in the user via `Auth::login()`; (6) fires the `Registered` event (which triggers Laravel's email verification notification system); (7) sends a welcome email via `WelcomeMailable`; and (8) redirects to the dashboard with a success message.
+If the user agrees, POST to `/onboarding/agree` hits `agreeOnboarding()` at lines 107–163. This method: (1) retrieves the session data — if it's missing (expired or tampered), redirects back to register with an error; (2) looks up the `Member` role and `General` group by name from the database (not by hardcoded ID, which would be fragile); (3) wraps user creation and agreement creation in a `DB::transaction()` for data consistency — the `User` record is created with the pre-hashed password from the session, and an `OnboardingAgreement` record is created capturing the user's acceptance, IP address, and agreement version; (4) clears the session data; (5) auto-logs in the user via `Auth::login()`; (6) fires the `Registered` event (which triggers Laravel's email verification notification system); (7) sends a welcome email via `WelcomeMailable`; and (8) redirects to the dashboard with a success message.
 
 If the user declines, POST to `/onboarding/decline` hits `declineOnboarding()` at lines 174–180. The session data is cleared and the user is redirected back to the registration page. No user record or agreement record is created.
 
-**Database tables involved.** The `users` table stores the account. The `onboarding_agreements` table records the acceptance (with IP and version for legal audit). The `roles` and `groups` tables are pre-seeded reference data that provide the default `Member` role and `Default Group`.
+**Database tables involved.** The `users` table stores the account. The `onboarding_agreements` table records the acceptance (with IP and version for legal audit). The `roles` and `groups` tables are pre-seeded reference data that provide the default `Member` role and `General` group.
 
 ---
 
@@ -439,7 +457,7 @@ The application defines five roles in a hierarchy:
 - **System Administrator** (id=1) — highest privilege; full system-wide access to all features including user management, group management, system configuration, and IP whitelist management.
 - **Group Administrator** (id=2) — medium privilege; can view and manage only the specific groups assigned to them via the `group_admins` pivot table.
 - **Student** (id=3) — low privilege; regular user with full access to discussion features.
-- **Lecturer** (id=4) — low privilege; access to quiz configuration, participation marking criteria, and discussion features.
+- **Lecturer** (id=4) — low privilege; access to discussion features within their group.
 - **Member** (id=5) — low privilege; default registration role; access to discussion features, topic filtering, PDF export, and social media forwarding.
 
 The role-checking logic lives on the `User` model at `app/Models/User.php`:
@@ -564,7 +582,7 @@ API routes at `routes/api.php` use a two-layer approach. The outer `auth:sanctum
 | `test_onboarding_page_shows_rules` | GET /onboarding returns 200 with correct view |
 | `test_accepting_onboarding_creates_user_and_logs_in` | Agree → user in DB, agreement recorded, user authenticated |
 | `test_accepting_onboarding_assigns_default_role` | New user gets the Member role |
-| `test_accepting_onboarding_assigns_default_group` | New user gets Default Group |
+| `test_accepting_onboarding_assigns_default_group` | New user gets the `General` group |
 | `test_declining_onboarding_does_not_create_user` | Decline → no user in DB, redirects to register |
 | `test_onboarding_agree_fails_without_session_data` | No session data → redirects back to register |
 | `test_registration_is_rate_limited` | 3 registrations → 4th returns 429 |
@@ -742,14 +760,14 @@ API routes at `routes/api.php` use a two-layer approach. The outer `auth:sanctum
 
 | Test | What It Verifies |
 |------|-----------------|
-| `test_user_can_register_via_api` | Returns 201 with token; role is Member; group is Default Group |
+| `test_user_can_register_via_api` | Returns 201 with token; role is Member; group is `Default Group` |
 | `test_registration_requires_full_name` | Returns 422 |
 | `test_registration_requires_valid_email` | Returns 422 |
 | `test_registration_requires_unique_email` | Returns 422 |
 | `test_registration_requires_password_confirmation` | Returns 422 |
 | `test_registration_requires_strong_password` | Returns 422 |
 | `test_registration_assigns_member_role` | `role_id` matches Member |
-| `test_registration_assigns_default_group` | `group_id` matches Default Group |
+| `test_registration_assigns_default_group` | `group_id` matches `Default Group` |
 | `test_registration_creates_api_token` | 1 token exists in database |
 | `test_registration_fails_without_required_role` | Returns 500 with error message (deletes Member role) |
 | `test_registration_fails_without_required_group` | Returns 500 with error message |
@@ -864,7 +882,7 @@ The `UserManagementController` at `app/Http/Controllers/Admin/UserManagementCont
 
 **Delete group.** The `destroy()` method at lines 149–177 checks `Gate::allows('delete', $group)` — only System Admins pass. It also prevents deletion of the `'General'` group as a safety measure. Before soft-deleting, users in the group are reassigned to the `General` group (or the group with the lowest ID as a fallback) to prevent dangling foreign keys. The group is then soft-deleted (because the `Group` model uses `SoftDeletes`).
 
-**Update group members.** The `updateMembers()` method at lines 216–247 handles adding and removing users from a group. Users who are removed are not left without a group (which would violate the NOT NULL constraint on `users.group_id`) — they are reassigned to the `Default Group`. Users who are selected but not yet in the group are moved in. The `'General'` group cannot have all its members removed.
+**Update group members.** The `updateMembers()` method at lines 216–247 handles adding and removing users from a group. Users who are removed are not left without a group (which would violate the NOT NULL constraint on `users.group_id`) — they are reassigned to the `General` group. Users who are selected but not yet in the group are moved in. The `'General'` group cannot have all its members removed.
 
 **Bulk assign.** The `bulkAssign()` method at lines 252–269 is restricted to System Admins via an explicit `isSystemAdmin()` check. It takes an array of user IDs and a target group ID, and updates all selected users' `group_id` in a single query.
 
@@ -964,3 +982,199 @@ Some areas still lack automated test coverage:
 7. **Concurrent access** — No tests for race conditions in role changes, blacklist operations, or group membership updates.
 
 *Note: Item 7 from the original list (legacy method authorization) is no longer a gap as the authorization has been fixed and tests pass.*
+
+## 6.13 Missing Controller Imports Broke Warning/Blacklist Admin Pages — ✅ RESOLVED
+
+`routes/web.php` referenced `WarningController::class` and `BlacklistController::class` (bare, unqualified) inside the `admin` route group without importing `App\Http\Controllers\Admin\WarningController` or `App\Http\Controllers\Admin\BlacklistController`. Because route files have no namespace, PHP resolved these against the global namespace, so visiting `/admin/warnings` or `/admin/blacklist` threw `Target class [WarningController] does not exist.` / `Target class [BlacklistController] does not exist.` Fixed by adding the two missing `use` imports.
+
+## 6.14 Warning/Blacklist Admin Views Extended a Nonexistent Layout — ✅ RESOLVED
+
+`admin/warnings/index.blade.php`, `admin/warnings/show.blade.php`, `admin/blacklist/index.blade.php`, and `admin/blacklist/show.blade.php` all used `@extends('admin.layouts.app')`, but no `admin/layouts/app.blade.php` view ever existed anywhere in the project (every other admin view correctly extends `layouts.app`). This would throw `View [admin.layouts.app] not found` on every visit. Fixed by switching all four views to `@extends('layouts.app')` and restyling them onto the shared Studdit component classes (Section 1.11) so they render consistently with the rest of the admin section.
+
+## 6.15 Dead Route References on Warning/Blacklist Index Pages — ✅ RESOLVED
+
+Both index views linked to `admin.warnings.create` and `admin.blacklist.create` routes that were never registered (only `index`/`show`/`store`/`update` exist for each resource), which would throw `RouteNotFoundException` unconditionally on page load. There is no dedicated "create" form for either resource — warnings and blacklist entries are issued from the target user's row in User Management. Fixed by pointing both buttons to `admin.users.index` instead of a nonexistent route.
+
+## 6.16 Warning and Blacklist Admin Pages Were Unreachable From the UI — ✅ RESOLVED
+
+Even after routes/imports/layouts were fixed, no view linked to `admin.warnings.index` or `admin.blacklist.index` — the pages were only reachable by typing the URL directly. Added "Warnings" and "Blacklist" links to the admin dashboard's management tools grid (`resources/views/admin/dashboard.blade.php`).
+
+## 6.17 Duplicate Unauthenticated Group-Management Routes — ✅ RESOLVED
+
+`routes/web.php` defined a second, top-level set of group-management routes (`groups.index`, `groups.create`, `groups.store`, `groups.edit`, `groups.update`, `groups.destroy`, `groups.members`, `groups.update-members`, `groups.bulk-assign`) outside any `auth`/`admin` middleware group, pointing at the same `Admin\GroupController` already correctly protected under `admin.groups.*`. No view referenced the plain route names (only `admin.groups.*` is used anywhere), so this duplicate set was both dead code and a privilege-escalation risk — an authenticated non-admin user could reach `/groups` and its `Admin\GroupController` actions without passing the `admin` middleware at all. Removed the unprotected duplicate block entirely.
+
+## 6.18 Dashboard Never Received Its Topic Data — ✅ RESOLVED
+
+The `/dashboard` route was an inline closure that returned `view('auth.dashboard')` with no data, even though the view reads `$recentTopics` and `$recommendedTopics` to render the "Recent Discussions" and "Recommended for you" sections. Both variables were always undefined, so those sections silently rendered as empty state for every user. Fixed by populating both collections from the `Topic` model (recent: latest 5 active topics in the user's group; recommended: the 2 most-replied active topics in the user's group), scoped the same way `ForumController::index()` scopes the main feed.
+
+## 6.19 Nested `<form>` Broke the "Post Reply" Button — ✅ RESOLVED
+
+`forum/show.blade.php` originally rendered the `<x-report-button>` component — which contains its own `<form method="POST">` — *inside* the topic reply `<form>`. Nested `<form>` elements are invalid HTML; browsers implicitly close the outer form as soon as they encounter the inner one, which detached the "Post Reply" submit button from its form and made the button silently do nothing. Fixed by moving the report button to its own block after the reply `</form>` closes.
+
+---
+
+# Chapter 6 (Continued): Current Issues — Resolution Status
+
+## 6.20 `orWhere` Scope Leak in User Search — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/Admin/UserManagementController.php` lines 44–45
+
+When a Group Admin searches for users, the query builder chained `orWhere` on the search conditions without wrapping them in a grouped `where` closure, allowing a Group Admin to see users outside their scope via email search.
+
+**Fix applied:** Wrapped the search conditions in a closure:
+```php
+$query->where(function ($q) use ($search) {
+    $q->where('full_name', 'like', "%{$search}%")
+      ->orWhere('email', 'like', "%{$search}%");
+});
+```
+
+## 6.21 Missing Edit Button on User Detail Page — ✅ RESOLVED
+
+**File:** `resources/views/admin/users/show.blade.php` line 74
+
+The user detail view had a placeholder comment instead of an Edit button. The `admin.users.edit` route was functional but unreachable from the detail page.
+
+**Fix applied:** Replaced the placeholder with an actual Edit button linking to `route('admin.users.edit', $user)`.
+
+## 6.22 Typo in Error Message — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/Admin/UserManagementController.php` line 410
+
+`'Only System Administrations can blacklist users'` was misspelled.
+
+**Fix applied:** Changed to `'Only System Administrators can blacklist users'`.
+
+## 6.23 `blacklisted_at` Not Set on Blacklist Creation — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/Admin/UserManagementController.php` lines 444–448
+
+The `BlacklistRecord::create()` call did not set `blacklisted_at`, causing the admin view to show "—" instead of the actual blacklist date.
+
+**Fix applied:** Added `'blacklisted_at' => now()` to the create array.
+
+## 6.24 Missing `group_type` in Group Creation/Editing — ✅ RESOLVED
+
+**Files:** `app/Http/Controllers/Admin/GroupController.php`, group create/edit views
+
+`GroupController::store()` and `update()` omitted `group_type` from both validation and creation, leaving all groups with `group_type = null`. The create and edit views also lacked a group_type dropdown.
+
+**Fix applied:** Added `'required|in:sysadmin,lecturer,student'` validation and `group_type` to create/update data. Added select dropdowns to both `create.blade.php` and `edit.blade.php` views.
+
+## 6.25 Dashboard References Unregistered `moderation` Route — ✅ RESOLVED
+
+**File:** `resources/views/admin/dashboard.blade.php` line 44
+
+The admin dashboard linked to `route('admin.moderation.index')` which threw `RouteNotFoundException` since the route was not registered.
+
+**Fix applied:** Removed the dead Moderation link from the dashboard until the moderation module is implemented.
+
+## 6.26 Web ForumController Lacks SysAdmin Bypass — ✅ RESOLVED
+
+**Files:** `app/Http/Controllers/ForumController.php` lines 194 and 251
+
+`show()` and `replyStore()` checked group isolation without a SysAdmin bypass, so SysAdmins got 403 on topics from other groups via the web interface.
+
+**Fix applied:** Added `&& !Auth::user()->isSystemAdmin()` to both group isolation checks.
+
+## 6.27 No Topic Edit Route in Web Interface — ✅ RESOLVED
+
+**File:** `routes/web.php`, `ForumController.php`, `resources/views/forum/edit-topic.blade.php`
+
+The web forum had no `edit` or `update` route for topics — users could only edit via the API.
+
+**Fix applied:** Added `edit()` and `update()` methods to `ForumController` with group isolation + creator/admin authorization. Registered `GET /forum/{topic}/edit` and `PUT /forum/{topic}` routes. Created `edit-topic.blade.php` view. Added Edit button to topic detail view.
+
+## 6.28 API Post Creation Missing Audit Log — ✅ RESOLVED
+
+**Files:** `app/Http/Controllers/Api/PostController.php`, `app/Http/Controllers/ForumController.php`
+
+Both API and web post creation lacked audit trail logging.
+
+**Fix applied:** Added `AuditLogService::log(action: 'post.created', ...)` after post creation in both controllers.
+
+## 6.29 Nil-Safety Risk on Topic Creator in Web Views — ✅ RESOLVED
+
+**Files:** `resources/views/forum/index.blade.php`, `resources/views/forum/show.blade.php`
+
+Forum views accessed `$topic->creator->full_name` and `$reply->user->full_name` without null checks, risking crashes if a creator/user is deleted.
+
+**Fix applied:** Replaced with `optional($topic->creator)->full_name ?? 'Deleted User'` and `optional($reply->user)->full_name ?? 'Deleted User'` in all locations.
+
+## 6.30 No Pagination on Web Forum Topic Detail — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/ForumController.php` lines 199–209
+
+`ForumController::show()` loaded ALL posts for a topic without pagination.
+
+**Fix applied:** Changed from eager-loading all posts to a paginated query (`->paginate(20)`) with pagination links in the Blade template.
+
+## 6.31 SharedTopicController Uses Sharing User's Visibility Scope — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/SharedTopicController.php` line 30
+
+The shared topic view applied `visibleToUser($sharingUser->id)` to filter posts, using the sharer's scope instead of the viewer's.
+
+**Fix applied:** Removed the visibility scope — shared links are already time-limited and signed, so all non-removed posts are shown.
+
+## 6.32 Dashboard Inline Route Accesses `$topic->creator` Without Null Check — ✅ RESOLVED
+
+**File:** `routes/web.php` lines 52 and 68
+
+The dashboard inline closure accessed `$topic->creator->full_name` without a null check.
+
+**Fix applied:** Changed to `optional($topic->creator)->full_name ?? 'Deleted User'`.
+
+## 6.33 PDF Export and Share Topic Lack SysAdmin Bypass — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/ForumController.php` lines 377 and 434
+
+`exportPDF()` and `shareTopic()` enforced group isolation without a SysAdmin bypass.
+
+**Fix applied:** Added `&& !Auth::user()->isSystemAdmin()` to both group isolation checks.
+
+## 6.34 Registration Hardcodes 'General' Group — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/Auth/RegisterController.php`
+
+New students were always assigned to the `General` group with no group selection step.
+
+**Fix applied:** Added a group selection dropdown to the onboarding view. `RegisterController::showOnboarding()` passes student groups. `agreeOnboarding()` validates the selected `group_id` and uses it when creating the user.
+
+## 6.35 Audit Log Call Commented Out in `blacklist()` — ✅ RESOLVED
+
+**File:** `app/Http/Controllers/Admin/UserManagementController.php` line 454
+
+The audit log call was commented out, meaning blacklist operations were not recorded.
+
+**Fix applied:** Uncommented the `$this->auditLogService->logUserBlacklisted(...)` call.
+
+## 6.36 Notification Web View Has No "Mark as Read" Action — ✅ RESOLVED
+
+**File:** `resources/views/notifications/index.blade.php`, `ForumController.php`, `routes/web.php`
+
+The notifications page displayed notifications but provided no way to mark them as read.
+
+**Fix applied:** Added `markNotificationAsRead()` method to `ForumController`. Registered `POST /notifications/{id}/read` route. Added mark-as-read button to each unread notification in the view.
+
+## 6.37 Group Management Table Doesn't Display `group_type` — ✅ RESOLVED
+
+**File:** `resources/views/admin/groups/index.blade.php`
+
+The groups index table had no column showing the group type.
+
+**Fix applied:** Added a "Type" column with a badge displaying the `group_type` value.
+
+## 6.38 Lecturer Group Access Migration Has Type Hint Compatibility Issue — ✅ RESOLVED
+
+**File:** `database/migrations/2026_07_04_173600_create_lecturer_group_access_table.php`
+
+The migration type-hinted the closure with `Blueprint`, causing `Argument #1 ($table) must be of type Illuminate\Support\Blueprint` error.
+
+**Fix applied:** Removed the `use Illuminate\Database\Schema\Blueprint;` import and used an untyped closure parameter instead to avoid the autoloading conflict.
+
+---
+
+## Summary
+
+All 19 identified issues (6.1 through 6.19 previously resolved, 6.20 through 6.38 now resolved) are fixed.

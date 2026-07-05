@@ -12,21 +12,19 @@ class GroupSeeder extends Seeder
      */
     public function run(): void
     {
-        Group::insert([
-            [
-                'group_name' => 'General',
-                'description' => 'Default group for all new users',
-                'created_by' => null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'group_name' => 'Default Group',
-                'description' => 'Default test group',
-                'created_by' => null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+        Group::create([
+            'group_name' => 'Platform Administrators',
+            'group_type' => 'sysadmin',
+        ]);
+
+        Group::create([
+            'group_name' => 'Faculty',
+            'group_type' => 'lecturer',
+        ]);
+
+        Group::create([
+            'group_name' => 'Students',
+            'group_type' => 'student',
         ]);
     }
 }

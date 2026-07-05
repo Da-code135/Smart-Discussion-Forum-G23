@@ -158,21 +158,24 @@ class BulkOperationService
             return ['error' => 'Invalid group ID'];
         }
 
-        DB::transaction(function () use ($userIds, $groupId, $performedBy, &$results) {
+        DB::transaction(function () use ($userIds, $group, $performedBy, &$results) {
             $users = User::whereIn('id', $userIds)->get();
             
             foreach ($users as $user) {
                 try {
                     $oldGroupId = $user->group_id;
-                    $user->update(['group_id' => $groupId]);
+                    $user->update(['group_id' => $group->id]);
+                    
+                    // Auto-promote first student in a student group to Group Admin
+                    $group->autoPromoteFirstStudent($user, $performedBy);
                     
                     // Log the change
                     $this->auditLogService->log(
                         'bulk_group_assignment',
                         $user,
                         ['group_id' => $oldGroupId],
-                        ['group_id' => $groupId],
-                        "Bulk group assignment: moved to group {$groupId}",
+                        ['group_id' => $group->id],
+                        "Bulk group assignment: moved to group {$group->id}",
                         $performedBy
                     );
                     

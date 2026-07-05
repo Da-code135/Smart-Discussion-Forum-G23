@@ -84,12 +84,14 @@ class GroupController extends Controller
         $validated = $request->validate([
             'group_name' => 'required|string|max:100|unique:groups',
             'description' => 'nullable|string|max:500',
+            'group_type' => 'required|in:sysadmin,lecturer,student',
         ]);
 
         // #145: Store with created_by = auth()->id()
         $group = Group::create([
             'group_name' => $validated['group_name'],
             'description' => $validated['description'],
+            'group_type' => $validated['group_type'],
             'created_by' => Auth::id(),
         ]);
 
@@ -129,9 +131,10 @@ class GroupController extends Controller
         $validated = $request->validate([
             'group_name' => 'required|string|max:100|unique:groups,group_name,' . $group->id,
             'description' => 'nullable|string|max:500',
+            'group_type' => 'required|in:sysadmin,lecturer,student',
         ]);
 
-        $oldValues = $group->only(['group_name', 'description']);
+        $oldValues = $group->only(['group_name', 'description', 'group_type']);
 
         // #146: Update group
         $group->update($validated);
@@ -229,7 +232,7 @@ class GroupController extends Controller
 
         // Remove users currently in this group who are not in the selected list
         // Move them to the default group (group_id cannot be null)
-        $defaultGroupId = Group::where('group_name', 'Default Group')->value('id')
+        $defaultGroupId = Group::where('group_name', 'General')->value('id')
             ?? Group::min('id');
 
         if ($defaultGroupId != $group->id) {
@@ -239,9 +242,15 @@ class GroupController extends Controller
         }
 
         // Add selected users to this group
-        User::whereIn('id', $selectedUserIds)
+        $newMembers = User::whereIn('id', $selectedUserIds)
             ->where('group_id', '!=', $group->id)
-            ->update(['group_id' => $group->id]);
+            ->get();
+
+        foreach ($newMembers as $member) {
+            $member->update(['group_id' => $group->id]);
+            // Auto-promote first student in a student group to Group Admin
+            $group->autoPromoteFirstStudent($member, auth()->id());
+        }
 
         return redirect()->back()->with('success', 'Group members updated successfully');
     }
@@ -261,9 +270,15 @@ class GroupController extends Controller
             'group_id' => 'required|exists:groups,id',
         ]);
 
-        // Update all selected users' group_id
-        User::whereIn('id', $validated['user_ids'])
-            ->update(['group_id' => $validated['group_id']]);
+        $group = Group::findOrFail($validated['group_id']);
+
+        // Fetch users, assign them, and check auto-promotion
+        $users = User::whereIn('id', $validated['user_ids'])->get();
+
+        foreach ($users as $user) {
+            $user->update(['group_id' => $group->id]);
+            $group->autoPromoteFirstStudent($user, auth()->id());
+        }
 
         return redirect()->back()->with('success', 'Users assigned to group successfully');
     }

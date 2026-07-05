@@ -22,24 +22,27 @@ class SuperAdminSeeder extends Seeder
             ['description' => 'Full system-wide access to all features, user management, role assignment, and system configuration.']
         );
 
-        // Get the General group (created by GroupSeeder)
-        $generalGroup = Group::where('group_name', 'General')->firstOrFail();
+        // Get or create sysadmin group
+        $sysadminGroup = Group::firstOrCreate(
+            ['group_type' => 'sysadmin'],
+            ['group_name' => 'System Administrators', 'description' => 'Group for system administrators with elevated privileges.']
+        );
 
         // Create super admin user
         $superAdmin = User::updateOrCreate(
-            ['email' => 'admin@admin.com'],
+            ['email' => 'superadmin@example.com'],
             [
                 'full_name' => 'Super Admin',
                 'password' => bcrypt('password'),
                 'role_id' => $adminRole->id,
-                'group_id' => $generalGroup->id,
+                'group_id' => $sysadminGroup->id,
                 'account_status' => 'active',
             ]
         );
 
         $this->command->info('✅ Super Admin user created/updated successfully!');
         $this->command->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        $this->command->info("  Email:    admin@admin.com");
+        $this->command->info("  Email:    superadmin@example.com");
         $this->command->info("  Password: password");
         $this->command->info("  Role:     {$adminRole->role_name}");
         $this->command->info("  User ID:  {$superAdmin->id}");

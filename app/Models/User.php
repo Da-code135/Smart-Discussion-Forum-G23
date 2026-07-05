@@ -9,31 +9,44 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-
-
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
 
+    /**
+     * Boot the model and register model event hooks.
+     *
+     * Enforces that every user must have a group_id. Because there is no
+     * default/General group, a null group_id would leave a user without
+     * any group — a state the application must never allow.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            if (is_null($user->group_id)) {
+                throw new \RuntimeException(
+                    'Every user must belong to a group. A group_id is required.'
+                );
+            }
+        });
+    }
+
     protected $fillable = [
-        'full_name',
-        'email',
-        'password',
-        'role_id',
-        'group_id',
-        'account_status',
-        'last_active_at',
-        'profile_picture',
-        'is_warned',
-        'blacklisted_at',
-        'email_verified_at',
+        "full_name",
+        "email",
+        "password",
+        "role_id",
+        "group_id",
+        "account_status",
+        "last_active_at",
+        "profile_picture",
+        "is_warned",
+        "blacklisted_at",
+        "email_verified_at",
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ["password", "remember_token"];
     /**
      * Get the attributes that should be cast.
      *
@@ -42,9 +55,9 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'last_active_at' => 'datetime',
+            "email_verified_at" => "datetime",
+            "password" => "hashed",
+            "last_active_at" => "datetime",
         ];
     }
 
@@ -56,6 +69,11 @@ class User extends Authenticatable
     public function group()
     {
         return $this->belongsTo(Group::class);
+    }
+
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
     }
 
     public function warnings()
@@ -83,9 +101,9 @@ class User extends Authenticatable
      */
     public function administeredGroups()
     {
-        return $this->belongsToMany(Group::class, 'group_admins')
-                    ->withPivot('assigned_by', 'assigned_at')
-                    ->withTimestamps();
+        return $this->belongsToMany(Group::class, "group_admins")
+            ->withPivot("assigned_by", "assigned_at")
+            ->withTimestamps();
     }
 
     /**
@@ -93,7 +111,7 @@ class User extends Authenticatable
      */
     public function isSystemAdmin(): bool
     {
-        return $this->role && $this->role->role_name === 'System Administrator';
+        return $this->role && $this->role->role_name === "System Administrator";
     }
 
     /**
@@ -101,7 +119,7 @@ class User extends Authenticatable
      */
     public function isGroupAdmin(): bool
     {
-        return $this->role && $this->role->role_name === 'Group Administrator';
+        return $this->role && $this->role->role_name === "Group Administrator";
     }
 
     /**
@@ -110,6 +128,14 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->isSystemAdmin() || $this->isGroupAdmin();
+    }
+
+    /**
+     * The notifications belonging to this user.
+     */
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
     }
 
     /**
@@ -124,15 +150,14 @@ class User extends Authenticatable
 
         // Group admins can only admin their assigned groups
         if ($this->isGroupAdmin()) {
-            return $this->administeredGroups()->where('groups.id', $group->id)->exists();
+            return $this->administeredGroups()
+                ->where("groups.id", $group->id)
+                ->exists();
         }
 
         return false;
     }
 
-    /**
-     * Check if user can admin specific user
-     */
     public function canAdminUser(User $targetUser): bool
     {
         // System admins can admin all users
@@ -142,10 +167,32 @@ class User extends Authenticatable
 
         // Group admins can only admin users in their groups
         if ($this->isGroupAdmin()) {
-            $adminGroupIds = $this->administeredGroups()->pluck('groups.id');
+            $adminGroupIds = $this->administeredGroups()->pluck("groups.id");
             return $adminGroupIds->contains($targetUser->group_id);
         }
 
         return false;
+    }
+
+    /**
+     * Check if user is blacklisted
+     */
+    public function isBlacklisted(): bool
+    {
+        return $this->blacklisted_at !== null;
+    }
+
+    /**
+     * Get the user's warning status
+     */
+    public function getWarningStatus(): array
+    {
+        return [
+            "is_warned" => $this->is_warned,
+            "warning_count" => $this->warnings()
+                ->whereNull("is_resolved")
+                ->count(),
+            "blacklisted_at" => $this->blacklisted_at,
+        ];
     }
 }

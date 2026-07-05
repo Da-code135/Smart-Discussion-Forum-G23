@@ -34,9 +34,9 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        // Look up role and group by name (dynamic, not hardcoded)
+        // Look up role and group by name
         $role = Role::where('role_name', 'Member')->first();
-        $group = Group::where('group_name', 'Default Group')->first();
+        $group = Group::where('group_name', 'General')->first();
 
         if (!$role || !$group) {
             return response()->json([

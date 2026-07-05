@@ -1,0 +1,28 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
+
+class CreateLecturerGroupAccessTable extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create("lecturer_group_access", function ($table) {
+            $table->foreignId("lecturer_id")->constrained("users");
+            $table->foreignId("group_id")->constrained("groups");
+            $table->timestamps();
+            $table->unique(["lecturer_id", "group_id"]);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists("lecturer_group_access");
+    }
+}

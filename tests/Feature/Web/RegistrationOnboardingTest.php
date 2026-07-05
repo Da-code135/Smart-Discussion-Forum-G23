@@ -146,8 +146,10 @@ class RegistrationOnboardingTest extends TestCase
             'password_confirmation' => 'Password123',
         ]);
 
-        // Accept onboarding
-        $response = $this->post('/onboarding/agree');
+        // Accept onboarding with group selection
+        $response = $this->post('/onboarding/agree', [
+            'group_id' => $this->defaultGroup->id,
+        ]);
 
         // User should be created
         $this->assertDatabaseHas('users', [
@@ -178,13 +180,15 @@ class RegistrationOnboardingTest extends TestCase
             'password_confirmation' => 'Password123',
         ]);
 
-        $this->post('/onboarding/agree');
+        $this->post('/onboarding/agree', [
+            'group_id' => $this->defaultGroup->id,
+        ]);
 
         $user = User::where('email', 'newuser@test.com')->first();
         $this->assertEquals($this->memberRole->id, $user->role_id);
     }
 
-    public function test_accepting_onboarding_assigns_default_group(): void
+    public function test_accepting_onboarding_assigns_selected_group(): void
     {
         $this->post('/register', [
             'full_name' => 'New User',
@@ -193,10 +197,12 @@ class RegistrationOnboardingTest extends TestCase
             'password_confirmation' => 'Password123',
         ]);
 
-        $this->post('/onboarding/agree');
+        $this->post('/onboarding/agree', [
+            'group_id' => $this->secondGroup->id,
+        ]);
 
         $user = User::where('email', 'newuser@test.com')->first();
-        $this->assertEquals($this->defaultGroup->id, $user->group_id);
+        $this->assertEquals($this->secondGroup->id, $user->group_id);
     }
 
     public function test_declining_onboarding_does_not_create_user(): void

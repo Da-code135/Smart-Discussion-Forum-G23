@@ -41,8 +41,10 @@ class UserManagementController extends Controller
         // #89: SEARCH FUNCTIONALITY
         if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where('full_name', 'like', "%{$search}%")
+            $query->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
+            });
         }
 
         // #89: FILTER BY ACCOUNT STATUS
@@ -113,6 +115,9 @@ class UserManagementController extends Controller
             'group_id' => $validated['group_id'],
             'account_status' => 'active',
         ]);
+
+        // Auto-promote first student in a student group to Group Admin
+        Group::find($validated['group_id'])?->autoPromoteFirstStudent($user, auth()->id());
 
         // Audit log
         $this->auditLogService->logUserCreated($user);
@@ -240,6 +245,11 @@ class UserManagementController extends Controller
         }
 
         $user->update($updateData);
+
+        // Auto-promote first student if user was moved to a new student group
+        if ($oldGroupId != $user->group_id) {
+            Group::find($user->group_id)?->autoPromoteFirstStudent($user, auth()->id());
+        }
 
         // Audit log role change
         if ($currentUser->isSystemAdmin() && $oldRoleId != $user->role_id) {
@@ -399,7 +409,7 @@ class UserManagementController extends Controller
     public function showBlacklist($userId)
     {
         if (!auth()->user()->isSystemAdmin()) {
-            abort(403, 'Only System Administrations can blacklist users');
+            abort(403, 'Only System Administrators can blacklist users');
         }
 
         $user = User::findOrFail($userId);
@@ -427,6 +437,7 @@ class UserManagementController extends Controller
 
         // Calculate expires_at if duration provided, otherwise null (permanent)
         $expiresAt = null;
+        $validated['duration_days'] = (int)$validated['duration_days'];
         if (!empty($validated['duration_days'])) {
             $expiresAt = now()->addDays($validated['duration_days']);
         }
@@ -436,6 +447,7 @@ class UserManagementController extends Controller
             'user_id' => $user->id,
             'reason' => $validated['reason'],
             'expires_at' => $expiresAt,
+            'blacklisted_at' => now(),
         ]);
 
         // Update user status

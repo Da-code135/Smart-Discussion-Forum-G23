@@ -253,7 +253,19 @@ class GroupController extends Controller
             ], 400);
         }
 
+        // Track which users are newly added (for auto-promotion)
+        $existingIds = $group->users()->pluck('users.id')->toArray();
+        $newIds = array_diff($validated['user_ids'], $existingIds);
+
         $group->users()->sync($validated['user_ids']);
+
+        // Auto-promote first student for each newly added user
+        foreach ($newIds as $newUserId) {
+            $newUser = User::find($newUserId);
+            if ($newUser) {
+                $group->autoPromoteFirstStudent($newUser, auth()->id());
+            }
+        }
 
         return response()->json([
             'success' => true,

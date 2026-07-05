@@ -24,6 +24,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'group-admin' => \App\Http\Middleware\IsGroupAdmin::class,
             'can-admin-group' => \App\Http\Middleware\CanAdminGroup::class,
             'ip-whitelist' => \App\Http\Middleware\IpWhitelist::class,
+
+            // Anti-flood: action parameter separated by colon, e.g. throttle.posts:reply
+            'throttle.posts' => \App\Http\Middleware\ThrottlePosts::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

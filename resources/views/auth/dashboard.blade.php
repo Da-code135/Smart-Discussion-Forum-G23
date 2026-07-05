@@ -7,184 +7,147 @@
 @php
     $user = Auth::user();
     $firstName = explode(' ', $user->full_name)[0];
-    $isAdmin = $user->role->role_name === 'Administrator';
+    $isAdmin = $user->isAdmin();
+    $avatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][$user->id % 5];
+    $initials = collect(explode(' ', $user->full_name))->map(fn ($word) => strtoupper(substr($word, 0, 1)))->take(2)->join('');
 @endphp
 
-{{-- Welcome Header --}}
-<header class="page-header">
-    <h1>Welcome back, {{ $firstName }}</h1>
-    <p>
-        @if ($isAdmin)
-            Manage users, groups, and platform activity from your admin dashboard.
-        @else
-            Here's what's happening in your groups
-        @endif
-    </p>
-</header>
-
-{{-- Email Verification Warning --}}
-@if ($user->email_verified_at === null)
-    <section class="mb-4">
-        <div class="alert alert-warning alert-banner" role="alert">
-            <span class="material-symbols-outlined">mail</span>
-            <p style="margin: 0;">
-                <strong>Your email is not verified.</strong>
-                <a href="{{ route('verify-email') }}">Click here to verify your email →</a>
+<div class="page-shell">
+    <div class="page-shell__main page-stack">
+        <header class="page-header">
+            <h1>Welcome back, {{ $firstName }}</h1>
+            <p>
+                @if ($isAdmin)
+                    Review users, groups, and platform activity from your admin workspace.
+                @else
+                    Here is a calm summary of what is happening in your group today.
+                @endif
             </p>
-        </div>
-    </section>
-@endif
+        </header>
 
-<div class="dashboard-content">
-    <h1>Welcome, {{ Auth::user()->full_name }}!</h1>
-    <p class="user-role">Role: <strong>{{ Auth::user()->role->role_name }}</strong></p>
-
-    {{-- Role-Based Rendering --}}
-    @if (Auth::user()->role->role_name === 'Administrator')
-        <div class="role-section">
-            <h2>Administrator Dashboard</h2>
-            <p>You have access to moderation and user management tools.</p>
-
-            <div class="action-buttons">
-                <a href="{{ route('admin.users-index') }}">User Management</a>
-                <a href="{{ route('admin.statistics') }}">View Statistics</a>
-                <a href="{{ route('groups.index') }}">Group Management</a>
+        @if ($user->email_verified_at === null)
+            <div class="alert alert-warning" role="alert">
+                <span class="material-symbols-outlined">mail</span>
+                <span><strong>Your email is not verified.</strong> <a href="{{ route('verify-email') }}">Verify it here.</a></span>
             </div>
-        </div>
-    </section>
+        @endif
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <p class="stat-label">Account status</p>
+                <p class="stat-value stat-value--md">{{ ucfirst($user->account_status) }}</p>
+                <div class="stat-card-accent"></div>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Role</p>
+                <p class="stat-value stat-value--md">{{ $user->role->role_name }}</p>
+                <div class="stat-card-accent stat-card-accent--secondary"></div>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Last active</p>
+                <p class="stat-value stat-value--md">{{ $user->last_active_at ? $user->last_active_at->format('M d, Y') : 'Never' }}</p>
+                <div class="stat-card-accent stat-card-accent--tertiary"></div>
+            </div>
+        </section>
+
+        <section class="card page-stack">
+            <div class="section-header">
+                <div>
+                    <h2>Quick actions</h2>
+                    <p>Common tasks for your account and role.</p>
+                </div>
+            </div>
+            <div class="form-actions-row">
+                <a href="{{ route('forum.index') }}" class="btn btn-primary">Open forum</a>
+                <a href="{{ route('forum.create') }}" class="btn btn-secondary">New topic</a>
+                <a href="{{ route('profile.edit') }}" class="btn btn-ghost">Edit profile</a>
+                @if ($isAdmin)
+                    <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">Manage users</a>
+                    <a href="{{ route('admin.groups.index') }}" class="btn btn-secondary">Manage groups</a>
+                @endif
+            </div>
+        </section>
+
+        @if (!$isAdmin)
+            <section class="card page-stack">
+                <div class="section-header">
+                    <div>
+                        <h2>Recent discussions</h2>
+                        <p>Latest threads in your group.</p>
+                    </div>
+                    <a href="{{ route('forum.index') }}" class="section-link">View all <span class="material-symbols-outlined">arrow_forward</span></a>
+                </div>
+
+                @if (empty($recentTopics) || count($recentTopics) === 0)
+                    <div class="empty-state">
+                        <span class="material-symbols-outlined" style="font-size: 40px;">forum</span>
+                        <p>No discussions yet. Start the first topic for your group.</p>
+                        <a href="{{ route('forum.create') }}" class="btn btn-primary">Start a topic</a>
+                    </div>
+                @else
+                    <div class="topic-list">
+                        @foreach ($recentTopics as $topic)
+                            <a href="{{ route('forum.show', $topic['id']) }}" class="discussion-item">
+                                <div class="topic-row__body">
+                                    <h3>{{ $topic['title'] }}</h3>
+                                    <div class="discussion-meta">
+                                        <span>{{ $topic['creator_name'] }}</span>
+                                        <span class="discussion-meta-dot"></span>
+                                        <span>{{ $topic['reply_count'] }} {{ $topic['reply_count'] === 1 ? 'reply' : 'replies' }}</span>
+                                        <span class="discussion-meta-dot"></span>
+                                        <span>{{ \Carbon\Carbon::parse($topic['created_at'])->diffForHumans() }}</span>
+                                    </div>
+                                </div>
+                                <span class="section-link">Open <span class="material-symbols-outlined">arrow_forward</span></span>
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
+            </section>
+
+            @if (!empty($recommendedTopics) && count($recommendedTopics) > 0)
+                <section class="page-stack">
+                    <div class="section-header">
+                        <div>
+                            <h2>Recommended for you</h2>
+                            <p>Active conversations your group may find useful.</p>
+                        </div>
+                    </div>
+                    <div class="recommendations-grid">
+                        @foreach ($recommendedTopics as $index => $rec)
+                            <div class="recommendation-card recommendation-card--{{ $index === 0 ? 'secondary' : 'tertiary' }}">
+                                <span class="badge badge-secondary">{{ $index === 0 ? 'Suggested' : 'Trending' }}</span>
+                                <div>
+                                    <h3>{{ $rec['title'] }}</h3>
+                                    <p>{{ $rec['member_count'] }} active members in this discussion.</p>
+                                </div>
+                                <div class="recommendation-footer">
+                                    <span class="meta-text">Join the conversation</span>
+                                    <a href="{{ route('forum.show', $rec['id']) }}" class="recommendation-add-btn" aria-label="Join discussion">
+                                        <span class="material-symbols-outlined">arrow_forward</span>
+                                    </a>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
+        @endif
+    </div>
+
+    <aside class="page-shell__sidebar page-stack">
+        <section class="sidebar-card page-stack">
+            <div class="app-topbar-avatar" style="--avatar-bg: {{ $avatarTone }}; width: 72px; height: 72px; font-size: 24px;">{{ $initials }}</div>
+            <div>
+                <h2>{{ $user->full_name }}</h2>
+                <p>{{ $user->role->role_name }}</p>
+            </div>
+            <div class="profile-summary-list">
+                <span class="status-badge status-{{ $user->account_status }}">{{ ucfirst($user->account_status) }}</span>
+                <span class="badge badge-secondary">{{ $user->group->group_name ?? 'General' }}</span>
+            </div>
+            <a href="{{ route('profile.edit') }}" class="btn btn-secondary btn-block">View profile</a>
+        </section>
+    </aside>
 </div>
-@endif
-
-@if ($isAdmin)
-    {{-- Admin Quick Actions --}}
-    <section class="mb-4">
-        <div class="bento-card profile-form-card">
-            <h2 class="headline-sm" style="font-size: 1.25rem; margin-bottom: 0.5rem;">Administrator Dashboard</h2>
-            <p class="text-muted" style="margin-bottom: 1rem;">You have access to moderatiogitn and user management tools.</p>
-            <div class="admin-actions">
-                <a href="{{ route('admin.users.index') }}" class="btn btn-primary">User Management</a>
-                <a href="{{ route('admin.groups.index') }}" class="btn btn-primary">Group Management</a>
-                <a href="{{ route('groups.index') }}" class="btn btn-tertiary">All Groups</a>
-            </div>
-        </div>
-    </section>
-@endif
-
-{{-- Quick Stats --}}
-<section class="stats-grid">
-    <div class="stat-card">
-        <p class="stat-label">Account Status</p>
-        <p class="stat-value stat-value--md status-{{ $user->account_status }}">
-            {{ ucfirst($user->account_status) }}
-        </p>
-        <div class="stat-card-accent"></div>
-    </div>
-    <div class="stat-card">
-        <p class="stat-label">Role</p>
-        <p class="stat-value stat-value--md">{{ $user->role->role_name }}</p>
-        <div class="stat-card-accent stat-card-accent--secondary"></div>
-    </div>
-    <div class="stat-card">
-        <p class="stat-label">Last Active</p>
-        <p class="stat-value stat-value--md">
-            {{ $user->last_active_at ? $user->last_active_at->format('M d, Y') : 'Never' }}
-        </p>
-        <div class="stat-card-accent stat-card-accent--tertiary"></div>
-    </div>
-</section>
-
-@if (!$isAdmin)
-    {{-- Recent Discussions --}}
-    <section class="discussions-section">
-        <div class="section-header">
-            <h2 style="font-size: 1.25rem;">Recent Discussions</h2>
-            <a href="{{ route('forum.index') }}" class="section-link">
-                View all
-                <span class="material-symbols-outlined" style="font-size: 1.125rem;">chevron_right</span>
-            </a>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 1rem;">
-            <a href="{{ route('forum.index') }}" class="discussion-item">
-                <div>
-                    <h3>Database Normalisation — Help needed</h3>
-                    <div class="discussion-meta">
-                        <span>Posted by Brian S.</span>
-                        <span class="discussion-meta-dot"></span>
-                        <span>8 replies</span>
-                        <span class="discussion-meta-dot"></span>
-                        <span>2 hours ago</span>
-                    </div>
-                </div>
-                <span class="discussion-action">
-                    View
-                    <span class="material-symbols-outlined" style="font-size: 1.125rem;">arrow_forward</span>
-                </span>
-            </a>
-
-            <a href="{{ route('forum.index') }}" class="discussion-item">
-                <div>
-                    <h3>Quiz 3 results are out!</h3>
-                    <div class="discussion-meta">
-                        <span>Posted by System</span>
-                        <span class="discussion-meta-dot"></span>
-                        <span>Performance report available</span>
-                    </div>
-                </div>
-                <span class="discussion-action">
-                    View
-                    <span class="material-symbols-outlined" style="font-size: 1.125rem;">arrow_forward</span>
-                </span>
-            </a>
-        </div>
-    </section>
-
-    {{-- Recommended for you --}}
-    <section class="recommendations-section">
-        <div class="recommendations-header">
-            <span class="material-symbols-outlined">smart_toy</span>
-            <h2 style="font-size: 1.25rem; margin: 0;">Recommended for you</h2>
-        </div>
-
-        <div class="recommendations-grid">
-            <div class="recommendation-card recommendation-card--secondary">
-                <div class="recommendation-glow"></div>
-                <div>
-                    <span class="badge badge-secondary">AI Insight</span>
-                    <h4 style="font-size: 1.25rem; margin: 0.75rem 0 0.25rem;">Normalisation Forms</h4>
-                    <p style="font-size: 0.875rem; color: rgba(88, 103, 75, 0.7); margin: 0;">Based on your recent activity in DBMS</p>
-                </div>
-                <div class="recommendation-footer">
-                    <span style="font-size: 0.75rem; font-weight: 500; color: var(--secondary);">15 active members</span>
-                    <a href="{{ route('forum.index') }}" class="recommendation-add-btn" aria-label="Join discussion">
-                        <span class="material-symbols-outlined" style="color: var(--secondary);">add</span>
-                    </a>
-                </div>
-            </div>
-
-            <div class="recommendation-card recommendation-card--tertiary">
-                <div class="recommendation-glow"></div>
-                <div>
-                    <span class="badge badge-tertiary">Trending</span>
-                    <h4 style="font-size: 1.25rem; margin: 0.75rem 0 0.25rem;">SQL Joins Explained</h4>
-                    <p style="font-size: 0.875rem; color: rgba(92, 58, 31, 0.7); margin: 0;">Trending in your Computer Science group</p>
-                </div>
-                <div class="recommendation-footer">
-                    <span style="font-size: 0.75rem; font-weight: 500; color: var(--tertiary);">22 active members</span>
-                    <a href="{{ route('forum.index') }}" class="recommendation-add-btn" aria-label="Join discussion">
-                        <span class="material-symbols-outlined" style="color: var(--tertiary);">add</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
-@endif
-
-{{-- Quick profile link --}}
-<section class="mt-4">
-    <a href="{{ route('profile.edit') }}" class="section-link">
-        <span class="material-symbols-outlined" style="font-size: 1.125rem;">person</span>
-        View or edit your profile
-    </a>
-</section>
 @endsection
