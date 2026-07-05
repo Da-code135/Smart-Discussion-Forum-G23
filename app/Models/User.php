@@ -14,6 +14,24 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
 
+    /**
+     * Boot the model and register model event hooks.
+     *
+     * Enforces that every user must have a group_id. Because there is no
+     * default/General group, a null group_id would leave a user without
+     * any group — a state the application must never allow.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            if (is_null($user->group_id)) {
+                throw new \RuntimeException(
+                    'Every user must belong to a group. A group_id is required.'
+                );
+            }
+        });
+    }
+
     protected $fillable = [
         "full_name",
         "email",

@@ -161,6 +161,9 @@ class RegisterController extends Controller
                 'agreement_version' => config('app.agreement_version', '1.0'),
             ]);
 
+            // Auto-promote first student in a student group to Group Admin
+            $group->autoPromoteFirstStudent($user);
+
             return $user;
         });
 

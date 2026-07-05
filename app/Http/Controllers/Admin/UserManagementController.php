@@ -114,6 +114,9 @@ class UserManagementController extends Controller
             'account_status' => 'active',
         ]);
 
+        // Auto-promote first student in a student group to Group Admin
+        Group::find($validated['group_id'])?->autoPromoteFirstStudent($user, auth()->id());
+
         // Audit log
         $this->auditLogService->logUserCreated($user);
 
@@ -240,6 +243,11 @@ class UserManagementController extends Controller
         }
 
         $user->update($updateData);
+
+        // Auto-promote first student if user was moved to a new student group
+        if ($oldGroupId != $user->group_id) {
+            Group::find($user->group_id)?->autoPromoteFirstStudent($user, auth()->id());
+        }
 
         // Audit log role change
         if ($currentUser->isSystemAdmin() && $oldRoleId != $user->role_id) {

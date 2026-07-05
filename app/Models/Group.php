@@ -65,4 +65,33 @@ class Group extends Model
     {
         $this->admins()->detach($user->id);
     }
+
+    /**
+     * Auto-promote the first Member-role user in a student group to Group Admin.
+     *
+     * Called after a user is assigned to a student group. If this user is the
+     * very first "Member"-role student in the group, they are automatically added
+     * to the group_admins pivot table so they can manage the group.
+     *
+     * @param  User  $user  The user who was just assigned to this group.
+     * @param  int|null  $assignedBy  The admin who assigned them (null for self-registration).
+     */
+    public function autoPromoteFirstStudent(User $user, ?int $assignedBy = null): void
+    {
+        // Only applies to student groups
+        if ($this->group_type !== 'student') {
+            return;
+        }
+
+        // Count users in this group with the 'Member' role (role_name = 'Member')
+        $memberCount = $this->users()
+            ->whereHas('role', fn ($q) => $q->where('role_name', 'Member'))
+            ->count();
+
+        // In a fresh call this count already includes the newly assigned user,
+        // so 1 means they are the very first member.
+        if ($memberCount === 1) {
+            $this->addAdmin($user, $assignedBy);
+        }
+    }
 }
