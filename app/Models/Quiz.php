@@ -4,13 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Quiz extends Model
 {
     use HasFactory;
 
     protected $primaryKey = 'quiz_id';
+    protected $table = 'quizzes';
 
     protected $fillable = [
         'lecturer_id',
@@ -26,6 +29,7 @@ class Quiz extends Model
 
     protected $casts = [
         'scheduled_date' => 'date',
+        'start_time' => 'datetime:H:i',
         'is_active' => 'boolean',
         'published_at' => 'datetime',
     ];
@@ -33,24 +37,40 @@ class Quiz extends Model
     /**
      * The lecturer who created this quiz.
      */
-    public function lecturer()
+    public function lecturer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'lecturer_id');
     }
 
     /**
+     * All questions in this quiz.
+     */
+    public function questions(): HasMany
+    {
+        return $this->hasMany(Question::class, 'quiz_id', 'quiz_id');
+    }
+
+    /**
+     * Student attempts for this quiz.
+     */
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(StudentAttempt::class, 'quiz_id', 'quiz_id');
+    }
+
+    /**
      * Configuration for this quiz (one-to-one).
      */
-    public function configuration()
+    public function configuration(): HasOne
     {
         return $this->hasOne(QuizConfiguration::class, 'quiz_id', 'quiz_id');
     }
 
     /**
-     * All questions in this quiz.
+     * Grades for this quiz (one per attempt).
      */
-    public function questions()
+    public function grades(): HasMany
     {
-        return $this->hasMany(Question::class, 'quiz_id', 'quiz_id')->orderBy('question_order');
+        return $this->hasMany(Grade::class, 'quiz_id', 'quiz_id');
     }
 }

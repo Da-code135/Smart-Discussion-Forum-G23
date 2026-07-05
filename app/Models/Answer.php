@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Answer extends Model
 {
     protected $primaryKey = 'answer_id';
+    protected $table = 'answers';
 
     protected $fillable = [
         'question_id',
@@ -21,7 +23,7 @@ class Answer extends Model
     /**
      * The question this answer belongs to.
      */
-    public function question()
+    public function question(): BelongsTo
     {
         return $this->belongsTo(Question::class, 'question_id', 'question_id');
     }
