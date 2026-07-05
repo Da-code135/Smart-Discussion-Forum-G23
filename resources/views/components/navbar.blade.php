@@ -25,6 +25,12 @@
                 <span class="material-symbols-outlined">forum</span>
                 <span>Forum</span>
             </a>
+            @if ($user->isAdmin() || $user->role?->role_name === 'Lecturer')
+                <a href="{{ route('quizzes.index') }}" class="app-topbar-link {{ str_starts_with($activeNav, 'quiz') ? 'is-active' : '' }}">
+                    <span class="material-symbols-outlined">quiz</span>
+                    <span>Quizzes</span>
+                </a>
+            @endif
             <a href="{{ route('profile.edit') }}" class="app-topbar-link {{ $activeNav === 'profile' ? 'is-active' : '' }}">
                 <span class="material-symbols-outlined">person</span>
                 <span>Profile</span>

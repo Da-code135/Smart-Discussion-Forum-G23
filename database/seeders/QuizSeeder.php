@@ -6,6 +6,9 @@ use App\Models\Quiz;
 use App\Models\Question;
 use App\Models\Answer;
 use App\Models\QuizConfiguration;
+use App\Models\User;
+use App\Models\Role;
+use App\Models\Group;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
@@ -13,15 +16,38 @@ class QuizSeeder extends Seeder
 {
     public function run(): void
     {
-        // Assume lecturer with ID 2 exists (from User seeder)
-        $lecturerId = 2;
+        // Find or create a Lecturer role
+        $lecturerRole = Role::firstOrCreate(
+            ['role_name' => 'Lecturer'],
+            ['description' => 'Access to quiz configuration, participation marking criteria, and discussion features.']
+        );
+
+        // Find or create a student group for the quiz
+        $studentGroup = Group::firstOrCreate(
+            ['group_type' => 'student'],
+            ['group_name' => 'Default Student Group', 'description' => 'Default group for students']
+        );
+
+        // Find or create a lecturer user
+        $lecturer = User::firstOrCreate(
+            ['email' => 'lecturer@example.com'],
+            [
+                'full_name' => 'Sample Lecturer',
+                'password' => bcrypt('password'),
+                'role_id' => $lecturerRole->id,
+                'group_id' => $studentGroup->id,
+                'account_status' => 'active',
+            ]
+        );
+
+        $this->command->info("✅ Quiz lecturer created: ID {$lecturer->id} ({$lecturer->email})");
 
         // Create a sample quiz
         $quiz = Quiz::create([
-            'lecturer_id' => $lecturerId,
+            'lecturer_id' => $lecturer->id,
             'title' => 'Laravel Basics Quiz',
             'description' => 'Test your understanding of Laravel fundamentals',
-            'target_category' => 'Student',  // Visible to all students
+            'target_category' => 'Student',
             'scheduled_date' => Carbon::now()->addDay()->format('Y-m-d'),
             'start_time' => '10:00',
             'duration_minutes' => 30,
@@ -39,6 +65,8 @@ class QuizSeeder extends Seeder
             'show_results_after_close' => true,
             'show_correct_answers' => true,
         ]);
+
+        $this->command->info("✅ Sample quiz created: '{$quiz->title}' (ID: {$quiz->quiz_id})");
 
         // Question 1: MCQ
         $q1 = Question::create([
@@ -64,5 +92,7 @@ class QuizSeeder extends Seeder
 
         Answer::create(['question_id' => $q2->question_id, 'answer_text' => 'True', 'is_correct' => true]);
         Answer::create(['question_id' => $q2->question_id, 'answer_text' => 'False', 'is_correct' => false]);
+
+        $this->command->info("✅ 2 questions with answers added to quiz '{$quiz->title}'");
     }
 }
