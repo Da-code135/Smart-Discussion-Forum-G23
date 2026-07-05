@@ -6,6 +6,7 @@ use App\Models\Quiz;
 use App\Models\Question;
 use App\Models\Answer;
 use App\Models\QuizConfiguration;
+use App\Models\Grade;
 use App\Events\QuizPublished;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -223,5 +224,52 @@ class QuizController extends Controller
         QuizPublished::dispatch($quiz);
 
         return back()->with('success', 'Quiz published! Students have been notified.');
+    }
+
+    /**
+     * Show performance report for a quiz (lecturer/admin only).
+     *
+     * GET /quizzes/{quiz}/report
+     * Route name: quizzes.report
+     *
+     * Displays class performance summary, student-by-student breakdown,
+     * and aggregate statistics.
+     */
+    public function showPerformanceReport(Quiz $quiz)
+    {
+        // Security: Only the quiz lecturer or an admin can view
+        if (Auth::user()->id !== $quiz->lecturer_id && !Auth::user()->isAdmin()) {
+            abort(403, 'Not authorized to view this report.');
+        }
+
+        $grades = Grade::where('quiz_id', $quiz->quiz_id)
+                       ->with('student')
+                       ->orderByDesc('final_grade')
+                       ->get();
+
+        $stats = $this->getClassStatistics($quiz);
+
+        return view('quizzes.performance-report', compact('quiz', 'grades', 'stats'));
+    }
+
+    /**
+     * Calculate aggregate class statistics for a quiz.
+     */
+    private function getClassStatistics(Quiz $quiz): ?array
+    {
+        $allGrades = Grade::where('quiz_id', $quiz->quiz_id)->get();
+
+        if ($allGrades->count() === 0) {
+            return null;
+        }
+
+        $scores = $allGrades->pluck('total_score')->toArray();
+
+        return [
+            'total_attempts' => $allGrades->count(),
+            'average_score' => round($allGrades->avg('total_score'), 2),
+            'highest_score' => round(max($scores), 2),
+            'lowest_score' => round(min($scores), 2),
+        ];
     }
 }
