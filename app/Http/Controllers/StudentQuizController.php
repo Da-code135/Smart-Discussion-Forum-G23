@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Quiz;
 use App\Models\StudentAttempt;
 use App\Models\StudentAnswer;
+use App\Models\Grade;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -440,22 +441,114 @@ class StudentQuizController extends Controller
     /**
      * Grade the quiz attempt.
      *
-     * Placeholder — Person 4 implements the actual grading algorithm:
-     *   - Compare selected_answer_id to each question's correct answer
-     *   - Calculate total_score, max_score, percentage
-     *   - Apply participation bonuses
-     *   - Create/update the Grade record
+     * Compares each student's answer to the correct answer,
+     * calculates total score, percentage, and participation bonus,
+     * then creates a Grade record.
      *
-     * For now this logs the event so Person 4 can pick it up.
+     * Called automatically from submitQuiz() and autoSubmit().
      */
     private function gradeQuiz(StudentAttempt $attempt): void
     {
-        // Person 4: Insert grading logic here
-        \Log::info('Quiz attempt submitted — ready for grading.', [
+        $quiz = $attempt->quiz;
+
+        // Load all questions with their correct answers
+        $questions = $quiz->questions()->with('answers')->get();
+
+        // Load all student answers for this attempt, keyed by question_id
+        $studentAnswers = StudentAnswer::where('attempt_id', $attempt->attempt_id)
+            ->get()
+            ->keyBy('question_id');
+
+        $totalScore = 0;
+        $maxScore = 0;
+
+        // Step 1: Score each question
+        foreach ($questions as $question) {
+            $maxScore += $question->marks;
+
+            /** @var StudentAnswer|null $studentAnswer */
+            $studentAnswer = $studentAnswers->get($question->question_id);
+
+            if (!$studentAnswer || !$studentAnswer->selected_answer_id) {
+                // Skipped or unanswered — 0 marks
+                continue;
+            }
+
+            // Find the correct answer for this question
+            $correctAnswer = $question->answers->firstWhere('is_correct', true);
+
+            if ($correctAnswer && $studentAnswer->selected_answer_id == $correctAnswer->answer_id) {
+                // Correct! Award full marks
+                $totalScore += $question->marks;
+            }
+            // Wrong answer — award 0 marks
+        }
+
+        // Step 2: Calculate percentage
+        $percentage = $maxScore > 0 ? round(($totalScore / $maxScore) * 100, 2) : 0;
+
+        // Step 3: Determine participation mark
+        $participationMark = $this->calculateParticipationMark($quiz, $percentage);
+
+        // Step 4: Calculate final grade
+        $finalGrade = round($totalScore + $participationMark, 2);
+
+        // Step 5: Create or update Grade record
+        Grade::updateOrCreate(
+            ['attempt_id' => $attempt->attempt_id],
+            [
+                'student_id' => $attempt->student_id,
+                'quiz_id' => $quiz->quiz_id,
+                'total_score' => $totalScore,
+                'max_score' => $maxScore,
+                'percentage' => $percentage,
+                'participation_mark' => $participationMark,
+                'final_grade' => $finalGrade,
+                'graded_at' => now(),
+            ]
+        );
+
+        \Log::info('Quiz graded successfully.', [
             'attempt_id' => $attempt->attempt_id,
-            'quiz_id' => $attempt->quiz_id,
+            'quiz_id' => $quiz->quiz_id,
             'student_id' => $attempt->student_id,
+            'score' => "{$totalScore}/{$maxScore}",
+            'percentage' => "{$percentage}%",
+            'final_grade' => $finalGrade,
         ]);
+    }
+
+    /**
+     * Calculate participation mark based on quiz configuration.
+     *
+     * Default logic (overridable by quiz config):
+     * - score >= 80% : full marks (5 points)
+     * - score >= 50% : half marks (2.5 points)
+     * - score < 50%  : 0 marks
+     * - If participation_criteria contains 'attempted' : full marks regardless
+     */
+    private function calculateParticipationMark(Quiz $quiz, float $percentage): float
+    {
+        $config = $quiz->configuration;
+        $fullMarks = 5.0;
+
+        // If criteria says "full marks if attempted", award regardless of score
+        if ($config && $config->participation_criteria) {
+            $criteria = strtolower($config->participation_criteria);
+
+            if (str_contains($criteria, 'attempted')) {
+                return $fullMarks;
+            }
+        }
+
+        // Score-based participation
+        if ($percentage >= 80) {
+            return $fullMarks;
+        } elseif ($percentage >= 50) {
+            return $fullMarks / 2;
+        }
+
+        return 0;
     }
 
     /**
