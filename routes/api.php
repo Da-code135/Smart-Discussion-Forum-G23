@@ -24,6 +24,8 @@ use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\QuestionController;
 use App\Http\Controllers\Api\AnswerController;
 use App\Http\Controllers\Api\StudentQuizController;
+use App\Http\Controllers\Api\GradeController;
+use App\Http\Controllers\Api\QuizNotificationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -259,6 +261,19 @@ Route::prefix($API_VERSION)->group(function () {
             ]); // N4: Toggle pinned
 
             // ============================================
+            // QUIZ NOTIFICATIONS API (Person 3 — must be before {quiz} param routes)
+            // ============================================
+
+            // Upcoming & live are static segments — they must be defined BEFORE the
+            // parameterized {quiz} routes below so "upcoming" and "live" aren't
+            // mistaken for quiz IDs by the route model binding.
+            Route::get("/quizzes/upcoming", [QuizNotificationController::class, "upcoming"]);
+            Route::get("/quizzes/live", [QuizNotificationController::class, "live"]);
+
+            // Student result — shares the quizzes prefix with the student quiz routes
+            Route::get("/quizzes/{quiz}/result", [GradeController::class, "myResult"]);
+
+            // ============================================
             // STUDENT QUIZ ROUTES (Quiz execution & timer)
             // ============================================
             Route::prefix("quizzes")->group(function () {
@@ -271,6 +286,30 @@ Route::prefix($API_VERSION)->group(function () {
                 Route::post("/{quiz}/submit", [StudentQuizController::class, "submit"]);
                 Route::post("/{quiz}/auto-submit", [StudentQuizController::class, "autoSubmit"]);
             });
+
+            // ============================================
+            // RESULTS & REPORTS API (Person 3 — Lecturer grades + export)
+            // ============================================
+
+            // Lecturer grade management — admin-scoped, uses "lecturer" prefix
+            // for semantic clarity (these are the lecturer-facing grade endpoints)
+            Route::middleware("admin")->prefix("lecturer")->group(function () {
+                Route::get("/quizzes/{quiz}/grades", [GradeController::class, "index"]);
+                Route::get("/quizzes/{quiz}/grades/export", [GradeController::class, "exportCsv"]);
+                Route::get("/grades/{grade}", [GradeController::class, "show"]);
+            });
+
+            // ============================================
+            // QUIZ NOTIFICATIONS API (Person 3 — student history + notifications)
+            // ============================================
+
+            Route::prefix("me")->group(function () {
+                Route::get("/quiz-history", [QuizNotificationController::class, "history"]);
+                Route::get("/quiz-notifications", [QuizNotificationController::class, "quizNotifications"]);
+            });
+
+            // Quiz notification mark-as-read
+            Route::post("/notifications/{id}/read", [QuizNotificationController::class, "markRead"]);
 
             // ============================================
             // QUIZ API (Lecturer/Admin — Quiz CRUD + Questions + Answers)
