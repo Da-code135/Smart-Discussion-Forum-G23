@@ -1001,7 +1001,7 @@ This is the heart of the quiz-taking experience. It has 7 public methods (action
 1. Find the student's attempt
 2. If already submitted, return error
 3. Set `submit_time` to now and `is_auto_submit` to false (it was manual)
-4. Call `gradeQuiz()` (currently a placeholder — Person 4 will implement grading)
+4. Call `gradeQuiz()` — **immediately grades the attempt** (see below)
 5. Return JSON with `success: true`, a success message, and the URL to redirect to the results page
 
 ---
@@ -1083,18 +1083,42 @@ This is the heart of the quiz-taking experience. It has 7 public methods (action
 
 ---
 
-#### `gradeQuiz()` — Private Placeholder
+#### `gradeQuiz()` — Private Grading Engine
 
-This is a PRIVATE method (not accessible via URL). It's called after every submission (manual or auto). Currently it just logs the event to the Laravel log file:
+This is a PRIVATE method (not accessible via URL). It's called automatically after every submission (manual or auto) to calculate the student's score and persist the `Grade` record.
+
+**Grading algorithm — step by step:**
+
+1. **Load all questions** for the quiz with their answers (including `is_correct` flags)
+2. **Load all student answers** for this attempt, keyed by `question_id`
+3. **Score each question:**
+   - If the student didn't answer or selected `null` → 0 marks
+   - If `selected_answer_id` matches the answer where `is_correct = true` → award full marks
+   - Otherwise → 0 marks (wrong answer)
+4. **Calculate percentage:** `(total_score / max_score) * 100`
+5. **Calculate participation mark** (see `calculateParticipationMark()` below)
+6. **Calculate final grade:** `total_score + participation_mark`
+7. **Create `Grade` record** via `Grade::updateOrCreate()` with all calculated values and `graded_at = now()`
 
 ```
-Quiz attempt submitted — ready for grading.
+Quiz graded successfully.
   attempt_id: 5
   quiz_id: 3
   student_id: 10
+  score: 8/10
+  percentage: 80%
+  final_grade: 13
 ```
 
-Person 4 will replace this with the actual grading algorithm that compares answers and calculates scores.
+#### `calculateParticipationMark()` — Private Helper
+
+Awards bonus marks based on quiz configuration:
+- **score ≥ 80%** → full marks (5 points)
+- **score ≥ 50%** → half marks (2.5 points)
+- **score < 50%** → 0 marks
+- **If `participation_criteria` contains "attempted"** → full marks regardless of score
+
+> Note: The same grading logic is also implemented in the API version at `app/Http/Controllers/Api/StudentQuizController.php`.
 
 #### `formatTimeRemaining()` — Private Helper
 
@@ -1202,7 +1226,7 @@ A centered page showing the results:
 
 ## Appendix: All Files Created / Modified
 
-### Files Created (25 files)
+### Files Created (28 files)
 
 | # | File Path | Person | Brief Description |
 |---|---|---|---|
@@ -1231,13 +1255,18 @@ A centered page showing the results:
 | 23 | `resources/views/quizzes/announcement.blade.php` | P3 | Pre-quiz announcement page with countdown |
 | 24 | `resources/views/quizzes/attempt.blade.php` | P3 | Full-screen locked quiz interface with timer |
 | 25 | `resources/views/quizzes/result.blade.php` | P3 | Post-submission results page |
+| 26 | `app/Http/Controllers/Api/QuizController.php` | P1 API | Quiz CRUD API (index, store, show, update, destroy, publish, report) |
+| 27 | `app/Http/Controllers/Api/QuestionController.php` | P1 API | Question management API (index, store, update, destroy, reorder) |
+| 28 | `app/Http/Controllers/Api/AnswerController.php` | P1 API | Answer management API (index, store, update, destroy) |
+| 29 | `app/Http/Controllers/Api/StudentQuizController.php` | P2 API | Student quiz execution API (announcement, start, attempt, answer, submit, auto-submit, status, batch) |
 
-### Files Modified (2 files)
+### Files Modified (3 files)
 
 | # | File Path | What Changed | Person |
 |---|---|---|---|
 | 1 | `routes/web.php` | Added ~70 lines of quiz routes — 11 lecturer routes and 7 student routes, all inside the `auth` middleware group | P2, P3 |
 | 2 | `database/seeders/DatabaseSeeder.php` | Added `QuizSeeder::class` to the seeder call list so it runs with other seeders | P1 |
+| 3 | `routes/api.php` | Added ~55 lines of quiz API routes — 16 lecturer/admin CRUD routes and 8 student execution routes | P1 API, P2 API |
 
 ---
 

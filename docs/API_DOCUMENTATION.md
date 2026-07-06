@@ -199,6 +199,54 @@ Authorization: Bearer your-token-here
 
 > ✅ = Authentication required | 🔑 = Admin role required (System Admin or Group Admin)
 
+#### Quiz & Assessment — Lecturer/Admin CRUD
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/quizzes` | ✅🔑 | List all quizzes (paginated, with config + lecturer) |
+| POST | `/api/v1/quizzes` | ✅🔑 | Create a new quiz with default configuration |
+| GET | `/api/v1/quizzes/{quiz}` | ✅🔑 | Show quiz with questions, answers, config |
+| PUT | `/api/v1/quizzes/{quiz}` | ✅🔑 | Update quiz + configuration (blocked if published) |
+| DELETE | `/api/v1/quizzes/{quiz}` | ✅🔑 | Delete quiz (blocked if published) |
+| POST | `/api/v1/quizzes/{quiz}/publish` | ✅🔑 | Publish quiz announcement (validates questions + future date) |
+| GET | `/api/v1/quizzes/{quiz}/report` | ✅🔑 | Class performance report with student breakdown |
+| GET | `/api/v1/quizzes/{quiz}/questions` | ✅🔑 | List questions with answers, ordered by position |
+| POST | `/api/v1/quizzes/{quiz}/questions` | ✅🔑 | Add question with answer options |
+| PUT | `/api/v1/quizzes/{quiz}/questions/{question}` | ✅🔑 | Update question text/type/marks |
+| DELETE | `/api/v1/quizzes/{quiz}/questions/{question}` | ✅🔑 | Delete a question (cascades to answers) |
+| PUT | `/api/v1/quizzes/{quiz}/questions/reorder` | ✅🔑 | Batch reorder questions |
+| GET | `/api/v1/questions/{question}/answers` | ✅🔑 | List answer options for a question |
+| POST | `/api/v1/questions/{question}/answers` | ✅🔑 | Add an answer option |
+| PUT | `/api/v1/answers/{answer}` | ✅🔑 | Update an answer |
+| DELETE | `/api/v1/answers/{answer}` | ✅🔑 | Delete an answer option |
+
+#### Quiz & Assessment — Student Execution
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/quizzes/{quiz}/announcement` | ✅ | Show quiz announcement with timing info |
+| GET | `/api/v1/quizzes/{quiz}/status` | ✅ | Real-time quiz status (JS polling) |
+| POST | `/api/v1/quizzes/{quiz}/attempt` | ✅ | Start a quiz attempt (returns questions without correct answers) |
+| GET | `/api/v1/quizzes/{quiz}/attempt` | ✅ | Show current attempt state (questions, answers, time remaining) |
+| POST | `/api/v1/quizzes/{quiz}/answer` | ✅ | Save a single answer |
+| POST | `/api/v1/quizzes/{quiz}/answers/batch` | ✅ | Save multiple answers at once |
+| POST | `/api/v1/quizzes/{quiz}/submit` | ✅ | Manually submit quiz (triggers grading) |
+| POST | `/api/v1/quizzes/{quiz}/auto-submit` | ✅ | Auto-submit when timer expires |
+
+#### Quiz & Assessment — Results & Notifications
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/quizzes/{quiz}/result` | ✅ | Show the authenticated student's result |
+| GET | `/api/v1/lecturer/quizzes/{quiz}/grades` | ✅🔑 | List all grades for a quiz (lecturer report) |
+| GET | `/api/v1/lecturer/grades/{grade}` | ✅🔑 | Single grade detail with per-question breakdown |
+| GET | `/api/v1/lecturer/quizzes/{quiz}/grades/export` | ✅🔑 | Export grades as CSV |
+| GET | `/api/v1/quizzes/upcoming` | ✅ | List upcoming published quizzes |
+| GET | `/api/v1/quizzes/live` | ✅ | List currently active quizzes |
+| GET | `/api/v1/me/quiz-history` | ✅ | List the student's past quiz attempts with grades |
+| GET | `/api/v1/me/quiz-notifications` | ✅ | List quiz-related notifications |
+| POST | `/api/v1/notifications/{id}/read` | ✅ | Mark a notification as read |
+
 ---
 
 ### Public Endpoints
@@ -2411,6 +2459,794 @@ Authorization: Bearer admin-token-here
 {
   "message": "This blacklist record has already been lifted."
 }
+```
+
+---
+
+## Quiz & Assessment Endpoints
+
+### Quiz CRUD (Lecturer/Admin)
+
+#### GET /api/v1/quizzes
+
+List all quizzes with question count, configuration, and lecturer info.
+
+**Request:**
+```http
+GET /api/v1/quizzes?page=1&per_page=20 HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number |
+| `per_page` | integer | 20 | Items per page |
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "quizzes": [
+      {
+        "quiz_id": 1,
+        "lecturer_id": 2,
+        "title": "Laravel Basics Quiz",
+        "description": "Test your understanding of Laravel",
+        "target_category": "Student",
+        "scheduled_date": "2026-07-10",
+        "start_time": "10:00:00",
+        "duration_minutes": 30,
+        "is_active": false,
+        "published_at": null,
+        "questions_count": 2,
+        "configuration": {
+          "config_id": 1,
+          "allow_late_join": false,
+          "notification_minutes_before": 15,
+          "lock_screen_on_start": true,
+          "show_results_after_close": true,
+          "show_correct_answers": false
+        },
+        "lecturer": {
+          "id": 2,
+          "full_name": "Dr. Smith"
+        }
+      }
+    ]
+  },
+  "pagination": {
+    "current_page": 1,
+    "last_page": 1,
+    "per_page": 20,
+    "total": 1
+  }
+}
+```
+
+---
+
+#### POST /api/v1/quizzes
+
+Create a new quiz with default configuration.
+
+**Request:**
+```http
+POST /api/v1/quizzes HTTP/1.1
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "title": "Midterm - Laravel Basics",
+  "description": "Covers routing, controllers, Eloquent",
+  "target_category": "Student",
+  "scheduled_date": "2026-07-15",
+  "start_time": "14:00",
+  "duration_minutes": 60
+}
+```
+
+**Request Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `title` | string | ✅ | Quiz title (max 255 chars) |
+| `description` | string | ❌ | Optional description |
+| `target_category` | string | ✅ | One of: `Student`, `Lecturer`, `Administrator`, `Member` |
+| `scheduled_date` | string | ✅ | Date in Y-m-d format, must be today or later |
+| `start_time` | string | ✅ | Time in H:i format (24-hour) |
+| `duration_minutes` | integer | ✅ | Duration in minutes (1–480) |
+
+**Success Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "quiz": {
+      "quiz_id": 1,
+      "title": "Midterm - Laravel Basics",
+      "description": "Covers routing, controllers, Eloquent",
+      "target_category": "Student",
+      "scheduled_date": "2026-07-15",
+      "start_time": "14:00:00",
+      "duration_minutes": 60,
+      "is_active": false,
+      "published_at": null,
+      "configuration": { ... },
+      "lecturer": { ... }
+    }
+  },
+  "message": "Quiz created"
+}
+```
+
+**Error Responses:**
+- `422` — Validation failed (missing fields, invalid date, etc.)
+
+---
+
+#### GET /api/v1/quizzes/{quiz}
+
+Show a single quiz with all questions, answers, and configuration.
+
+**Request:**
+```http
+GET /api/v1/quizzes/1 HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "quiz": {
+      "quiz_id": 1,
+      "title": "Laravel Basics Quiz",
+      "questions": [
+        {
+          "question_id": 1,
+          "question_text": "What is Laravel?",
+          "question_type": "MCQ",
+          "marks": 5,
+          "question_order": 1,
+          "answers": [
+            { "answer_id": 1, "answer_text": "A PHP framework", "is_correct": true },
+            { "answer_id": 2, "answer_text": "A JavaScript library", "is_correct": false }
+          ]
+        }
+      ],
+      "configuration": { ... },
+      "lecturer": { ... }
+    }
+  }
+}
+```
+
+---
+
+#### PUT /api/v1/quizzes/{quiz}
+
+Update quiz details and configuration. Cannot update if quiz is published.
+
+**Request:**
+```http
+PUT /api/v1/quizzes/1 HTTP/1.1
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "title": "Updated Quiz Title",
+  "description": "Updated description",
+  "target_category": "Student",
+  "scheduled_date": "2026-07-20",
+  "start_time": "09:30",
+  "duration_minutes": 45,
+  "allow_late_join": true,
+  "lock_screen_on_start": true,
+  "show_results_after_close": true,
+  "show_correct_answers": true
+}
+```
+
+**Error Responses:**
+- `422` — Cannot update a published quiz
+- `422` — Validation failed
+
+---
+
+#### DELETE /api/v1/quizzes/{quiz}
+
+Delete a quiz. Cannot delete if published.
+
+**Request:**
+```http
+DELETE /api/v1/quizzes/1 HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Success Response (200 OK):**
+```json
+{ "success": true, "message": "Quiz deleted" }
+```
+
+**Error Responses:**
+- `422` — Cannot delete a published quiz
+
+---
+
+#### POST /api/v1/quizzes/{quiz}/publish
+
+Publish the quiz announcement. Validates that the quiz has at least 1 question and is scheduled in the future.
+
+**Request:**
+```http
+POST /api/v1/quizzes/1/publish HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": { "quiz": { ... } },
+  "message": "Quiz published"
+}
+```
+
+**Error Responses:**
+- `422` — Quiz is already published
+- `422` — Cannot publish a quiz with no questions
+- `422` — Cannot publish with a past scheduled date/time
+
+---
+
+#### GET /api/v1/quizzes/{quiz}/report
+
+Class performance report with aggregate stats and per-student breakdown.
+
+**Request:**
+```http
+GET /api/v1/quizzes/1/report HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "average_score": 72.5,
+      "max_score": 95.0,
+      "min_score": 45.0,
+      "attempt_count": 20
+    },
+    "students": [
+      {
+        "student": { "id": 3, "full_name": "Jane Doe", "email": "jane@example.com" },
+        "total_score": 85.0,
+        "max_score": 100.0,
+        "percentage": 85.0,
+        "participation_mark": 5.0,
+        "final_grade": 90.0
+      }
+    ]
+  }
+}
+```
+
+---
+
+### Question Management
+
+#### GET /api/v1/quizzes/{quiz}/questions
+
+List all questions for a quiz, ordered by `question_order`.
+
+**Request:**
+```http
+GET /api/v1/quizzes/1/questions HTTP/1.1
+Authorization: Bearer {token}
+```
+
+---
+
+#### POST /api/v1/quizzes/{quiz}/questions
+
+Add a question with its answer options in one request.
+
+**Request:**
+```http
+POST /api/v1/quizzes/1/questions HTTP/1.1
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "question_text": "What is Laravel?",
+  "question_type": "MCQ",
+  "marks": 5,
+  "answers": [
+    { "answer_text": "A PHP framework", "is_correct": true },
+    { "answer_text": "A JavaScript library", "is_correct": false }
+  ]
+}
+```
+
+**Validation rules by type:**
+- `TF` — Exactly 2 answers, exactly 1 correct
+- `MCQ` — At least 1 answer, at least 1 correct
+- `Short` — No specific constraints
+
+---
+
+#### PUT /api/v1/quizzes/{quiz}/questions/{question}
+
+Update question text, type, or marks.
+
+---
+
+#### DELETE /api/v1/quizzes/{quiz}/questions/{question}
+
+Delete a question (cascades to its answers).
+
+---
+
+#### PUT /api/v1/quizzes/{quiz}/questions/reorder
+
+Batch reorder questions.
+
+**Request:**
+```http
+PUT /api/v1/quizzes/1/questions/reorder HTTP/1.1
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "questions": [
+    { "id": 3, "order": 1 },
+    { "id": 1, "order": 2 },
+    { "id": 2, "order": 3 }
+  ]
+}
+```
+
+---
+
+### Answer Management
+
+#### GET /api/v1/questions/{question}/answers
+
+List all answers for a question.
+
+---
+
+#### POST /api/v1/questions/{question}/answers
+
+Add an answer option.
+
+**Request:**
+```http
+POST /api/v1/questions/1/answers HTTP/1.1
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "answer_text": "A PHP framework",
+  "is_correct": true
+}
+```
+
+---
+
+#### PUT /api/v1/answers/{answer}
+
+Update an answer's text or correctness.
+
+---
+
+#### DELETE /api/v1/answers/{answer}
+
+Delete an answer option.
+
+---
+
+### Student Quiz Execution
+
+#### GET /api/v1/quizzes/{quiz}/announcement
+
+Shows quiz metadata and timing information before the quiz starts. Used by the pre-quiz landing page.
+
+**Request:**
+```http
+GET /api/v1/quizzes/1/announcement HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "quiz": {
+      "id": 1,
+      "title": "Laravel Basics Quiz",
+      "description": "Test your understanding of Laravel",
+      "duration_minutes": 30,
+      "question_count": 2
+    },
+    "timing": {
+      "scheduled_time": "2026-07-10T10:00:00+00:00",
+      "time_until_start_seconds": 900,
+      "has_started": false
+    }
+  }
+}
+```
+
+**Error Responses:**
+- `403` — Quiz not available for the user's role
+- `404` — Quiz announcement not published yet
+
+---
+
+#### POST /api/v1/quizzes/{quiz}/attempt
+
+Start a new quiz attempt. Creates a `StudentAttempt` record and returns the questions (without exposing correct answers).
+
+**Request:**
+```http
+POST /api/v1/quizzes/1/attempt HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Success Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "attempt": {
+      "attempt_id": 5,
+      "start_time": "2026-07-10T10:00:05+00:00",
+      "is_late": false
+    },
+    "questions": [
+      {
+        "question_id": 1,
+        "question_text": "What is Laravel?",
+        "question_type": "MCQ",
+        "marks": 5,
+        "question_order": 1,
+        "answers": [
+          { "answer_id": 1, "answer_text": "A PHP framework" },
+          { "answer_id": 2, "answer_text": "A JavaScript library" }
+        ]
+      }
+    ],
+    "time_remaining_seconds": 1795
+  }
+}
+```
+
+> **Note:** `is_correct` is intentionally stripped from answers to prevent cheating.
+
+**Error Responses:**
+- `403` — Quiz not currently active, or wrong role
+- `409` — Student has already started this quiz
+
+---
+
+#### GET /api/v1/quizzes/{quiz}/attempt
+
+Resume an existing attempt. Returns the current state (questions, saved answers, time remaining).
+
+**Request:**
+```http
+GET /api/v1/quizzes/1/attempt HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "attempt": {
+      "attempt_id": 5,
+      "start_time": "2026-07-10T10:00:05+00:00",
+      "submit_time": null,
+      "is_late": false,
+      "is_auto_submit": false,
+      "is_submitted": false
+    },
+    "questions": [ ... ],
+    "student_answers": {
+      "1": 2,
+      "2": 4
+    },
+    "time_remaining_seconds": 1200
+  }
+}
+```
+
+`student_answers` is a map of `question_id → selected_answer_id` for restoring the student's selections.
+
+**Error Responses:**
+- `404` — No attempt found
+
+---
+
+#### POST /api/v1/quizzes/{quiz}/answer
+
+Save a single answer selection. Called via AJAX when the student clicks an option. Answers are saved immediately (not just on submit).
+
+**Request:**
+```http
+POST /api/v1/quizzes/1/answer HTTP/1.1
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "question_id": 1,
+  "answer_id": 2
+}
+```
+
+Pass `answer_id: null` to deselect/clear an answer.
+
+**Success Response (200 OK):**
+```json
+{ "success": true }
+```
+
+**Error Responses:**
+- `422` — Quiz already submitted (cannot change answers)
+
+---
+
+#### POST /api/v1/quizzes/{quiz}/answers/batch
+
+Save multiple answers in a single request. More efficient than individual calls.
+
+**Request:**
+```http
+POST /api/v1/quizzes/1/answers/batch HTTP/1.1
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "answers": [
+    { "question_id": 1, "answer_id": 2 },
+    { "question_id": 2, "answer_id": null },
+    { "question_id": 3, "answer_id": 10 }
+  ]
+}
+```
+
+**Success Response (200 OK):**
+```json
+{ "success": true, "message": "Answers saved" }
+```
+
+---
+
+#### POST /api/v1/quizzes/{quiz}/submit
+
+Manually submit the quiz. Triggers grading immediately.
+
+**Request:**
+```http
+POST /api/v1/quizzes/1/submit HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "attempt": {
+      "attempt_id": 5,
+      "submit_time": "2026-07-10T10:30:00+00:00",
+      "is_auto_submit": false
+    }
+  },
+  "message": "Quiz submitted successfully"
+}
+```
+
+**Error Responses:**
+- `422` — Quiz already submitted
+
+---
+
+#### POST /api/v1/quizzes/{quiz}/auto-submit
+
+Auto-submit when the timer expires. Called by the JavaScript countdown when it reaches 0. Sets `is_auto_submit = true` for audit purposes.
+
+**Request:**
+```http
+POST /api/v1/quizzes/1/auto-submit HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "attempt": {
+      "attempt_id": 5,
+      "submit_time": "2026-07-10T10:30:05+00:00",
+      "is_auto_submit": true
+    }
+  },
+  "message": "Time expired. Quiz auto-submitted."
+}
+```
+
+---
+
+#### GET /api/v1/quizzes/{quiz}/status
+
+Real-time quiz status endpoint polled by JavaScript. Returns different data depending on attempt state.
+
+**Request:**
+```http
+GET /api/v1/quizzes/1/status HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Response — No attempt yet:**
+```json
+{
+  "success": true,
+  "data": {
+    "has_started": false,
+    "is_submitted": false,
+    "time_remaining": null,
+    "time_until_start": 900
+  }
+}
+```
+
+**Response — In progress:**
+```json
+{
+  "success": true,
+  "data": {
+    "has_started": true,
+    "is_submitted": false,
+    "time_remaining": 1200
+  }
+}
+```
+
+**Response — Already submitted:**
+```json
+{
+  "success": true,
+  "data": {
+    "has_started": true,
+    "is_submitted": true,
+    "submitted_at": "2026-07-10T10:30:00+00:00",
+    "time_remaining": 0
+  }
+}
+```
+
+---
+
+### Results & Reports
+
+#### GET /api/v1/quizzes/{quiz}/result
+
+Show the authenticated student's grade and per-question review for a completed quiz.
+
+**Request:**
+```http
+GET /api/v1/quizzes/1/result HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "grade": {
+      "grade_id": 1,
+      "total_score": 8.0,
+      "max_score": 10.0,
+      "percentage": 80.0,
+      "participation_mark": 5.0,
+      "final_grade": 13.0,
+      "graded_at": "2026-07-10T10:30:00+00:00"
+    },
+    "config": {
+      "show_correct_answers": true,
+      "show_results_after_close": true
+    }
+  }
+}
+```
+
+**Error Responses:**
+- `403` — Results not yet available (`show_results_after_close` is false)
+
+---
+
+#### GET /api/v1/lecturer/quizzes/{quiz}/grades
+
+List all grades for a quiz (lecturer report).
+
+**Request:**
+```http
+GET /api/v1/lecturer/quizzes/1/grades HTTP/1.1
+Authorization: Bearer {token}
+```
+
+---
+
+#### GET /api/v1/lecturer/grades/{grade}
+
+Single grade detail with per-question breakdown.
+
+---
+
+#### GET /api/v1/lecturer/quizzes/{quiz}/grades/export
+
+Export all grades as a CSV file download.
+
+**Request:**
+```http
+GET /api/v1/lecturer/quizzes/1/grades/export HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Response:** CSV file with columns: `Student Name, Email, Score, Max, Percentage, Participation, Final Grade`
+
+---
+
+### Quiz Notifications
+
+#### GET /api/v1/quizzes/upcoming
+
+List upcoming published quizzes that haven't started yet.
+
+---
+
+#### GET /api/v1/quizzes/live
+
+List currently active quizzes.
+
+---
+
+#### GET /api/v1/me/quiz-history
+
+List the authenticated student's past quiz attempts with grades.
+
+---
+
+#### GET /api/v1/me/quiz-notifications
+
+List quiz-related notifications (upcoming, live, results).
+
+---
+
+#### POST /api/v1/notifications/{id}/read
+
+Mark a notification as read.
+
+**Request:**
+```http
+POST /api/v1/notifications/5/read HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**Success Response (200 OK):**
+```json
+{ "success": true, "message": "Marked as read" }
 ```
 
 ---
