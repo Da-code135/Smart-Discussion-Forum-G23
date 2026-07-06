@@ -142,17 +142,17 @@ class QuizNotificationController extends Controller
      * GET /api/v1/me/quiz-notifications
      *
      * Paginated list of quiz-related notifications for the authenticated user.
-     * Matches notifications whose type starts with 'quiz.' or contains 'Quiz'.
+     * Matches the types stored by Person 5's listeners and scheduled commands:
+     *   - quiz_announcement (published by lecturer)
+     *   - quiz_reminder     (sent before quiz starts)
+     *   - quiz_live         (quiz is active now)
      */
     public function quizNotifications()
     {
         $user = Auth::user();
 
         $notifications = Notification::where('user_id', $user->id)
-            ->where(function ($query) {
-                $query->where('type', 'LIKE', 'quiz.%')
-                    ->orWhere('type', 'LIKE', 'App\\%Quiz%');
-            })
+            ->whereIn('type', ['quiz_announcement', 'quiz_reminder', 'quiz_live'])
             ->latest()
             ->paginate(20);
 
