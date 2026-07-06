@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\QuestionController;
 use App\Http\Controllers\Api\AnswerController;
+use App\Http\Controllers\Api\StudentQuizController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -256,6 +257,20 @@ Route::prefix($API_VERSION)->group(function () {
                 TopicController::class,
                 "togglePinned",
             ]); // N4: Toggle pinned
+
+            // ============================================
+            // STUDENT QUIZ ROUTES (Quiz execution & timer)
+            // ============================================
+            Route::prefix("quizzes")->group(function () {
+                Route::get("/{quiz}/announcement", [StudentQuizController::class, "announcement"]);
+                Route::get("/{quiz}/status", [StudentQuizController::class, "status"]);
+                Route::post("/{quiz}/attempt", [StudentQuizController::class, "start"]);
+                Route::get("/{quiz}/attempt", [StudentQuizController::class, "showAttempt"]);
+                Route::post("/{quiz}/answer", [StudentQuizController::class, "saveAnswer"]);
+                Route::post("/{quiz}/answers/batch", [StudentQuizController::class, "saveAnswersBatch"]);
+                Route::post("/{quiz}/submit", [StudentQuizController::class, "submit"]);
+                Route::post("/{quiz}/auto-submit", [StudentQuizController::class, "autoSubmit"]);
+            });
 
             // ============================================
             // QUIZ API (Lecturer/Admin — Quiz CRUD + Questions + Answers)
