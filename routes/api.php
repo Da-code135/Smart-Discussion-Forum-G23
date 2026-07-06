@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\Admin\ModerationController;
 use App\Http\Controllers\Api\Admin\SearchController;
 use App\Http\Controllers\Api\Admin\SystemConfigController as AdminSystemConfigController;
 use App\Http\Controllers\Api\Admin\WarningController;
+use App\Http\Controllers\Api\Admin\DashboardController;
+use App\Http\Controllers\Api\Admin\GroupStatisticsController;
 use App\Http\Controllers\Api\AnswerController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
@@ -590,6 +592,11 @@ Route::prefix($API_VERSION)->group(function () {
                             'getSuggestions',
                         ]);
                     });
+
+                    // Dashboard & Group Statistics (P5)
+                    Route::get('/dashboard', [DashboardController::class, 'index']);
+                    Route::get('/group-statistics', [GroupStatisticsController::class, 'index']);
+                    Route::get('/group-statistics/{group}', [GroupStatisticsController::class, 'show']);
                 });
         });
     });
