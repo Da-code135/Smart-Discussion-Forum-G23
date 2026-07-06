@@ -20,6 +20,9 @@ use App\Http\Controllers\Api\GroupBrowseController;
 use App\Http\Controllers\Api\Admin\WarningController;
 use App\Http\Controllers\Api\Admin\BlacklistController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\QuizController;
+use App\Http\Controllers\Api\QuestionController;
+use App\Http\Controllers\Api\AnswerController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -253,6 +256,32 @@ Route::prefix($API_VERSION)->group(function () {
                 TopicController::class,
                 "togglePinned",
             ]); // N4: Toggle pinned
+
+            // ============================================
+            // QUIZ API (Lecturer/Admin — Quiz CRUD + Questions + Answers)
+            // ============================================
+            Route::middleware("admin")->group(function () {
+                Route::prefix("quizzes")->name("quizzes.")->group(function () {
+                    Route::get("/", [QuizController::class, "index"]);
+                    Route::post("/", [QuizController::class, "store"]);
+                    Route::get("/{quiz}", [QuizController::class, "show"]);
+                    Route::put("/{quiz}", [QuizController::class, "update"]);
+                    Route::delete("/{quiz}", [QuizController::class, "destroy"]);
+                    Route::post("/{quiz}/publish", [QuizController::class, "publish"]);
+                    Route::get("/{quiz}/report", [QuizController::class, "report"]);
+                    // Questions (nested under quizzes)
+                    Route::get("/{quiz}/questions", [QuestionController::class, "index"]);
+                    Route::post("/{quiz}/questions", [QuestionController::class, "store"]);
+                    Route::put("/{quiz}/questions/{question}", [QuestionController::class, "update"]);
+                    Route::delete("/{quiz}/questions/{question}", [QuestionController::class, "destroy"]);
+                    Route::put("/{quiz}/questions/reorder", [QuestionController::class, "reorder"]);
+                });
+                // Answers (not nested — uses explicit question binding)
+                Route::get("/questions/{question}/answers", [AnswerController::class, "index"]);
+                Route::post("/questions/{question}/answers", [AnswerController::class, "store"]);
+                Route::put("/answers/{answer}", [AnswerController::class, "update"]);
+                Route::delete("/answers/{answer}", [AnswerController::class, "destroy"]);
+            });
 
             // ============================================
             // ADMIN ROUTES (Admin access required)
