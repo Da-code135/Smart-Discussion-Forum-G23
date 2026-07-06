@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Group;
-use App\Models\Topic;
 use App\Models\Post;
+use App\Models\Topic;
 use Illuminate\Support\Facades\DB;
 
 class GroupStatisticsService
@@ -18,12 +18,12 @@ class GroupStatisticsService
         $groups = Group::withCount('users')->orderBy('group_name')->get();
 
         return $groups->map(fn ($group) => [
-            'id'            => $group->id,
-            'group_name'    => $group->group_name,
+            'id' => $group->id,
+            'group_name' => $group->group_name,
             'total_members' => $group->users_count,
-            'active_members'=> $group->users()->where('account_status', 'active')->count(),
-            'total_topics'  => Topic::where('group_id', $group->id)->count(),
-            'total_posts'   => Post::whereIn('topic_id',
+            'active_members' => $group->users()->where('account_status', 'active')->count(),
+            'total_topics' => Topic::where('group_id', $group->id)->count(),
+            'total_posts' => Post::whereIn('topic_id',
                 Topic::where('group_id', $group->id)->select('id')
             )->count(),
             'last_activity' => Post::whereIn('topic_id',
@@ -38,27 +38,27 @@ class GroupStatisticsService
     public function groupDetail(Group $group): array
     {
         // 1. Membership breakdown
-        $allUsers      = $group->users();
-        $totalMembers  = (clone $allUsers)->count();
-        $activeUsers   = (clone $allUsers)->where('account_status', 'active')->count();
-        $warnedUsers   = (clone $allUsers)->where('account_status', 'warned')->count();
-        $blacklisted   = (clone $allUsers)->whereNotNull('blacklisted_at')->count();
+        $allUsers = $group->users();
+        $totalMembers = (clone $allUsers)->count();
+        $activeUsers = (clone $allUsers)->where('account_status', 'active')->count();
+        $warnedUsers = (clone $allUsers)->where('account_status', 'warned')->count();
+        $blacklisted = (clone $allUsers)->whereNotNull('blacklisted_at')->count();
         $inactiveUsers = $totalMembers - $activeUsers - $warnedUsers - $blacklisted;
 
         // 2. Topic stats
         $topicIds = Topic::where('group_id', $group->id)->pluck('id');
-        $totalTopics       = $topicIds->count();
-        $discussionTopics  = Topic::where('group_id', $group->id)->where('post_type', 'discussion')->count();
-        $questionTopics    = Topic::where('group_id', $group->id)->where('post_type', 'question')->count();
+        $totalTopics = $topicIds->count();
+        $discussionTopics = Topic::where('group_id', $group->id)->where('post_type', 'discussion')->count();
+        $questionTopics = Topic::where('group_id', $group->id)->where('post_type', 'question')->count();
         $unansweredQuestions = Topic::where('group_id', $group->id)
             ->where('post_type', 'question')
             ->whereDoesntHave('posts')
             ->count();
 
         // 3. Post stats
-        $totalPosts      = Post::whereIn('topic_id', $topicIds)->count();
-        $removedPosts    = Post::whereIn('topic_id', $topicIds)->where('is_removed', true)->count();
-        $reportedPosts   = Post::whereIn('topic_id', $topicIds)->where('is_reported', true)->count();
+        $totalPosts = Post::whereIn('topic_id', $topicIds)->count();
+        $removedPosts = Post::whereIn('topic_id', $topicIds)->where('is_removed', true)->count();
+        $reportedPosts = Post::whereIn('topic_id', $topicIds)->where('is_reported', true)->count();
         $avgPostsPerTopic = $totalTopics > 0 ? round($totalPosts / $totalTopics, 1) : 0;
         $avgPostsPerMember = $totalMembers > 0 ? round($totalPosts / $totalMembers, 1) : 0;
 
@@ -69,8 +69,8 @@ class GroupStatisticsService
             ->limit(10)
             ->get()
             ->map(fn ($u) => [
-                'full_name'   => $u->full_name,
-                'post_count'  => $u->posts_count,
+                'full_name' => $u->full_name,
+                'post_count' => $u->posts_count,
                 'last_active' => $u->last_active_at?->diffForHumans(),
             ]);
 
@@ -89,24 +89,24 @@ class GroupStatisticsService
             ->count();
 
         return [
-            'group'                  => $group,
-            'total_members'          => $totalMembers,
-            'active_members'         => $activeUsers,
-            'warned_members'         => $warnedUsers,
-            'blacklisted_members'    => $blacklisted,
-            'inactive_members'       => $inactiveUsers,
-            'total_topics'           => $totalTopics,
-            'discussion_topics'      => $discussionTopics,
-            'question_topics'        => $questionTopics,
-            'unanswered_questions'   => $unansweredQuestions,
-            'total_posts'            => $totalPosts,
-            'removed_posts'          => $removedPosts,
-            'reported_posts'         => $reportedPosts,
-            'avg_posts_per_topic'    => $avgPostsPerTopic,
-            'avg_posts_per_member'   => $avgPostsPerMember,
-            'top_members'            => $topMembers,
-            'weekly_topics'          => $weeklyTopics,
-            'lurkers'                => $lurkers,
+            'group' => $group,
+            'total_members' => $totalMembers,
+            'active_members' => $activeUsers,
+            'warned_members' => $warnedUsers,
+            'blacklisted_members' => $blacklisted,
+            'inactive_members' => $inactiveUsers,
+            'total_topics' => $totalTopics,
+            'discussion_topics' => $discussionTopics,
+            'question_topics' => $questionTopics,
+            'unanswered_questions' => $unansweredQuestions,
+            'total_posts' => $totalPosts,
+            'removed_posts' => $removedPosts,
+            'reported_posts' => $reportedPosts,
+            'avg_posts_per_topic' => $avgPostsPerTopic,
+            'avg_posts_per_member' => $avgPostsPerMember,
+            'top_members' => $topMembers,
+            'weekly_topics' => $weeklyTopics,
+            'lurkers' => $lurkers,
         ];
     }
 }

@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-            Schema::create('onboarding_agreements', function (Blueprint $table) {
+        Schema::create('onboarding_agreements', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users');
             $table->boolean('agreed');
             $table->string('agreement_version', 20);
             $table->string('ip_address', 45)->nullable();
             $table->timestamp('agreed_at')->useCurrent();
-    });
+        });
 
     }
 

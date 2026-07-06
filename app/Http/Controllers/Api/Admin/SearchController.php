@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Group;
+use App\Models\User;
 use App\Services\AdvancedSearchService;
 use Illuminate\Http\Request;
 
@@ -23,10 +25,10 @@ class SearchController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -78,10 +80,10 @@ class SearchController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -130,10 +132,10 @@ class SearchController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -173,10 +175,10 @@ class SearchController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -229,19 +231,19 @@ class SearchController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
         $allowedModels = ['users', 'groups', 'audit_logs', 'warnings'];
-        
-        if (!in_array($model, $allowedModels)) {
+
+        if (! in_array($model, $allowedModels)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid model. Allowed: ' . implode(', ', $allowedModels)
+                'message' => 'Invalid model. Allowed: '.implode(', ', $allowedModels),
             ], 400);
         }
 
@@ -250,7 +252,7 @@ class SearchController extends Controller
             'data' => [
                 'sort_options' => $this->searchService->getSortOptions($model),
                 'filter_options' => $this->searchService->getFilterOptions($model),
-            ]
+            ],
         ]);
     }
 
@@ -262,19 +264,19 @@ class SearchController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
         $query = $request->input('q', '');
-        
+
         if (strlen($query) < 2) {
             return response()->json([
                 'success' => true,
-                'data' => []
+                'data' => [],
             ]);
         }
 
@@ -282,7 +284,7 @@ class SearchController extends Controller
 
         switch ($type) {
             case 'users':
-                $suggestions = \App\Models\User::where('full_name', 'like', "%{$query}%")
+                $suggestions = User::where('full_name', 'like', "%{$query}%")
                     ->orWhere('email', 'like', "%{$query}%")
                     ->limit(10)
                     ->get(['id', 'full_name', 'email'])
@@ -296,7 +298,7 @@ class SearchController extends Controller
                 break;
 
             case 'groups':
-                $suggestions = \App\Models\Group::where('group_name', 'like', "%{$query}%")
+                $suggestions = Group::where('group_name', 'like', "%{$query}%")
                     ->limit(10)
                     ->get(['id', 'group_name'])
                     ->map(function ($group) {
@@ -311,7 +313,7 @@ class SearchController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $suggestions
+            'data' => $suggestions,
         ]);
     }
 }

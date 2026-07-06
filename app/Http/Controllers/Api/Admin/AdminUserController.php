@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Role;
 use App\Models\BlacklistRecord;
+use App\Models\Role;
+use App\Models\User;
 use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,12 +30,12 @@ class AdminUserController extends Controller
     public function index(Request $request)
     {
         $currentUser = auth()->user();
-        
+
         // Authorization check
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -52,7 +52,7 @@ class AdminUserController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -73,7 +73,7 @@ class AdminUserController extends Controller
 
         // Eager load relationships
         $users = $query->with(['role', 'group'])
-                       ->paginate($request->input('per_page', 15));
+            ->paginate($request->input('per_page', 15));
 
         return response()->json([
             'success' => true,
@@ -99,10 +99,10 @@ class AdminUserController extends Controller
         $user = User::with(['role', 'group', 'warnings', 'blacklistRecords'])->findOrFail($userId);
 
         // Authorization check
-        if (!Gate::allows('view', $user)) {
+        if (! Gate::allows('view', $user)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. You cannot view this user.'
+                'message' => 'Unauthorized. You cannot view this user.',
             ], 403);
         }
 
@@ -122,10 +122,10 @@ class AdminUserController extends Controller
         $user = User::findOrFail($userId);
 
         // Authorization check
-        if (!Gate::allows('changeRole', $user)) {
+        if (! Gate::allows('changeRole', $user)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can change user roles'
+                'message' => 'Only System Administrators can change user roles',
             ], 403);
         }
 
@@ -143,7 +143,7 @@ class AdminUserController extends Controller
         if ($user->role_id === $systemAdminRole->id && $adminCount === 1) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot downgrade the last System Administrator account'
+                'message' => 'Cannot downgrade the last System Administrator account',
             ], 400);
         }
 
@@ -169,17 +169,17 @@ class AdminUserController extends Controller
         $user = User::findOrFail($userId);
 
         // Authorization check
-        if (!Gate::allows('liftBlacklist', $user)) {
+        if (! Gate::allows('liftBlacklist', $user)) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to lift blacklist for this user'
+                'message' => 'You do not have permission to lift blacklist for this user',
             ], 403);
         }
 
         // Find active blacklist record
         $blacklistRecord = BlacklistRecord::where('user_id', $userId)
-                                          ->whereNull('lifted_at')
-                                          ->first();
+            ->whereNull('lifted_at')
+            ->first();
 
         if ($blacklistRecord) {
             $blacklistRecord->update([
@@ -210,10 +210,10 @@ class AdminUserController extends Controller
         $user = User::findOrFail($userId);
 
         // Authorization check
-        if (!Gate::allows('warn', $user)) {
+        if (! Gate::allows('warn', $user)) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to warn this user'
+                'message' => 'You do not have permission to warn this user',
             ], 403);
         }
 
@@ -246,7 +246,7 @@ class AdminUserController extends Controller
      */
     public function store(Request $request)
     {
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only System Administrators can create users.',
@@ -300,7 +300,7 @@ class AdminUserController extends Controller
         // Group-admin scope: can only edit users in their own groups
         if ($currentUser->isGroupAdmin()) {
             $adminGroupIds = $currentUser->administeredGroups()->pluck('groups.id');
-            if (!in_array($user->group_id, $adminGroupIds->toArray())) {
+            if (! in_array($user->group_id, $adminGroupIds->toArray())) {
                 return response()->json([
                     'success' => false,
                     'message' => 'You cannot edit users outside your groups.',
@@ -353,14 +353,14 @@ class AdminUserController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isSystemAdmin()) {
+        if (! $currentUser->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only System Administrators can delete users.',
             ], 403);
         }
 
-        if ((int)$userId === $currentUser->id) {
+        if ((int) $userId === $currentUser->id) {
             return response()->json([
                 'success' => false,
                 'message' => 'You cannot delete your own account.',
@@ -387,7 +387,7 @@ class AdminUserController extends Controller
      */
     public function resetPassword($userId)
     {
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only System Administrators can reset passwords.',

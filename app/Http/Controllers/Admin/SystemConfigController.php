@@ -20,7 +20,7 @@ class SystemConfigController extends Controller
     public function index()
     {
         // Authorization check - only System Admins can access system configuration
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Only System Administrators can access system configuration');
         }
 
@@ -35,7 +35,7 @@ class SystemConfigController extends Controller
     public function update(Request $request)
     {
         // Authorization check - only System Admins can update system configuration
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Only System Administrators can update system configuration');
         }
 

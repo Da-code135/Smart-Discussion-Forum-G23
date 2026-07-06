@@ -51,7 +51,7 @@ class ModerationController extends Controller
             $query->whereHas('topic', function ($q) use ($adminGroupIds) {
                 $q->whereIn('group_id', $adminGroupIds);
             });
-        } elseif (!$user->isSystemAdmin()) {
+        } elseif (! $user->isSystemAdmin()) {
             // Regular admin: only their own group
             $query->whereHas('topic', function ($q) use ($user) {
                 $q->where('group_id', $user->group_id);
@@ -78,7 +78,7 @@ class ModerationController extends Controller
     {
         $post->loadMissing('topic.group');
 
-        if (!auth()->user()->canAdminGroup($post->topic->group)) {
+        if (! auth()->user()->canAdminGroup($post->topic->group)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You cannot moderate posts in this group.',
@@ -122,7 +122,7 @@ class ModerationController extends Controller
     {
         $post->loadMissing('topic.group');
 
-        if (!auth()->user()->canAdminGroup($post->topic->group)) {
+        if (! auth()->user()->canAdminGroup($post->topic->group)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You cannot moderate posts in this group.',

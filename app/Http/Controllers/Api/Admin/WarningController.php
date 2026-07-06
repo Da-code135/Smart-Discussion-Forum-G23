@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Warning;
-use App\Models\User;
 use App\Models\BlacklistRecord;
+use App\Models\User;
+use App\Models\Warning;
 use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -47,7 +47,7 @@ class WarningController extends Controller
             $targetUser = User::findOrFail($request->input('user_id'));
 
             // Group Admin can only view warnings for users in their groups
-            if ($currentUser->isGroupAdmin() && !$currentUser->canAdminUser($targetUser)) {
+            if ($currentUser->isGroupAdmin() && ! $currentUser->canAdminUser($targetUser)) {
                 return response()->json([
                     'message' => 'You do not have permission to view warnings for this user.',
                 ], 403);
@@ -94,7 +94,7 @@ class WarningController extends Controller
         $warning = Warning::with(['user', 'createdBy'])->findOrFail($warningId);
 
         // Group Admin scope check
-        if ($currentUser->isGroupAdmin() && !$currentUser->canAdminUser($warning->user)) {
+        if ($currentUser->isGroupAdmin() && ! $currentUser->canAdminUser($warning->user)) {
             return response()->json([
                 'message' => 'You do not have permission to view this warning.',
             ], 403);
@@ -121,7 +121,7 @@ class WarningController extends Controller
         $targetUser = User::findOrFail($userId);
 
         // Group Admin scope: can only warn users in their groups
-        if ($currentUser->isGroupAdmin() && !$currentUser->canAdminUser($targetUser)) {
+        if ($currentUser->isGroupAdmin() && ! $currentUser->canAdminUser($targetUser)) {
             return response()->json([
                 'message' => 'You do not have permission to warn this user.',
             ], 403);
@@ -148,7 +148,7 @@ class WarningController extends Controller
         if ($warningNumber >= 3) {
             $blacklistRecord = BlacklistRecord::create([
                 'user_id' => $targetUser->id,
-                'reason' => 'Automatic blacklist: 3 warnings issued. Last reason: ' . $validated['reason'],
+                'reason' => 'Automatic blacklist: 3 warnings issued. Last reason: '.$validated['reason'],
                 'expires_at' => null, // Permanent until admin lifts
             ]);
 
@@ -156,7 +156,7 @@ class WarningController extends Controller
 
             $this->auditLogService->logUserBlacklisted(
                 $targetUser,
-                'Automatic blacklist: ' . $warningNumber . ' warnings issued',
+                'Automatic blacklist: '.$warningNumber.' warnings issued',
                 null
             );
         } else {
@@ -196,7 +196,7 @@ class WarningController extends Controller
         $warning = Warning::with('user')->findOrFail($warningId);
 
         // Group Admin scope check
-        if ($currentUser->isGroupAdmin() && !$currentUser->canAdminUser($warning->user)) {
+        if ($currentUser->isGroupAdmin() && ! $currentUser->canAdminUser($warning->user)) {
             return response()->json([
                 'message' => 'You do not have permission to resolve this warning.',
             ], 403);

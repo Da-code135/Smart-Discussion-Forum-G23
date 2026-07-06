@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\User;
-use App\Models\Role;
-use App\Models\Group;
 use App\Models\BlacklistRecord;
+use App\Models\Group;
+use App\Models\Role;
+use App\Models\User;
 use App\Models\Warning;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -18,7 +18,7 @@ class AuthControllerLoginTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Seed roles and groups
         Role::create(['role_name' => 'Administrator', 'description' => 'Admin role']);
         Role::create(['role_name' => 'Student', 'description' => 'Student role']);
@@ -118,7 +118,7 @@ class AuthControllerLoginTest extends TestCase
 
         $response->assertStatus(403)
             ->assertJson([
-                'message' => 'Your account is blacklisted until ' . $user->blacklistRecords->first()->expires_at->format('M d, Y') . '.',
+                'message' => 'Your account is blacklisted until '.$user->blacklistRecords->first()->expires_at->format('M d, Y').'.',
             ]);
     }
 
@@ -191,7 +191,7 @@ class AuthControllerLoginTest extends TestCase
         for ($i = 0; $i < 5; $i++) {
             $this->postJson('/api/v1/login', [
                 'email' => 'john@example.com',
-                'password' => 'WrongPassword' . $i,
+                'password' => 'WrongPassword'.$i,
             ]);
         }
 
@@ -260,7 +260,7 @@ class AuthControllerLoginTest extends TestCase
         $token = $user->createToken('test-token')->plainTextToken;
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
         ])->postJson('/api/v1/logout');
 
         $response->assertStatus(200)

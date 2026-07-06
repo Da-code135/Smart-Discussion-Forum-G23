@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('groups', function (Blueprint $table) {
             $table->id();
             $table->string('group_name', 100);
-            $table->text('description')->nullable(); 
+            $table->text('description')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
         });

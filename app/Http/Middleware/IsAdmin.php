@@ -13,15 +13,15 @@ class IsAdmin
      *
      * @param  Closure(Request): (Response)  $next
      */
-   public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next)
     {
         // Check if user is authenticated and is any type of admin
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return redirect('/login')->with('error', 'Please login to continue');
         }
 
         // Check if user is any type of admin (System Admin or Group Admin)
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             abort(403, 'Unauthorized. Administrator access required.');
         }
 

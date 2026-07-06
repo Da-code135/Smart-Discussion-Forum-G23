@@ -46,7 +46,7 @@ class BlacklistController extends Controller
             $targetUser = User::findOrFail($request->input('user_id'));
 
             // Group Admin can only view records for users in their groups
-            if ($currentUser->isGroupAdmin() && !$currentUser->canAdminUser($targetUser)) {
+            if ($currentUser->isGroupAdmin() && ! $currentUser->canAdminUser($targetUser)) {
                 return response()->json([
                     'message' => 'You do not have permission to view blacklist records for this user.',
                 ], 403);
@@ -94,7 +94,7 @@ class BlacklistController extends Controller
         $targetUser = User::findOrFail($userId);
 
         // Group Admin scope: can only blacklist users in their groups
-        if ($currentUser->isGroupAdmin() && !$currentUser->canAdminUser($targetUser)) {
+        if ($currentUser->isGroupAdmin() && ! $currentUser->canAdminUser($targetUser)) {
             return response()->json([
                 'message' => 'You do not have permission to blacklist this user.',
             ], 403);
@@ -118,7 +118,7 @@ class BlacklistController extends Controller
 
         // Calculate expires_at if duration provided, otherwise null (permanent)
         $expiresAt = null;
-        if (!empty($validated['duration_days'])) {
+        if (! empty($validated['duration_days'])) {
             $expiresAt = now()->addDays($validated['duration_days']);
         }
 
@@ -163,7 +163,7 @@ class BlacklistController extends Controller
         $record = BlacklistRecord::with('user')->findOrFail($recordId);
 
         // Group Admin scope check
-        if ($currentUser->isGroupAdmin() && !$currentUser->canAdminUser($record->user)) {
+        if ($currentUser->isGroupAdmin() && ! $currentUser->canAdminUser($record->user)) {
             return response()->json([
                 'message' => 'You do not have permission to lift this blacklist.',
             ], 403);

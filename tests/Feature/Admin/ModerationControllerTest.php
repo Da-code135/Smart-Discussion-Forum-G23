@@ -3,7 +3,6 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Group;
-use App\Models\ModerationLog;
 use App\Models\Post;
 use App\Models\Topic;
 use App\Models\User;
@@ -13,7 +12,7 @@ use Tests\TestCase;
 
 class ModerationControllerTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -42,12 +41,12 @@ class ModerationControllerTest extends TestCase
         $post1 = Post::factory()->create([
             'topic_id' => $topic1->id,
             'user_id' => $user->id,
-            'is_reported' => true
+            'is_reported' => true,
         ]);
         $post2 = Post::factory()->create([
             'topic_id' => $topic2->id,
             'user_id' => $user->id,
-            'is_reported' => true
+            'is_reported' => true,
         ]);
 
         // Make request to moderation index
@@ -87,12 +86,12 @@ class ModerationControllerTest extends TestCase
         $postInManagedGroup = Post::factory()->create([
             'topic_id' => $topic1->id,
             'user_id' => $user->id,
-            'is_reported' => true
+            'is_reported' => true,
         ]);
         $postInUnmanagedGroup = Post::factory()->create([
             'topic_id' => $topic2->id,
             'user_id' => $user->id,
-            'is_reported' => true
+            'is_reported' => true,
         ]);
 
         // Make request to moderation index
@@ -103,7 +102,7 @@ class ModerationControllerTest extends TestCase
         $response->assertViewHas('reportedPosts', function ($reportedPosts) use ($postInManagedGroup, $postInUnmanagedGroup) {
             return $reportedPosts->count() === 1 &&
                    $reportedPosts->contains($postInManagedGroup) &&
-                   !$reportedPosts->contains($postInUnmanagedGroup);
+                   ! $reportedPosts->contains($postInUnmanagedGroup);
         });
     }
 
@@ -122,12 +121,12 @@ class ModerationControllerTest extends TestCase
         $post = Post::factory()->create([
             'topic_id' => $topic->id,
             'user_id' => $user->id,
-            'is_reported' => true
+            'is_reported' => true,
         ]);
 
         // Submit remove post request
         $response = $this->post(route('admin.moderation.remove', $post), [
-            'reason' => 'Inappropriate content'
+            'reason' => 'Inappropriate content',
         ]);
 
         // Assert redirection back with success message
@@ -144,7 +143,7 @@ class ModerationControllerTest extends TestCase
             'post_id' => $post->id,
             'admin_id' => $admin->id,
             'action' => 'removed',
-            'reason' => 'Inappropriate content'
+            'reason' => 'Inappropriate content',
         ]);
     }
 
@@ -163,7 +162,7 @@ class ModerationControllerTest extends TestCase
         $post = Post::factory()->create([
             'topic_id' => $topic->id,
             'user_id' => $anotherUser->id,
-            'is_reported' => true
+            'is_reported' => true,
         ]);
 
         // Try to remove post (should fail with 403)
@@ -187,7 +186,7 @@ class ModerationControllerTest extends TestCase
         $post = Post::factory()->create([
             'topic_id' => $topic->id,
             'user_id' => $user->id,
-            'is_reported' => true
+            'is_reported' => true,
         ]);
 
         // Submit ignore report request
@@ -221,7 +220,7 @@ class ModerationControllerTest extends TestCase
         $post = Post::factory()->create([
             'topic_id' => $topic->id,
             'user_id' => $anotherUser->id,
-            'is_reported' => true
+            'is_reported' => true,
         ]);
 
         // Try to ignore report (should fail with 403)
@@ -248,12 +247,12 @@ class ModerationControllerTest extends TestCase
         $post = Post::factory()->create([
             'topic_id' => $topic->id,
             'user_id' => $user->id,
-            'is_reported' => true
+            'is_reported' => true,
         ]);
 
         // Submit remove post request
         $response = $this->post(route('admin.moderation.remove', $post), [
-            'reason' => 'Violates group rules'
+            'reason' => 'Violates group rules',
         ]);
 
         // Should succeed
@@ -283,12 +282,12 @@ class ModerationControllerTest extends TestCase
         $post = Post::factory()->create([
             'topic_id' => $topic->id,
             'user_id' => $user->id,
-            'is_reported' => true
+            'is_reported' => true,
         ]);
 
         // Try to remove post (should fail with 403)
         $response = $this->post(route('admin.moderation.remove', $post), [
-            'reason' => 'Should not work'
+            'reason' => 'Should not work',
         ]);
 
         $response->assertForbidden();

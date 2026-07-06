@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\User;
-use App\Models\Role;
 use App\Models\Group;
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -15,12 +15,13 @@ class PasswordControllerTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected string $token;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Seed roles and groups
         Role::create(['role_name' => 'Student', 'description' => 'Student role']);
         Group::create(['group_name' => 'Default Group', 'description' => 'Default group']);
@@ -171,7 +172,7 @@ class PasswordControllerTest extends TestCase
     public function test_authenticated_user_can_change_password(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/password/change', [
             'current_password' => 'Password123',
             'new_password' => 'NewPassword123',
@@ -191,7 +192,7 @@ class PasswordControllerTest extends TestCase
     public function test_change_password_fails_with_wrong_current_password(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/password/change', [
             'current_password' => 'WrongPassword123',
             'new_password' => 'NewPassword123',
@@ -211,7 +212,7 @@ class PasswordControllerTest extends TestCase
     public function test_change_password_requires_current_password(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/password/change', [
             'new_password' => 'NewPassword123',
             'new_password_confirmation' => 'NewPassword123',
@@ -224,7 +225,7 @@ class PasswordControllerTest extends TestCase
     public function test_change_password_requires_new_password(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/password/change', [
             'current_password' => 'Password123',
         ]);
@@ -236,7 +237,7 @@ class PasswordControllerTest extends TestCase
     public function test_change_password_requires_password_confirmation(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/password/change', [
             'current_password' => 'Password123',
             'new_password' => 'NewPassword123',
@@ -250,7 +251,7 @@ class PasswordControllerTest extends TestCase
     public function test_change_password_requires_strong_new_password(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/password/change', [
             'current_password' => 'Password123',
             'new_password' => 'weak',
@@ -264,7 +265,7 @@ class PasswordControllerTest extends TestCase
     public function test_change_password_requires_different_password(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/password/change', [
             'current_password' => 'Password123',
             'new_password' => 'Password123', // Same as current

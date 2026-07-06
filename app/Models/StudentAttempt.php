@@ -3,15 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class StudentAttempt extends Model
 {
     protected $primaryKey = 'attempt_id';
+
     protected $table = 'student_attempts';
-    
+
     protected $fillable = [
         'quiz_id',
         'student_id',
@@ -20,7 +21,7 @@ class StudentAttempt extends Model
         'is_auto_submit',
         'is_late',
     ];
-    
+
     protected $casts = [
         'start_time' => 'datetime',
         'submit_time' => 'datetime',

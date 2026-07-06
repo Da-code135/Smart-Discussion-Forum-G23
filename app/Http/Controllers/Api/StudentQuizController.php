@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Quiz;
-use App\Models\StudentAttempt;
-use App\Models\StudentAnswer;
 use App\Models\Grade;
+use App\Models\Quiz;
+use App\Models\StudentAnswer;
+use App\Models\StudentAttempt;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,7 +23,7 @@ class StudentQuizController extends Controller
         $user = Auth::user();
 
         // Group isolation: only users in the quiz's group can access
-        if ($quiz->group_id && $quiz->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        if ($quiz->group_id && $quiz->group_id !== $user->group_id && ! $user->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'This quiz is not available for your group.',
@@ -39,14 +39,14 @@ class StudentQuizController extends Controller
         }
 
         // Must be published
-        if (!$quiz->published_at) {
+        if (! $quiz->published_at) {
             return response()->json([
                 'success' => false,
                 'message' => 'Quiz announcement not published yet.',
             ], 404);
         }
 
-        $scheduledTime = Carbon::parse($quiz->scheduled_date . ' ' . $quiz->start_time);
+        $scheduledTime = Carbon::parse($quiz->scheduled_date.' '.$quiz->start_time);
         $now = now();
         $timeUntilStart = $scheduledTime->diffInSeconds($now, false);
 
@@ -78,7 +78,7 @@ class StudentQuizController extends Controller
         $user = Auth::user();
 
         // Group isolation: only users in the quiz's group can start
-        if ($quiz->group_id && $quiz->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        if ($quiz->group_id && $quiz->group_id !== $user->group_id && ! $user->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'This quiz is not available for your group.',
@@ -94,7 +94,7 @@ class StudentQuizController extends Controller
         }
 
         // Quiz must be active
-        if (!$quiz->is_active) {
+        if (! $quiz->is_active) {
             return response()->json([
                 'success' => false,
                 'message' => 'Quiz is not currently active.',
@@ -113,7 +113,7 @@ class StudentQuizController extends Controller
             ], 409);
         }
 
-        $scheduledTime = Carbon::parse($quiz->scheduled_date . ' ' . $quiz->start_time);
+        $scheduledTime = Carbon::parse($quiz->scheduled_date.' '.$quiz->start_time);
         $isLate = now()->isAfter($scheduledTime);
 
         // Create attempt
@@ -172,7 +172,7 @@ class StudentQuizController extends Controller
         $user = Auth::user();
 
         // Group isolation: only users in the quiz's group can view their attempt
-        if ($quiz->group_id && $quiz->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        if ($quiz->group_id && $quiz->group_id !== $user->group_id && ! $user->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have access to this quiz.',
@@ -183,7 +183,7 @@ class StudentQuizController extends Controller
             ->where('student_id', $user->id)
             ->first();
 
-        if (!$attempt) {
+        if (! $attempt) {
             return response()->json([
                 'success' => false,
                 'message' => 'No attempt found for this quiz.',
@@ -325,7 +325,7 @@ class StudentQuizController extends Controller
                 }
             }
 
-            if (!empty($records)) {
+            if (! empty($records)) {
                 StudentAnswer::insert($records);
             }
         });
@@ -387,7 +387,7 @@ class StudentQuizController extends Controller
             ->where('student_id', $user->id)
             ->first();
 
-        if (!$attempt) {
+        if (! $attempt) {
             return response()->json([
                 'success' => false,
                 'message' => 'Quiz attempt not found.',
@@ -440,8 +440,8 @@ class StudentQuizController extends Controller
             ->where('student_id', $user->id)
             ->first();
 
-        if (!$attempt) {
-            $scheduledTime = Carbon::parse($quiz->scheduled_date . ' ' . $quiz->start_time);
+        if (! $attempt) {
+            $scheduledTime = Carbon::parse($quiz->scheduled_date.' '.$quiz->start_time);
             $hasStarted = now()->isAfter($scheduledTime);
 
             return response()->json([
@@ -504,7 +504,7 @@ class StudentQuizController extends Controller
 
             $studentAnswer = $studentAnswers->get($question->question_id);
 
-            if (!$studentAnswer || !$studentAnswer->selected_answer_id) {
+            if (! $studentAnswer || ! $studentAnswer->selected_answer_id) {
                 continue;
             }
 

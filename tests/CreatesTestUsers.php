@@ -9,10 +9,15 @@ use App\Models\User;
 trait CreatesTestUsers
 {
     protected Role $systemAdminRole;
+
     protected Role $groupAdminRole;
+
     protected Role $studentRole;
+
     protected Role $memberRole;
+
     protected Group $defaultGroup;
+
     protected Group $secondGroup;
 
     protected function seedRolesAndGroups(): void

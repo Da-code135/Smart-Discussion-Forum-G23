@@ -22,8 +22,8 @@ return new class extends Migration
 
             // Categories are per-group (each group can have its own categories)
             $table->foreignId('group_id')
-                  ->constrained('groups')
-                  ->onDelete('cascade');
+                ->constrained('groups')
+                ->onDelete('cascade');
 
             // e.g., 'Mathematics', 'Programming', 'Science', 'General'
             $table->string('category_name', 100);

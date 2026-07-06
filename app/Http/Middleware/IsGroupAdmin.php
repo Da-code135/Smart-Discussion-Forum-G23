@@ -13,14 +13,14 @@ class IsGroupAdmin
      */
     public function handle(Request $request, Closure $next)
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return redirect('/login')->with('error', 'Please login to continue');
         }
 
         $user = auth()->user();
 
         // Must be at least a Group Admin (System Admins also pass this check)
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             abort(403, 'Unauthorized. Group Administrator access required.');
         }
 

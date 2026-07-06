@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Post;
 use App\Models\Report;
 use App\Models\Topic;
-use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -15,10 +15,10 @@ class ReportController extends Controller
         $request->validate([
             'reason' => 'required|string|max:1000',
             'type' => 'required|in:topic,post,reply',
-            'id' => 'required|integer'
+            'id' => 'required|integer',
         ]);
 
-        $class = match($request->type) {
+        $class = match ($request->type) {
             'topic' => Topic::class,
             'post', 'reply' => Post::class,
         };
@@ -27,17 +27,17 @@ class ReportController extends Controller
 
         // Group isolation: only report content in the user's own group
         if (method_exists($model, 'group') && $model->group) {
-            if ($model->group->id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
+            if ($model->group->id !== Auth::user()->group_id && ! Auth::user()->isSystemAdmin()) {
                 abort(403, 'You cannot report content outside your group.');
             }
-        } elseif (isset($model->topic) && $model->topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
+        } elseif (isset($model->topic) && $model->topic->group_id !== Auth::user()->group_id && ! Auth::user()->isSystemAdmin()) {
             // Posts inherit group via their topic
             abort(403, 'You cannot report content outside your group.');
         }
 
         $report = new Report([
             'reason' => $request->reason,
-            'user_id' => Auth::id()
+            'user_id' => Auth::id(),
         ]);
 
         $model->reports()->save($report);

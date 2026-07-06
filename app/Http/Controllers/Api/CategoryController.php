@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Group;
 use App\Models\Topic;
 use App\Models\TopicCategory;
 use Illuminate\Http\Request;
@@ -23,7 +24,7 @@ class CategoryController extends Controller
         $query = TopicCategory::orderBy('category_name');
 
         // System admins see all categories; others see only accessible groups
-        if (!$user->isSystemAdmin()) {
+        if (! $user->isSystemAdmin()) {
             $query->whereIn('group_id', $user->accessibleGroupIds());
         }
 
@@ -127,7 +128,7 @@ class CategoryController extends Controller
         }
 
         // Group admins can only create categories for groups they administer
-        if ($user->isGroupAdmin() && !$user->canAdminGroup(\App\Models\Group::findOrFail($validated['group_id']))) {
+        if ($user->isGroupAdmin() && ! $user->canAdminGroup(Group::findOrFail($validated['group_id']))) {
             return response()->json([
                 'message' => 'You can only create categories for groups you administer.',
             ], 403);
@@ -168,7 +169,7 @@ class CategoryController extends Controller
         $category = TopicCategory::findOrFail($categoryId);
 
         // Group admins can only update categories in groups they administer
-        if ($user->isGroupAdmin() && !$user->canAdminGroup($category->group)) {
+        if ($user->isGroupAdmin() && ! $user->canAdminGroup($category->group)) {
             return response()->json([
                 'message' => 'You can only update categories in groups you administer.',
             ], 403);
@@ -232,7 +233,7 @@ class CategoryController extends Controller
         $category = TopicCategory::findOrFail($categoryId);
 
         // Group admins can only delete categories in groups they administer
-        if ($user->isGroupAdmin() && !$user->canAdminGroup($category->group)) {
+        if ($user->isGroupAdmin() && ! $user->canAdminGroup($category->group)) {
             return response()->json([
                 'message' => 'You can only delete categories in groups you administer.',
             ], 403);

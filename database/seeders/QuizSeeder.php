@@ -2,13 +2,13 @@
 
 namespace Database\Seeders;
 
-use App\Models\Quiz;
-use App\Models\Question;
 use App\Models\Answer;
-use App\Models\QuizConfiguration;
-use App\Models\User;
-use App\Models\Role;
 use App\Models\Group;
+use App\Models\Question;
+use App\Models\Quiz;
+use App\Models\QuizConfiguration;
+use App\Models\Role;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 

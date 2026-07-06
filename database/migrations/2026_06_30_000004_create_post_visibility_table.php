@@ -23,13 +23,13 @@ return new class extends Migration
 
             // Which post has a visibility restriction
             $table->foreignId('post_id')
-                  ->constrained('posts')
-                  ->onDelete('cascade');
+                ->constrained('posts')
+                ->onDelete('cascade');
 
             // Which user is excluded from seeing this post
             $table->foreignId('excluded_user_id')
-                  ->constrained('users')
-                  ->onDelete('cascade');
+                ->constrained('users')
+                ->onDelete('cascade');
 
             $table->timestamp('created_at')->useCurrent();
 

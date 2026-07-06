@@ -2,17 +2,17 @@
 
 namespace Tests\Unit\Models;
 
-use Tests\TestCase;
-use Tests\CreatesTestUsers;
-use App\Models\Topic;
-use App\Models\Post;
 use App\Models\Group;
+use App\Models\Post;
+use App\Models\Topic;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\CreatesTestUsers;
+use Tests\TestCase;
 
 class TopicModelTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected User $author;
 
@@ -219,9 +219,9 @@ class TopicModelTest extends TestCase
         ]);
 
         $result = Topic::forGroup($this->defaultGroup->id)
-                       ->active()
-                       ->byType('question')
-                       ->get();
+            ->active()
+            ->byType('question')
+            ->get();
 
         $this->assertCount(1, $result);
         $this->assertEquals('G1 Question', $result->first()->title);
@@ -285,9 +285,9 @@ class TopicModelTest extends TestCase
         ]);
 
         $result = Topic::forGroup($this->defaultGroup->id)
-                       ->active()
-                       ->byType('question')
-                       ->get();
+            ->active()
+            ->byType('question')
+            ->get();
 
         $this->assertCount(1, $result);
         $this->assertEquals('How to solve integrals?', $result->first()->title);

@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Answer;
 use App\Models\Question;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class AnswerController extends Controller
 {
@@ -21,7 +20,7 @@ class AnswerController extends Controller
             'success' => true,
             'data' => [
                 'answers' => $answers,
-            ]
+            ],
         ]);
     }
 
@@ -46,7 +45,7 @@ class AnswerController extends Controller
             'data' => [
                 'answer' => $answer,
             ],
-            'message' => 'Answer added'
+            'message' => 'Answer added',
         ], 201);
     }
 
@@ -70,7 +69,7 @@ class AnswerController extends Controller
             'data' => [
                 'answer' => $answer,
             ],
-            'message' => 'Answer updated'
+            'message' => 'Answer updated',
         ]);
     }
 
@@ -83,7 +82,7 @@ class AnswerController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Answer deleted'
+            'message' => 'Answer deleted',
         ]);
     }
 }

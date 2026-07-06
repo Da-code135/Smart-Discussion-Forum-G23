@@ -4,22 +4,24 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rules\Password as PasswordRule;
-use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\View\View;
 
 class PasswordController extends Controller
 {
     /**
      * Show forgot password form (Task #51)
-     * 
+     *
      * GET /forgot-password
      * Route name: 'password.request'
-     * 
-     * @return \Illuminate\View\View
+     *
+     * @return View
      */
     public function showForgotPassword()
     {
@@ -28,14 +30,13 @@ class PasswordController extends Controller
 
     /**
      * Send password reset link to email (Task #53)
-     * 
+     *
      * POST /forgot-password
      * Route name: 'password.email'
-     * 
+     *
      * Uses Laravel's built-in password reset notification system
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
+     *
+     * @return RedirectResponse
      */
     public function sendResetLink(Request $request)
     {
@@ -58,13 +59,12 @@ class PasswordController extends Controller
 
     /**
      * Show password reset form (Task #55)
-     * 
+     *
      * GET /reset-password/{token}
      * Route name: 'password.reset'
-     * 
-     * @param Request $request
-     * @param string $token
-     * @return \Illuminate\View\View
+     *
+     * @param  string  $token
+     * @return View
      */
     public function showResetPassword(Request $request, $token)
     {
@@ -76,16 +76,15 @@ class PasswordController extends Controller
 
     /**
      * Reset the user's password (Task #56)
-     * 
+     *
      * POST /reset-password
      * Route name: 'password.update'
-     * 
+     *
      * Validates token, email, and new password with strength requirements
      * Uses Laravel's Password::reset() helper
      * Logs in user after successful reset
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
+     *
+     * @return RedirectResponse
      */
     public function resetPassword(Request $request)
     {
@@ -97,7 +96,7 @@ class PasswordController extends Controller
                 'confirmed',
                 PasswordRule::min(8)
                     ->mixedCase()
-                    ->numbers()
+                    ->numbers(),
             ],
         ], [
             'password.confirmed' => 'Passwords do not match.',
@@ -133,12 +132,12 @@ class PasswordController extends Controller
 
     /**
      * Show change password form (Task #57)
-     * 
+     *
      * GET /change-password
      * Route name: 'password.change'
      * Protected by auth middleware
-     * 
-     * @return \Illuminate\View\View
+     *
+     * @return View
      */
     public function showChangePassword()
     {
@@ -147,19 +146,18 @@ class PasswordController extends Controller
 
     /**
      * Update user's password (Task #59)
-     * 
+     *
      * POST /change-password
      * Route name: 'password.change.update'
      * Protected by auth middleware
-     * 
+     *
      * Validates:
      * - Current password is correct
      * - New password meets strength requirements
      * - New password confirmation matches
      * - New password is different from current password
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
+     *
+     * @return RedirectResponse
      */
     public function updatePassword(Request $request)
     {
@@ -167,7 +165,7 @@ class PasswordController extends Controller
             'current_password' => [
                 'required',
                 function ($attribute, $value, $fail) {
-                    if (!Hash::check($value, Auth::user()->password)) {
+                    if (! Hash::check($value, Auth::user()->password)) {
                         $fail('The current password is incorrect.');
                     }
                 },
@@ -178,7 +176,7 @@ class PasswordController extends Controller
                 'confirmed',
                 PasswordRule::min(8)
                     ->mixedCase()
-                    ->numbers()
+                    ->numbers(),
             ],
             'new_password_confirmation' => 'required',
         ], [
@@ -198,20 +196,19 @@ class PasswordController extends Controller
 
     /**
      * Calculate password strength (Task #60)
-     * 
+     *
      * Static helper method for real-time password strength feedback in views
-     * 
+     *
      * Scoring:
      * +1 for 8+ chars, +1 for 12+ chars, +1 for 16+ chars
      * +1 for lowercase, +1 for uppercase, +1 for number, +1 for special char
-     * 
+     *
      * Results:
      * - weak: ≤2 points
      * - fair: ≤4 points
      * - good: ≤6 points
      * - strong: >6 points
-     * 
-     * @param string $password
+     *
      * @return string One of: 'weak', 'fair', 'good', 'strong'
      */
     public static function getPasswordStrength(string $password): string

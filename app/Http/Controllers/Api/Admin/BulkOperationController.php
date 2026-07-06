@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Services\BulkOperationService;
+use App\Models\Group;
 use App\Services\AuditLogService;
+use App\Services\BulkOperationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class BulkOperationController extends Controller
 {
     protected BulkOperationService $bulkOperationService;
+
     protected AuditLogService $auditLogService;
 
     public function __construct(
@@ -30,10 +32,10 @@ class BulkOperationController extends Controller
         $currentUser = auth()->user();
 
         // Only System Admins can change roles
-        if (!$currentUser->isSystemAdmin()) {
+        if (! $currentUser->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can perform bulk role changes'
+                'message' => 'Only System Administrators can perform bulk role changes',
             ], 403);
         }
 
@@ -52,7 +54,7 @@ class BulkOperationController extends Controller
         if (isset($results['error'])) {
             return response()->json([
                 'success' => false,
-                'message' => $results['error']
+                'message' => $results['error'],
             ], 400);
         }
 
@@ -66,7 +68,7 @@ class BulkOperationController extends Controller
                 'role_id' => $validated['role_id'],
                 'results' => $results,
             ],
-            "Bulk role change: " . count($results['success']) . " users updated"
+            'Bulk role change: '.count($results['success']).' users updated'
         );
 
         return response()->json([
@@ -78,7 +80,7 @@ class BulkOperationController extends Controller
                 'failed' => count($results['failed']),
                 'skipped' => count($results['skipped']),
                 'details' => $results,
-            ]
+            ],
         ]);
     }
 
@@ -90,10 +92,10 @@ class BulkOperationController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -112,7 +114,7 @@ class BulkOperationController extends Controller
         if (isset($results['error'])) {
             return response()->json([
                 'success' => false,
-                'message' => $results['error']
+                'message' => $results['error'],
             ], 400);
         }
 
@@ -126,7 +128,7 @@ class BulkOperationController extends Controller
                 'status' => $validated['status'],
                 'results' => $results,
             ],
-            "Bulk status change: " . count($results['success']) . " users updated"
+            'Bulk status change: '.count($results['success']).' users updated'
         );
 
         return response()->json([
@@ -138,7 +140,7 @@ class BulkOperationController extends Controller
                 'failed' => count($results['failed']),
                 'skipped' => count($results['skipped']),
                 'details' => $results,
-            ]
+            ],
         ]);
     }
 
@@ -150,10 +152,10 @@ class BulkOperationController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -166,12 +168,12 @@ class BulkOperationController extends Controller
         // Group Admins can only assign to their groups
         if ($currentUser->isGroupAdmin()) {
             $canAssign = $currentUser->canAdminGroup(
-                \App\Models\Group::find($validated['group_id'])
+                Group::find($validated['group_id'])
             );
-            if (!$canAssign) {
+            if (! $canAssign) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'You can only assign users to groups you administer'
+                    'message' => 'You can only assign users to groups you administer',
                 ], 403);
             }
         }
@@ -185,7 +187,7 @@ class BulkOperationController extends Controller
         if (isset($results['error'])) {
             return response()->json([
                 'success' => false,
-                'message' => $results['error']
+                'message' => $results['error'],
             ], 400);
         }
 
@@ -199,7 +201,7 @@ class BulkOperationController extends Controller
                 'group_id' => $validated['group_id'],
                 'results' => $results,
             ],
-            "Bulk group assignment: " . count($results['success']) . " users assigned"
+            'Bulk group assignment: '.count($results['success']).' users assigned'
         );
 
         return response()->json([
@@ -211,7 +213,7 @@ class BulkOperationController extends Controller
                 'failed' => count($results['failed']),
                 'skipped' => count($results['skipped']),
                 'details' => $results,
-            ]
+            ],
         ]);
     }
 
@@ -223,10 +225,10 @@ class BulkOperationController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -247,7 +249,7 @@ class BulkOperationController extends Controller
         if (isset($results['error'])) {
             return response()->json([
                 'success' => false,
-                'message' => $results['error']
+                'message' => $results['error'],
             ], 400);
         }
 
@@ -262,7 +264,7 @@ class BulkOperationController extends Controller
                 'duration_days' => $validated['duration_days'] ?? null,
                 'results' => $results,
             ],
-            "Bulk blacklist: " . count($results['success']) . " users blacklisted"
+            'Bulk blacklist: '.count($results['success']).' users blacklisted'
         );
 
         return response()->json([
@@ -274,7 +276,7 @@ class BulkOperationController extends Controller
                 'failed' => count($results['failed']),
                 'skipped' => count($results['skipped']),
                 'details' => $results,
-            ]
+            ],
         ]);
     }
 
@@ -286,10 +288,10 @@ class BulkOperationController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -306,7 +308,7 @@ class BulkOperationController extends Controller
         if (isset($results['error'])) {
             return response()->json([
                 'success' => false,
-                'message' => $results['error']
+                'message' => $results['error'],
             ], 400);
         }
 
@@ -319,7 +321,7 @@ class BulkOperationController extends Controller
                 'user_ids' => $validated['user_ids'],
                 'results' => $results,
             ],
-            "Bulk blacklist lift: " . count($results['success']) . " users unblacklisted"
+            'Bulk blacklist lift: '.count($results['success']).' users unblacklisted'
         );
 
         return response()->json([
@@ -331,7 +333,7 @@ class BulkOperationController extends Controller
                 'failed' => count($results['failed']),
                 'skipped' => count($results['skipped']),
                 'details' => $results,
-            ]
+            ],
         ]);
     }
 
@@ -343,10 +345,10 @@ class BulkOperationController extends Controller
     {
         $currentUser = auth()->user();
 
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -367,7 +369,7 @@ class BulkOperationController extends Controller
         if (isset($results['error'])) {
             return response()->json([
                 'success' => false,
-                'message' => $results['error']
+                'message' => $results['error'],
             ], 400);
         }
 
@@ -381,7 +383,7 @@ class BulkOperationController extends Controller
                 'reason' => $validated['reason'],
                 'results' => $results,
             ],
-            "Bulk warning: " . count($results['success']) . " users warned"
+            'Bulk warning: '.count($results['success']).' users warned'
         );
 
         return response()->json([
@@ -393,7 +395,7 @@ class BulkOperationController extends Controller
                 'failed' => count($results['failed']),
                 'skipped' => count($results['skipped']),
                 'details' => $results,
-            ]
+            ],
         ]);
     }
 
@@ -406,10 +408,10 @@ class BulkOperationController extends Controller
         $currentUser = auth()->user();
 
         // Only System Admins can assign group admins
-        if (!$currentUser->isSystemAdmin()) {
+        if (! $currentUser->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can assign group admins'
+                'message' => 'Only System Administrators can assign group admins',
             ], 403);
         }
 
@@ -428,7 +430,7 @@ class BulkOperationController extends Controller
         if (isset($results['error'])) {
             return response()->json([
                 'success' => false,
-                'message' => $results['error']
+                'message' => $results['error'],
             ], 400);
         }
 
@@ -442,7 +444,7 @@ class BulkOperationController extends Controller
                 'group_id' => $validated['group_id'],
                 'results' => $results,
             ],
-            "Bulk group admin assignment: " . count($results['success']) . " admins assigned"
+            'Bulk group admin assignment: '.count($results['success']).' admins assigned'
         );
 
         return response()->json([
@@ -454,7 +456,7 @@ class BulkOperationController extends Controller
                 'failed' => count($results['failed']),
                 'skipped' => count($results['skipped']),
                 'details' => $results,
-            ]
+            ],
         ]);
     }
 }

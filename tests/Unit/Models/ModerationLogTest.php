@@ -5,6 +5,7 @@ namespace Tests\Unit\Models;
 use App\Models\ModerationLog;
 use App\Models\Post;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,7 +19,7 @@ class ModerationLogTest extends TestCase
             'post_id' => 1,
             'admin_id' => 2,
             'action' => 'removed',
-            'reason' => 'Violates community guidelines'
+            'reason' => 'Violates community guidelines',
         ];
 
         $moderationLog = ModerationLog::create($attributes);
@@ -36,7 +37,7 @@ class ModerationLogTest extends TestCase
 
         $moderationLog = ModerationLog::factory()->create([
             'post_id' => $post->id,
-            'admin_id' => $admin->id
+            'admin_id' => $admin->id,
         ]);
 
         $this->assertInstanceOf(Post::class, $moderationLog->post);
@@ -50,7 +51,7 @@ class ModerationLogTest extends TestCase
 
         $moderationLog = ModerationLog::factory()->create([
             'post_id' => $post->id,
-            'admin_id' => $admin->id
+            'admin_id' => $admin->id,
         ]);
 
         $this->assertInstanceOf(User::class, $moderationLog->admin);
@@ -66,7 +67,7 @@ class ModerationLogTest extends TestCase
             'post_id' => $post->id,
             'admin_id' => $admin->id,
             'action' => 'removed',
-            'reason' => null
+            'reason' => null,
         ]);
 
         $this->assertNull($moderationLog->reason);
@@ -81,12 +82,12 @@ class ModerationLogTest extends TestCase
             'post_id' => $post->id,
             'admin_id' => $admin->id,
             'action' => 'removed',
-            'reason' => 'Test reason'
+            'reason' => 'Test reason',
         ]);
 
         $this->assertNotNull($moderationLog->created_at);
         $this->assertNotNull($moderationLog->updated_at);
-        $this->assertInstanceOf(\Carbon\Carbon::class, $moderationLog->created_at);
-        $this->assertInstanceOf(\Carbon\Carbon::class, $moderationLog->updated_at);
+        $this->assertInstanceOf(Carbon::class, $moderationLog->created_at);
+        $this->assertInstanceOf(Carbon::class, $moderationLog->updated_at);
     }
 }

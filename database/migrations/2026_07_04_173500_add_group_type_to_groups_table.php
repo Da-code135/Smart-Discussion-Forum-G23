@@ -19,8 +19,8 @@ return new class extends Migration
     {
         Schema::table('groups', function (Blueprint $table) {
             $table->enum('group_type', ['sysadmin', 'lecturer', 'student'])
-                  ->default('student')
-                  ->after('description');
+                ->default('student')
+                ->after('description');
         });
     }
 

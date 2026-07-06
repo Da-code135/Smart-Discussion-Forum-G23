@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Grade extends Model
 {
     protected $primaryKey = 'grade_id';
+
     protected $table = 'grades';
 
     protected $fillable = [

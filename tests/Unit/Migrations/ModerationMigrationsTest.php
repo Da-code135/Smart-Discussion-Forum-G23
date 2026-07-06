@@ -3,8 +3,8 @@
 namespace Tests\Unit\Migrations;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ModerationMigrationsTest extends TestCase
@@ -40,9 +40,9 @@ class ModerationMigrationsTest extends TestCase
 
         // Check that the moderation_logs table has the correct columns
         $expectedColumns = [
-            'id', 'post_id', 'admin_id', 'action', 'reason', 'created_at', 'updated_at'
+            'id', 'post_id', 'admin_id', 'action', 'reason', 'created_at', 'updated_at',
         ];
-        
+
         foreach ($expectedColumns as $column) {
             $this->assertTrue(
                 Schema::hasColumn('moderation_logs', $column),
@@ -76,7 +76,7 @@ class ModerationMigrationsTest extends TestCase
     {
         // Run the migration up
         $this->artisan('migrate', ['--database' => 'testing']);
-        
+
         // Verify the column exists
         $this->assertTrue(Schema::hasColumn('posts', 'is_reported'));
 
@@ -91,7 +91,7 @@ class ModerationMigrationsTest extends TestCase
     {
         // Run the migration up
         $this->artisan('migrate', ['--database' => 'testing']);
-        
+
         // Verify the table exists
         $this->assertTrue(Schema::hasTable('moderation_logs'));
 
@@ -116,7 +116,7 @@ class ModerationMigrationsTest extends TestCase
 
         // Check that is_reported defaults to false
         $newPost = DB::table('posts')->orderByDesc('id')->first();
-        
+
         // In SQLite, boolean false is stored as 0
         $this->assertEquals(0, $newPost->is_reported);
     }

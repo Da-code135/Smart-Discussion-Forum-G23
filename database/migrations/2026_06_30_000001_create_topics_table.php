@@ -19,13 +19,13 @@ return new class extends Migration
 
             // Which group owns this topic — critical for group isolation
             $table->foreignId('group_id')
-                  ->constrained('groups')
-                  ->onDelete('cascade');
+                ->constrained('groups')
+                ->onDelete('cascade');
 
             // Who started this topic
             $table->foreignId('created_by')
-                  ->constrained('users')
-                  ->onDelete('cascade');
+                ->constrained('users')
+                ->onDelete('cascade');
 
             // Discussion title — must be unique to prevent duplicate threads
             $table->string('title', 255)->unique();

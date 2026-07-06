@@ -12,25 +12,22 @@ class SystemConfig extends Model
     /**
      * Get a configuration value by key with caching.
      *
-     * @param string $key
-     * @param mixed $default
+     * @param  mixed  $default
      * @return mixed
      */
     public static function getValue(string $key, $default = null)
     {
         $cacheKey = "system_config.{$key}";
-        
+
         return Cache::remember($cacheKey, 3600, function () use ($key, $default) {
             $config = self::where('config_key', $key)->first();
+
             return $config ? $config->config_value : $default;
         });
     }
 
     /**
      * Clear cache for specific config key
-     *
-     * @param string $key
-     * @return void
      */
     public static function clearCache(string $key): void
     {
@@ -39,8 +36,6 @@ class SystemConfig extends Model
 
     /**
      * Clear all config caches
-     *
-     * @return void
      */
     public static function clearAllCaches(): void
     {

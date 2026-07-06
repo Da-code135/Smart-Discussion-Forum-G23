@@ -22,7 +22,7 @@ return new class extends Migration
 
             // Ensure IP is unique
             $table->unique('ip_address');
-            
+
             // Index for active IPs
             $table->index(['is_active', 'expires_at']);
         });

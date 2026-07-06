@@ -107,7 +107,7 @@ class AuditLogController extends Controller
      */
     protected function exportCsv(array $logs)
     {
-        $filename = 'audit-logs-' . now()->format('Y-m-d-His') . '.csv';
+        $filename = 'audit-logs-'.now()->format('Y-m-d-His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',

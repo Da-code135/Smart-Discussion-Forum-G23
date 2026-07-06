@@ -1,5 +1,12 @@
 <?php
 
+use App\Http\Middleware\ApiSecurityHeaders;
+use App\Http\Middleware\CanAdminGroup;
+use App\Http\Middleware\IpWhitelist;
+use App\Http\Middleware\IsAdmin;
+use App\Http\Middleware\IsGroupAdmin;
+use App\Http\Middleware\IsSystemAdmin;
+use App\Http\Middleware\ThrottlePosts;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,15 +25,15 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Register middleware aliases
         $middleware->alias([
-            'api.security' => \App\Http\Middleware\ApiSecurityHeaders::class,
-            'admin' => \App\Http\Middleware\IsAdmin::class,
-            'system-admin' => \App\Http\Middleware\IsSystemAdmin::class,
-            'group-admin' => \App\Http\Middleware\IsGroupAdmin::class,
-            'can-admin-group' => \App\Http\Middleware\CanAdminGroup::class,
-            'ip-whitelist' => \App\Http\Middleware\IpWhitelist::class,
+            'api.security' => ApiSecurityHeaders::class,
+            'admin' => IsAdmin::class,
+            'system-admin' => IsSystemAdmin::class,
+            'group-admin' => IsGroupAdmin::class,
+            'can-admin-group' => CanAdminGroup::class,
+            'ip-whitelist' => IpWhitelist::class,
 
             // Anti-flood: action parameter separated by colon, e.g. throttle.posts:reply
-            'throttle.posts' => \App\Http\Middleware\ThrottlePosts::class,
+            'throttle.posts' => ThrottlePosts::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -24,10 +24,10 @@ class IpWhitelistController extends Controller
     public function index()
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can access IP whitelist'
+                'message' => 'Only System Administrators can access IP whitelist',
             ], 403);
         }
 
@@ -56,10 +56,10 @@ class IpWhitelistController extends Controller
     public function show($ipId)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can access IP whitelist'
+                'message' => 'Only System Administrators can access IP whitelist',
             ], 403);
         }
 
@@ -78,10 +78,10 @@ class IpWhitelistController extends Controller
     public function store(Request $request)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can manage IP whitelist'
+                'message' => 'Only System Administrators can manage IP whitelist',
             ], 403);
         }
 
@@ -102,7 +102,7 @@ class IpWhitelistController extends Controller
         $this->auditLogService->log(
             action: 'admin.ip.added',
             target: $ip,
-            description: auth()->user()->full_name . " added IP {$ip->ip_address} to whitelist"
+            description: auth()->user()->full_name." added IP {$ip->ip_address} to whitelist"
         );
 
         return response()->json([
@@ -119,17 +119,17 @@ class IpWhitelistController extends Controller
     public function update(Request $request, $ipId)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can manage IP whitelist'
+                'message' => 'Only System Administrators can manage IP whitelist',
             ], 403);
         }
 
         $ip = AdminIpWhitelist::findOrFail($ipId);
 
         $validated = $request->validate([
-            'ip_address' => 'required|ip|unique:admin_ip_whitelist,ip_address,' . $ip->id,
+            'ip_address' => 'required|ip|unique:admin_ip_whitelist,ip_address,'.$ip->id,
             'description' => 'nullable|string|max:255',
             'is_active' => 'boolean',
             'expires_at' => 'nullable|date',
@@ -161,10 +161,10 @@ class IpWhitelistController extends Controller
     public function destroy($ipId)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can manage IP whitelist'
+                'message' => 'Only System Administrators can manage IP whitelist',
             ], 403);
         }
 
@@ -192,10 +192,10 @@ class IpWhitelistController extends Controller
     public function activate($ipId)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can manage IP whitelist'
+                'message' => 'Only System Administrators can manage IP whitelist',
             ], 403);
         }
 
@@ -206,7 +206,7 @@ class IpWhitelistController extends Controller
         $this->auditLogService->log(
             action: 'admin.ip.activated',
             target: $ip,
-            description: auth()->user()->full_name . " activated IP {$ip->ip_address}"
+            description: auth()->user()->full_name." activated IP {$ip->ip_address}"
         );
 
         return response()->json([
@@ -223,10 +223,10 @@ class IpWhitelistController extends Controller
     public function deactivate($ipId)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can manage IP whitelist'
+                'message' => 'Only System Administrators can manage IP whitelist',
             ], 403);
         }
 
@@ -237,7 +237,7 @@ class IpWhitelistController extends Controller
         $this->auditLogService->log(
             action: 'admin.ip.deactivated',
             target: $ip,
-            description: auth()->user()->full_name . " deactivated IP {$ip->ip_address}"
+            description: auth()->user()->full_name." deactivated IP {$ip->ip_address}"
         );
 
         return response()->json([
@@ -254,10 +254,10 @@ class IpWhitelistController extends Controller
     public function check($ip)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can check IP whitelist'
+                'message' => 'Only System Administrators can check IP whitelist',
             ], 403);
         }
 

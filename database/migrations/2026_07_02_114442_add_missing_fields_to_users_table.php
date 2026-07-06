@@ -13,12 +13,12 @@ class AddMissingFieldsToUsersTable extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             // Add blacklisted_at timestamp if not exists
-            if (!Schema::hasColumn('users', 'blacklisted_at')) {
+            if (! Schema::hasColumn('users', 'blacklisted_at')) {
                 $table->timestamp('blacklisted_at')->nullable()->after('account_status');
             }
 
             // Add is_warned boolean if not exists
-            if (!Schema::hasColumn('users', 'is_warned')) {
+            if (! Schema::hasColumn('users', 'is_warned')) {
                 $table->boolean('is_warned')->default(false)->after('blacklisted_at');
             }
         });

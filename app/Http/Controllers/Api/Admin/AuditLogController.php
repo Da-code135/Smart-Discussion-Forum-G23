@@ -25,10 +25,10 @@ class AuditLogController extends Controller
         $currentUser = auth()->user();
 
         // Authorization check
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -72,10 +72,10 @@ class AuditLogController extends Controller
     public function show($logId)
     {
         // Authorization check
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -94,10 +94,10 @@ class AuditLogController extends Controller
     public function export(Request $request, $format = 'json')
     {
         // Authorization check
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -141,10 +141,10 @@ class AuditLogController extends Controller
     public function getActions()
     {
         // Authorization check
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 

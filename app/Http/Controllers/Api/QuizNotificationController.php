@@ -27,7 +27,7 @@ class QuizNotificationController extends Controller
             ->with('lecturer:id,full_name');
 
         // System admins see all upcoming quizzes; others see only their accessible groups
-        if (!$user->isSystemAdmin()) {
+        if (! $user->isSystemAdmin()) {
             $query->whereIn('group_id', $user->accessibleGroupIds());
         }
 
@@ -36,16 +36,16 @@ class QuizNotificationController extends Controller
             ->get()
             ->map(function (Quiz $quiz) {
                 return [
-                    'quiz_id'          => $quiz->quiz_id,
-                    'title'            => $quiz->title,
-                    'description'      => $quiz->description,
-                    'target_category'  => $quiz->target_category,
-                    'scheduled_date'   => $quiz->scheduled_date?->toDateString(),
-                    'start_time'       => $quiz->start_time?->format('H:i'),
+                    'quiz_id' => $quiz->quiz_id,
+                    'title' => $quiz->title,
+                    'description' => $quiz->description,
+                    'target_category' => $quiz->target_category,
+                    'scheduled_date' => $quiz->scheduled_date?->toDateString(),
+                    'start_time' => $quiz->start_time?->format('H:i'),
                     'duration_minutes' => $quiz->duration_minutes,
-                    'lecturer'         => $quiz->lecturer
+                    'lecturer' => $quiz->lecturer
                         ? [
-                            'id'        => $quiz->lecturer->id,
+                            'id' => $quiz->lecturer->id,
                             'full_name' => $quiz->lecturer->full_name,
                         ]
                         : null,
@@ -54,7 +54,7 @@ class QuizNotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => [
+            'data' => [
                 'quizzes' => $quizzes,
             ],
         ]);
@@ -75,23 +75,23 @@ class QuizNotificationController extends Controller
             ->with('lecturer:id,full_name');
 
         // System admins see all live quizzes; others see only their accessible groups
-        if (!$user->isSystemAdmin()) {
+        if (! $user->isSystemAdmin()) {
             $query->whereIn('group_id', $user->accessibleGroupIds());
         }
 
         $quizzes = $query->get()
             ->map(function (Quiz $quiz) {
                 return [
-                    'quiz_id'          => $quiz->quiz_id,
-                    'title'            => $quiz->title,
-                    'description'      => $quiz->description,
-                    'target_category'  => $quiz->target_category,
-                    'scheduled_date'   => $quiz->scheduled_date?->toDateString(),
-                    'start_time'       => $quiz->start_time?->format('H:i'),
+                    'quiz_id' => $quiz->quiz_id,
+                    'title' => $quiz->title,
+                    'description' => $quiz->description,
+                    'target_category' => $quiz->target_category,
+                    'scheduled_date' => $quiz->scheduled_date?->toDateString(),
+                    'start_time' => $quiz->start_time?->format('H:i'),
                     'duration_minutes' => $quiz->duration_minutes,
-                    'lecturer'         => $quiz->lecturer
+                    'lecturer' => $quiz->lecturer
                         ? [
-                            'id'        => $quiz->lecturer->id,
+                            'id' => $quiz->lecturer->id,
                             'full_name' => $quiz->lecturer->full_name,
                         ]
                         : null,
@@ -100,7 +100,7 @@ class QuizNotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => [
+            'data' => [
                 'quizzes' => $quizzes,
             ],
         ]);
@@ -123,19 +123,19 @@ class QuizNotificationController extends Controller
 
         $attempts->getCollection()->transform(function (StudentAttempt $attempt) {
             return [
-                'attempt_id'     => $attempt->attempt_id,
-                'quiz_id'        => $attempt->quiz_id,
-                'quiz_title'     => $attempt->quiz?->title,
-                'start_time'     => $attempt->start_time?->toIso8601String(),
-                'submit_time'    => $attempt->submit_time?->toIso8601String(),
+                'attempt_id' => $attempt->attempt_id,
+                'quiz_id' => $attempt->quiz_id,
+                'quiz_title' => $attempt->quiz?->title,
+                'start_time' => $attempt->start_time?->toIso8601String(),
+                'submit_time' => $attempt->submit_time?->toIso8601String(),
                 'is_auto_submit' => $attempt->is_auto_submit,
-                'is_late'        => $attempt->is_late,
-                'grade'          => $attempt->grade
+                'is_late' => $attempt->is_late,
+                'grade' => $attempt->grade
                     ? [
-                        'grade_id'    => $attempt->grade->grade_id,
+                        'grade_id' => $attempt->grade->grade_id,
                         'total_score' => $attempt->grade->total_score,
-                        'max_score'   => $attempt->grade->max_score,
-                        'percentage'  => $attempt->grade->percentage,
+                        'max_score' => $attempt->grade->max_score,
+                        'percentage' => $attempt->grade->percentage,
                         'final_grade' => $attempt->grade->final_grade,
                     ]
                     : null,
@@ -143,15 +143,15 @@ class QuizNotificationController extends Controller
         });
 
         return response()->json([
-            'success'    => true,
-            'data'       => [
+            'success' => true,
+            'data' => [
                 'attempts' => $attempts->items(),
             ],
             'pagination' => [
                 'current_page' => $attempts->currentPage(),
-                'last_page'    => $attempts->lastPage(),
-                'per_page'     => $attempts->perPage(),
-                'total'        => $attempts->total(),
+                'last_page' => $attempts->lastPage(),
+                'per_page' => $attempts->perPage(),
+                'total' => $attempts->total(),
             ],
         ]);
     }
@@ -176,25 +176,25 @@ class QuizNotificationController extends Controller
 
         $notifications->getCollection()->transform(function (Notification $notification) {
             return [
-                'id'         => $notification->id,
-                'type'       => $notification->type,
-                'data'       => $notification->data,
-                'read_at'    => $notification->read_at?->toIso8601String(),
-                'is_read'    => $notification->read_at !== null,
+                'id' => $notification->id,
+                'type' => $notification->type,
+                'data' => $notification->data,
+                'read_at' => $notification->read_at?->toIso8601String(),
+                'is_read' => $notification->read_at !== null,
                 'created_at' => $notification->created_at?->toIso8601String(),
             ];
         });
 
         return response()->json([
-            'success'    => true,
-            'data'       => [
+            'success' => true,
+            'data' => [
                 'notifications' => $notifications->items(),
             ],
             'pagination' => [
                 'current_page' => $notifications->currentPage(),
-                'last_page'    => $notifications->lastPage(),
-                'per_page'     => $notifications->perPage(),
-                'total'        => $notifications->total(),
+                'last_page' => $notifications->lastPage(),
+                'per_page' => $notifications->perPage(),
+                'total' => $notifications->total(),
             ],
         ]);
     }

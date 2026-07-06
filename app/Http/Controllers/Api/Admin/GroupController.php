@@ -26,12 +26,12 @@ class GroupController extends Controller
     public function index(Request $request)
     {
         $currentUser = auth()->user();
-        
+
         // Authorization check
-        if (!$currentUser->isAdmin()) {
+        if (! $currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
@@ -82,10 +82,10 @@ class GroupController extends Controller
         $group = Group::withCount('users')->findOrFail($groupId);
 
         // Authorization check
-        if (!Gate::allows('view', $group)) {
+        if (! Gate::allows('view', $group)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. You cannot view this group.'
+                'message' => 'Unauthorized. You cannot view this group.',
             ], 403);
         }
 
@@ -102,10 +102,10 @@ class GroupController extends Controller
     public function store(Request $request)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can create new groups'
+                'message' => 'Only System Administrators can create new groups',
             ], 403);
         }
 
@@ -139,15 +139,15 @@ class GroupController extends Controller
         $group = Group::findOrFail($groupId);
 
         // Authorization check
-        if (!Gate::allows('update', $group)) {
+        if (! Gate::allows('update', $group)) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to update this group'
+                'message' => 'You do not have permission to update this group',
             ], 403);
         }
 
         $validated = $request->validate([
-            'group_name' => 'required|string|max:100|unique:groups,group_name,' . $group->id,
+            'group_name' => 'required|string|max:100|unique:groups,group_name,'.$group->id,
             'description' => 'nullable|string|max:500',
         ]);
 
@@ -174,10 +174,10 @@ class GroupController extends Controller
         $group = Group::findOrFail($groupId);
 
         // Authorization check - System Admin only
-        if (!Gate::allows('delete', $group)) {
+        if (! Gate::allows('delete', $group)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can delete groups'
+                'message' => 'Only System Administrators can delete groups',
             ], 403);
         }
 
@@ -185,7 +185,7 @@ class GroupController extends Controller
         if ($group->group_name === 'General') {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete the General group'
+                'message' => 'Cannot delete the General group',
             ], 400);
         }
 
@@ -209,10 +209,10 @@ class GroupController extends Controller
         $group = Group::findOrFail($groupId);
 
         // Authorization check
-        if (!Gate::allows('manageMembers', $group)) {
+        if (! Gate::allows('manageMembers', $group)) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to view members of this group'
+                'message' => 'You do not have permission to view members of this group',
             ], 403);
         }
 
@@ -233,10 +233,10 @@ class GroupController extends Controller
         $group = Group::findOrFail($groupId);
 
         // Authorization check
-        if (!Gate::allows('manageMembers', $group)) {
+        if (! Gate::allows('manageMembers', $group)) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to manage members of this group'
+                'message' => 'You do not have permission to manage members of this group',
             ], 403);
         }
 
@@ -249,7 +249,7 @@ class GroupController extends Controller
         if ($group->group_name === 'General' && count($validated['user_ids']) === 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot remove all members from General group'
+                'message' => 'Cannot remove all members from General group',
             ], 400);
         }
 
@@ -280,10 +280,10 @@ class GroupController extends Controller
     public function addAdmin(Request $request, $groupId)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can assign group admins'
+                'message' => 'Only System Administrators can assign group admins',
             ], 403);
         }
 
@@ -296,10 +296,10 @@ class GroupController extends Controller
         $user = User::findOrFail($validated['user_id']);
 
         // Check if user is Group Administrator
-        if (!$user->isGroupAdmin()) {
+        if (! $user->isGroupAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'User must have Group Administrator role'
+                'message' => 'User must have Group Administrator role',
             ], 400);
         }
 
@@ -318,10 +318,10 @@ class GroupController extends Controller
     public function removeAdmin($groupId, $userId)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can remove group admins'
+                'message' => 'Only System Administrators can remove group admins',
             ], 403);
         }
 

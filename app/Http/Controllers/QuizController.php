@@ -2,17 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Quiz;
-use App\Models\Question;
-use App\Models\Answer;
-use App\Models\QuizConfiguration;
+use App\Events\QuizPublished;
 use App\Models\Grade;
 use App\Models\Group;
-use App\Events\QuizPublished;
+use App\Models\Question;
+use App\Models\Quiz;
+use App\Models\QuizConfiguration;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 
 class QuizController extends Controller
 {
@@ -26,10 +24,10 @@ class QuizController extends Controller
         $accessibleGroupIds = Quiz::lecturerAccessibleGroupIds($user);
 
         $quizzes = Quiz::where('lecturer_id', $user->id)
-                        ->whereIn('group_id', $accessibleGroupIds)
-                        ->with('configuration', 'group')  // Load config + group for each quiz
-                        ->latest()
-                        ->paginate(10);
+            ->whereIn('group_id', $accessibleGroupIds)
+            ->with('configuration', 'group')  // Load config + group for each quiz
+            ->latest()
+            ->paginate(10);
 
         return view('quizzes.index', compact('quizzes'));
     }
@@ -76,7 +74,7 @@ class QuizController extends Controller
         $group = null;
         if ($request->has('group_id')) {
             $group = Group::findOrFail($validated['group_id']);
-            if (!$user->canTeachGroup($group)) {
+            if (! $user->canTeachGroup($group)) {
                 abort(403, 'You cannot create quizzes for this group.');
             }
         } elseif ($user->group_id) {
@@ -108,7 +106,7 @@ class QuizController extends Controller
         ]);
 
         return redirect()->route('quizzes.edit', $quiz->quiz_id)
-                         ->with('success', 'Quiz created! Now add questions.');
+            ->with('success', 'Quiz created! Now add questions.');
     }
 
     /**
@@ -204,7 +202,7 @@ class QuizController extends Controller
         $quiz->delete();  // Cascades to questions, answers, etc.
 
         return redirect()->route('quizzes.index')
-                         ->with('success', 'Quiz deleted.');
+            ->with('success', 'Quiz deleted.');
     }
 
     /**
@@ -237,7 +235,7 @@ class QuizController extends Controller
         }
 
         // Validation: Scheduled date/time must be in future
-        $scheduledDateTime = Carbon::parse($quiz->scheduled_date . ' ' . $quiz->start_time);
+        $scheduledDateTime = Carbon::parse($quiz->scheduled_date.' '.$quiz->start_time);
         if ($scheduledDateTime->isPast()) {
             return back()->with('error', 'Quiz date/time must be in the future.');
         }
@@ -264,14 +262,14 @@ class QuizController extends Controller
     public function showPerformanceReport(Quiz $quiz)
     {
         // Security: Only the quiz lecturer or an admin can view
-        if (Auth::user()->id !== $quiz->lecturer_id && !Auth::user()->isAdmin()) {
+        if (Auth::user()->id !== $quiz->lecturer_id && ! Auth::user()->isAdmin()) {
             abort(403, 'Not authorized to view this report.');
         }
 
         $grades = Grade::where('quiz_id', $quiz->quiz_id)
-                       ->with('student')
-                       ->orderByDesc('final_grade')
-                       ->get();
+            ->with('student')
+            ->orderByDesc('final_grade')
+            ->get();
 
         $stats = $this->getClassStatistics($quiz);
 

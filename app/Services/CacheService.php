@@ -2,10 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Group;
 use App\Models\Role;
 use App\Models\SystemConfig;
 use App\Models\User;
-use App\Models\Group;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class CacheService
@@ -14,7 +15,7 @@ class CacheService
      * Cache duration in seconds (1 hour = 3600)
      */
     private const CACHE_DURATION = 3600;
-    
+
     /**
      * Long cache duration (24 hours)
      */
@@ -22,8 +23,8 @@ class CacheService
 
     /**
      * Get all roles with caching
-     * 
-     * @return \Illuminate\Database\Eloquent\Collection
+     *
+     * @return Collection
      */
     public function getAllRoles()
     {
@@ -34,8 +35,7 @@ class CacheService
 
     /**
      * Get role by ID with caching
-     * 
-     * @param int $roleId
+     *
      * @return Role|null
      */
     public function getRoleById(int $roleId)
@@ -47,13 +47,13 @@ class CacheService
 
     /**
      * Get role by name with caching
-     * 
-     * @param string $roleName
+     *
      * @return Role|null
      */
     public function getRoleByName(string $roleName)
     {
-        $cacheKey = 'roles.name.' . md5($roleName);
+        $cacheKey = 'roles.name.'.md5($roleName);
+
         return Cache::remember($cacheKey, self::LONG_CACHE_DURATION, function () use ($roleName) {
             return Role::where('role_name', $roleName)->first();
         });
@@ -61,24 +61,23 @@ class CacheService
 
     /**
      * Get system config value with caching
-     * 
-     * @param string $key
-     * @param mixed $default
+     *
+     * @param  mixed  $default
      * @return mixed
      */
     public function getConfigValue(string $key, $default = null)
     {
         $cacheKey = "system_config.{$key}";
+
         return Cache::remember($cacheKey, self::CACHE_DURATION, function () use ($key, $default) {
             $config = SystemConfig::where('config_key', $key)->first();
+
             return $config ? $config->config_value : $default;
         });
     }
 
     /**
      * Get all system configs with caching
-     * 
-     * @return array
      */
     public function getAllConfigs(): array
     {
@@ -89,27 +88,23 @@ class CacheService
 
     /**
      * Get user count by status with caching
-     * 
-     * @param string|null $status
-     * @return int
      */
     public function getUserCountByStatus(?string $status = null): int
     {
         $cacheKey = $status ? "users.count.{$status}" : 'users.count.all';
-        
+
         return Cache::remember($cacheKey, 300, function () use ($status) {
             $query = User::query();
             if ($status) {
                 $query->where('account_status', $status);
             }
+
             return $query->count();
         });
     }
 
     /**
      * Get dashboard statistics with caching
-     * 
-     * @return array
      */
     public function getDashboardStats(): array
     {
@@ -132,29 +127,27 @@ class CacheService
 
     /**
      * Get group with member count
-     * 
-     * @param int $groupId
+     *
      * @return array|null
      */
     public function getGroupWithMemberCount(int $groupId)
     {
         return Cache::remember("group.{$groupId}.with_count", 300, function () use ($groupId) {
             $group = Group::withCount('users')->find($groupId);
+
             return $group ? $group->toArray() : null;
         });
     }
 
     /**
      * Clear all application caches
-     * 
-     * @return void
      */
     public function clearAllCaches(): void
     {
         Cache::forget('roles.all');
         Cache::forget('system_configs.all');
         Cache::forget('dashboard.stats');
-        
+
         // Clear user count caches
         Cache::forget('users.count.all');
         Cache::forget('users.count.active');
@@ -164,8 +157,6 @@ class CacheService
 
     /**
      * Clear role caches
-     * 
-     * @return void
      */
     public function clearRoleCaches(): void
     {
@@ -174,14 +165,12 @@ class CacheService
         $roles = Role::all();
         foreach ($roles as $role) {
             Cache::forget("roles.{$role->id}");
-            Cache::forget('roles.name.' . md5($role->role_name));
+            Cache::forget('roles.name.'.md5($role->role_name));
         }
     }
 
     /**
      * Clear system config caches
-     * 
-     * @return void
      */
     public function clearConfigCaches(): void
     {
@@ -194,14 +183,11 @@ class CacheService
 
     /**
      * Clear user-related caches
-     * 
-     * @param int|null $userId
-     * @return void
      */
     public function clearUserCaches(?int $userId = null): void
     {
         $this->clearAllCaches();
-        
+
         if ($userId) {
             Cache::forget("user.{$userId}");
         }
@@ -209,14 +195,11 @@ class CacheService
 
     /**
      * Clear group-related caches
-     * 
-     * @param int|null $groupId
-     * @return void
      */
     public function clearGroupCaches(?int $groupId = null): void
     {
         Cache::forget('dashboard.stats');
-        
+
         if ($groupId) {
             Cache::forget("group.{$groupId}.with_count");
         }
@@ -224,8 +207,7 @@ class CacheService
 
     /**
      * Get cached user with relationships
-     * 
-     * @param int $userId
+     *
      * @return User|null
      */
     public function getUserWithRelations(int $userId)

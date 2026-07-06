@@ -25,79 +25,79 @@ class PostController extends Controller
         $topic = Topic::findOrFail($topicId);
 
         // Group isolation check (SysAdmin / Lecturer / Group Admin bypass)
-        if (!$user->canAccessGroup($topic->group_id)) {
+        if (! $user->canAccessGroup($topic->group_id)) {
             return response()->json(
                 [
-                    "message" => "You do not have access to this topic.",
+                    'message' => 'You do not have access to this topic.',
                 ],
                 403,
             );
         }
 
         // Only active topics accept replies
-        if ($topic->status !== "active") {
+        if ($topic->status !== 'active') {
             return response()->json(
                 [
-                    "message" => "This topic is closed for replies.",
+                    'message' => 'This topic is closed for replies.',
                 ],
                 403,
             );
         }
 
         $validated = $request->validate([
-            "content" => "required|string|max:10000",
+            'content' => 'required|string|max:10000',
         ]);
 
         $post = Post::create([
-            "topic_id" => $topic->id,
-            "user_id" => $user->id,
-            "content" => $validated["content"],
+            'topic_id' => $topic->id,
+            'user_id' => $user->id,
+            'content' => $validated['content'],
         ]);
 
         // Log the reply for audit trail
         app(AuditLogService::class)->log(
-            action: "post.created",
+            action: 'post.created',
             target: $post,
             newValues: $post->toArray(),
-            description: $user->full_name .
-                ' replied to topic "' .
-                $topic->title .
+            description: $user->full_name.
+                ' replied to topic "'.
+                $topic->title.
                 '"',
         );
 
         // Notify the original asker when a question is answered
         if (
-            $topic->post_type === "question" &&
+            $topic->post_type === 'question' &&
             $topic->created_by !== $user->id
         ) {
             Notification::create([
-                "user_id" => $topic->created_by,
-                "type" => "question_answered",
-                "data" => ["topic_id" => $topic->id, "post_id" => $post->id],
+                'user_id' => $topic->created_by,
+                'type' => 'question_answered',
+                'data' => ['topic_id' => $topic->id, 'post_id' => $post->id],
             ]);
         }
 
         // Auto-mark question as answered
-        if ($topic->post_type === "question" && !$topic->is_answered) {
-            $topic->update(["is_answered" => true]);
+        if ($topic->post_type === 'question' && ! $topic->is_answered) {
+            $topic->update(['is_answered' => true]);
         }
 
-        $post->load("user");
+        $post->load('user');
 
         return response()->json(
             [
-                "message" => "Reply posted successfully.",
-                "data" => [
-                    "post" => [
-                        "id" => $post->id,
-                        "topic_id" => $post->topic_id,
-                        "content" => $post->content,
-                        "user" => [
-                            "id" => $post->user->id,
-                            "full_name" => $post->user->full_name,
+                'message' => 'Reply posted successfully.',
+                'data' => [
+                    'post' => [
+                        'id' => $post->id,
+                        'topic_id' => $post->topic_id,
+                        'content' => $post->content,
+                        'user' => [
+                            'id' => $post->user->id,
+                            'full_name' => $post->user->full_name,
                         ],
-                        "created_at" => $post->created_at,
-                        "updated_at" => $post->updated_at,
+                        'created_at' => $post->created_at,
+                        'updated_at' => $post->updated_at,
                     ],
                 ],
             ],
@@ -117,13 +117,13 @@ class PostController extends Controller
     {
         $user = $request->user();
 
-        $post = Post::with("topic")->findOrFail($postId);
+        $post = Post::with('topic')->findOrFail($postId);
 
         // Group isolation check via topic (SysAdmin / Lecturer / Group Admin bypass)
-        if (!$user->canAccessGroup($post->topic->group_id)) {
+        if (! $user->canAccessGroup($post->topic->group_id)) {
             return response()->json(
                 [
-                    "message" => "You do not have access to this post.",
+                    'message' => 'You do not have access to this post.',
                 ],
                 403,
             );
@@ -133,7 +133,7 @@ class PostController extends Controller
         if ($post->user_id !== $user->id) {
             return response()->json(
                 [
-                    "message" => "You can only edit your own posts.",
+                    'message' => 'You can only edit your own posts.',
                 ],
                 403,
             );
@@ -143,34 +143,33 @@ class PostController extends Controller
         if ($post->is_removed) {
             return response()->json(
                 [
-                    "message" =>
-                        "This post has been removed and cannot be edited.",
+                    'message' => 'This post has been removed and cannot be edited.',
                 ],
                 403,
             );
         }
 
         $validated = $request->validate([
-            "content" => "required|string|max:10000",
+            'content' => 'required|string|max:10000',
         ]);
 
-        $post->update(["content" => $validated["content"]]);
-        $post->load("user");
+        $post->update(['content' => $validated['content']]);
+        $post->load('user');
 
         return response()->json(
             [
-                "message" => "Post updated successfully.",
-                "data" => [
-                    "post" => [
-                        "id" => $post->id,
-                        "topic_id" => $post->topic_id,
-                        "content" => $post->content,
-                        "user" => [
-                            "id" => $post->user->id,
-                            "full_name" => $post->user->full_name,
+                'message' => 'Post updated successfully.',
+                'data' => [
+                    'post' => [
+                        'id' => $post->id,
+                        'topic_id' => $post->topic_id,
+                        'content' => $post->content,
+                        'user' => [
+                            'id' => $post->user->id,
+                            'full_name' => $post->user->full_name,
                         ],
-                        "created_at" => $post->created_at,
-                        "updated_at" => $post->updated_at,
+                        'created_at' => $post->created_at,
+                        'updated_at' => $post->updated_at,
                     ],
                 ],
             ],
@@ -193,45 +192,45 @@ class PostController extends Controller
     ) {
         $user = $request->user();
 
-        $post = Post::with("topic")->findOrFail($postId);
+        $post = Post::with('topic')->findOrFail($postId);
 
         // Group isolation check via topic (SysAdmin / Lecturer / Group Admin bypass)
-        if (!$user->canAccessGroup($post->topic->group_id)) {
+        if (! $user->canAccessGroup($post->topic->group_id)) {
             return response()->json(
                 [
-                    "message" => "You do not have access to this post.",
+                    'message' => 'You do not have access to this post.',
                 ],
                 403,
             );
         }
 
         // Authorization: post author or admin
-        if ($post->user_id !== $user->id && !$user->isAdmin()) {
+        if ($post->user_id !== $user->id && ! $user->isAdmin()) {
             return response()->json(
                 [
-                    "message" => "You are not authorized to delete this post.",
+                    'message' => 'You are not authorized to delete this post.',
                 ],
                 403,
             );
         }
 
-        $post->update(["is_removed" => true]);
+        $post->update(['is_removed' => true]);
 
         $auditLog->log(
-            action: "post.deleted",
+            action: 'post.deleted',
             target: $post,
-            newValues: ["is_removed" => true],
-            description: $user->full_name .
-                " deleted post #" .
-                $post->id .
-                ' in topic "' .
-                $post->topic->title .
+            newValues: ['is_removed' => true],
+            description: $user->full_name.
+                ' deleted post #'.
+                $post->id.
+                ' in topic "'.
+                $post->topic->title.
                 '"',
         );
 
         return response()->json(
             [
-                "message" => "Post deleted successfully.",
+                'message' => 'Post deleted successfully.',
             ],
             200,
         );

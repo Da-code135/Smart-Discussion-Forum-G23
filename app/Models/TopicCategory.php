@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use Database\Factories\TopicCategoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class TopicCategory extends Model
 {
-    /** @use HasFactory<\Database\Factories\TopicCategoryFactory> */
+    /** @use HasFactory<TopicCategoryFactory> */
     use HasFactory;
 
     protected $fillable = [

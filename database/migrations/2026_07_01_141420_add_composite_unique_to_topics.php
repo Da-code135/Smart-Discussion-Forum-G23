@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('topics', function (Blueprint $table) {
-            $table->dropUnique(['title']);//this drops the old global unique constraint
-            $table->unique(['group_id', 'title']);//this adds a new composite unique constraint
+            $table->dropUnique(['title']); // this drops the old global unique constraint
+            $table->unique(['group_id', 'title']); // this adds a new composite unique constraint
         });
     }
 
@@ -23,9 +23,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('topics', function (Blueprint $table) {
-          // Revert: drop composite unique
+            // Revert: drop composite unique
             $table->dropUnique(['group_id', 'title']);
-            
+
             // Revert: add back old global unique
             $table->unique(['title']);
         });

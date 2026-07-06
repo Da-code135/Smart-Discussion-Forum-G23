@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\EmailVerificationToken;
 use App\Mail\VerifyEmailMailable;
+use App\Models\EmailVerificationToken;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -19,8 +20,7 @@ class ProfileController extends Controller
      * POST /api/v1/profile
      * Protected by auth:sanctum middleware
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function update(Request $request)
     {

@@ -29,7 +29,7 @@ class GradeController extends Controller
 
         // Gate: results may be hidden until the lecturer opens them
         $config = $quiz->configuration;
-        if ($config && !$config->show_results_after_close) {
+        if ($config && ! $config->show_results_after_close) {
             return response()->json([
                 'success' => false,
                 'message' => 'Results are not yet available.',
@@ -59,23 +59,23 @@ class GradeController extends Controller
             }
 
             $item = [
-                'question_id'    => $question->question_id,
-                'question_text'  => $question->question_text,
-                'question_type'  => $question->question_type,
-                'your_answer'    => $studentAnswer && $studentAnswer->selectedAnswer
+                'question_id' => $question->question_id,
+                'question_text' => $question->question_text,
+                'question_type' => $question->question_type,
+                'your_answer' => $studentAnswer && $studentAnswer->selectedAnswer
                     ? [
-                        'answer_id'   => $studentAnswer->selectedAnswer->answer_id,
+                        'answer_id' => $studentAnswer->selectedAnswer->answer_id,
                         'answer_text' => $studentAnswer->selectedAnswer->answer_text,
                     ]
                     : null,
-                'marks_earned'   => $marksEarned,
+                'marks_earned' => $marksEarned,
                 'marks_possible' => $question->marks,
             ];
 
             // Only expose the correct answer when the quiz config allows it
             if ($config && $config->show_correct_answers && $correctAnswer) {
                 $item['correct_answer'] = [
-                    'answer_id'   => $correctAnswer->answer_id,
+                    'answer_id' => $correctAnswer->answer_id,
                     'answer_text' => $correctAnswer->answer_text,
                 ];
             }
@@ -85,18 +85,18 @@ class GradeController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => [
-                'grade'     => [
-                    'grade_id'           => $grade->grade_id,
-                    'total_score'        => $grade->total_score,
-                    'max_score'          => $grade->max_score,
-                    'percentage'         => $grade->percentage,
+            'data' => [
+                'grade' => [
+                    'grade_id' => $grade->grade_id,
+                    'total_score' => $grade->total_score,
+                    'max_score' => $grade->max_score,
+                    'percentage' => $grade->percentage,
                     'participation_mark' => $grade->participation_mark,
-                    'final_grade'        => $grade->final_grade,
-                    'graded_at'          => $grade->graded_at?->toIso8601String(),
+                    'final_grade' => $grade->final_grade,
+                    'graded_at' => $grade->graded_at?->toIso8601String(),
                 ],
                 'questions' => $breakdown,
-                'config'    => [
+                'config' => [
                     'show_correct_answers' => $config && $config->show_correct_answers,
                 ],
             ],
@@ -114,24 +114,24 @@ class GradeController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => [
+            'data' => [
                 'grades' => $quiz->grades->map(function (Grade $grade) {
                     return [
-                        'grade_id'           => $grade->grade_id,
-                        'student_id'         => $grade->student_id,
-                        'student_name'       => $grade->student?->full_name,
-                        'student_email'      => $grade->student?->email,
-                        'total_score'        => $grade->total_score,
-                        'max_score'          => $grade->max_score,
-                        'percentage'         => $grade->percentage,
+                        'grade_id' => $grade->grade_id,
+                        'student_id' => $grade->student_id,
+                        'student_name' => $grade->student?->full_name,
+                        'student_email' => $grade->student?->email,
+                        'total_score' => $grade->total_score,
+                        'max_score' => $grade->max_score,
+                        'percentage' => $grade->percentage,
                         'participation_mark' => $grade->participation_mark,
-                        'final_grade'        => $grade->final_grade,
-                        'graded_at'          => $grade->graded_at?->toIso8601String(),
+                        'final_grade' => $grade->final_grade,
+                        'graded_at' => $grade->graded_at?->toIso8601String(),
                     ];
                 }),
-                'quiz'   => [
-                    'id'        => $quiz->quiz_id,
-                    'title'     => $quiz->title,
+                'quiz' => [
+                    'id' => $quiz->quiz_id,
+                    'title' => $quiz->title,
                     'max_score' => $quiz->questions()->sum('marks'),
                 ],
             ],
@@ -172,22 +172,22 @@ class GradeController extends Controller
                 }
 
                 return [
-                    'question_id'    => $question->question_id,
-                    'question_text'  => $question->question_text,
-                    'question_type'  => $question->question_type,
-                    'your_answer'    => $studentAnswer && $studentAnswer->selectedAnswer
+                    'question_id' => $question->question_id,
+                    'question_text' => $question->question_text,
+                    'question_type' => $question->question_type,
+                    'your_answer' => $studentAnswer && $studentAnswer->selectedAnswer
                         ? [
-                            'answer_id'   => $studentAnswer->selectedAnswer->answer_id,
+                            'answer_id' => $studentAnswer->selectedAnswer->answer_id,
                             'answer_text' => $studentAnswer->selectedAnswer->answer_text,
                         ]
                         : null,
                     'correct_answer' => $correctAnswer
                         ? [
-                            'answer_id'   => $correctAnswer->answer_id,
+                            'answer_id' => $correctAnswer->answer_id,
                             'answer_text' => $correctAnswer->answer_text,
                         ]
                         : null,
-                    'marks_earned'   => $marksEarned,
+                    'marks_earned' => $marksEarned,
                     'marks_possible' => $question->marks,
                 ];
             });
@@ -195,20 +195,20 @@ class GradeController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => [
-                'grade'     => [
-                    'grade_id'           => $grade->grade_id,
-                    'student_id'         => $grade->student_id,
-                    'student_name'       => $grade->student?->full_name,
-                    'student_email'      => $grade->student?->email,
-                    'quiz_id'            => $quiz?->quiz_id,
-                    'quiz_title'         => $quiz?->title,
-                    'total_score'        => $grade->total_score,
-                    'max_score'          => $grade->max_score,
-                    'percentage'         => $grade->percentage,
+            'data' => [
+                'grade' => [
+                    'grade_id' => $grade->grade_id,
+                    'student_id' => $grade->student_id,
+                    'student_name' => $grade->student?->full_name,
+                    'student_email' => $grade->student?->email,
+                    'quiz_id' => $quiz?->quiz_id,
+                    'quiz_title' => $quiz?->title,
+                    'total_score' => $grade->total_score,
+                    'max_score' => $grade->max_score,
+                    'percentage' => $grade->percentage,
                     'participation_mark' => $grade->participation_mark,
-                    'final_grade'        => $grade->final_grade,
-                    'graded_at'          => $grade->graded_at?->toIso8601String(),
+                    'final_grade' => $grade->final_grade,
+                    'graded_at' => $grade->graded_at?->toIso8601String(),
                 ],
                 'breakdown' => $breakdown ?? [],
             ],
@@ -225,8 +225,8 @@ class GradeController extends Controller
         $quiz->load('grades.student:id,full_name,email');
 
         $headers = [
-            'Content-Type'        => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="quiz-' . $quiz->quiz_id . '-grades.csv"',
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="quiz-'.$quiz->quiz_id.'-grades.csv"',
         ];
 
         $callback = function () use ($quiz) {

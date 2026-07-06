@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Quiz;
-use App\Models\StudentAttempt;
-use App\Models\StudentAnswer;
 use App\Models\Grade;
+use App\Models\Quiz;
+use App\Models\StudentAnswer;
+use App\Models\StudentAttempt;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +33,7 @@ class StudentQuizController extends Controller
         $user = Auth::user();
 
         // Group isolation: only users in the quiz's group can access
-        if ($quiz->group_id && $quiz->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        if ($quiz->group_id && $quiz->group_id !== $user->group_id && ! $user->isSystemAdmin()) {
             abort(403, 'This quiz is not available for your group.');
         }
 
@@ -43,13 +43,13 @@ class StudentQuizController extends Controller
         }
 
         // Quiz must have been published by the lecturer
-        if (!$quiz->published_at) {
+        if (! $quiz->published_at) {
             abort(404, 'Quiz announcement not published yet.');
         }
 
         // Parse the scheduled start time
         $scheduledTime = Carbon::parse(
-            $quiz->scheduled_date . ' ' . $quiz->start_time,
+            $quiz->scheduled_date.' '.$quiz->start_time,
         );
         $now = now();
 
@@ -91,7 +91,7 @@ class StudentQuizController extends Controller
         $user = Auth::user();
 
         // Group isolation: only users in the quiz's group can access
-        if ($quiz->group_id && $quiz->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        if ($quiz->group_id && $quiz->group_id !== $user->group_id && ! $user->isSystemAdmin()) {
             abort(403, 'This quiz is not available for your group.');
         }
 
@@ -101,12 +101,12 @@ class StudentQuizController extends Controller
         }
 
         $scheduledTime = Carbon::parse(
-            $quiz->scheduled_date . ' ' . $quiz->start_time,
+            $quiz->scheduled_date.' '.$quiz->start_time,
         );
         $now = now();
 
         // === Quiz not yet active ===
-        if (!$quiz->is_active) {
+        if (! $quiz->is_active) {
             if ($now->isBefore($scheduledTime)) {
                 return redirect()
                     ->route('quizzes.announcement', $quiz->quiz_id)
@@ -120,7 +120,7 @@ class StudentQuizController extends Controller
 
         // === Late-join check ===
         $isLate = $now->isAfter($scheduledTime);
-        if ($isLate && !$quiz->configuration?->allow_late_join) {
+        if ($isLate && ! $quiz->configuration?->allow_late_join) {
             return redirect()
                 ->route('quizzes.announcement', $quiz->quiz_id)
                 ->with('error', 'Late joining is not allowed for this quiz.');
@@ -308,7 +308,7 @@ class StudentQuizController extends Controller
             ->where('student_id', $user->id)
             ->first();
 
-        if (!$attempt) {
+        if (! $attempt) {
             return redirect()
                 ->route('quizzes.announcement', $quiz->quiz_id)
                 ->with('error', 'Quiz attempt not found.');
@@ -353,7 +353,7 @@ class StudentQuizController extends Controller
     {
         $user = Auth::user();
         $scheduledTime = Carbon::parse(
-            $quiz->scheduled_date . ' ' . $quiz->start_time,
+            $quiz->scheduled_date.' '.$quiz->start_time,
         );
         $now = now();
 
@@ -361,7 +361,7 @@ class StudentQuizController extends Controller
             ->where('student_id', $user->id)
             ->first();
 
-        if (!$attempt) {
+        if (! $attempt) {
             // No attempt yet — return pre-quiz status
             $hasStarted = $quiz->is_active && $now->isAfter($scheduledTime);
 
@@ -479,7 +479,7 @@ class StudentQuizController extends Controller
             /** @var StudentAnswer|null $studentAnswer */
             $studentAnswer = $studentAnswers->get($question->question_id);
 
-            if (!$studentAnswer || !$studentAnswer->selected_answer_id) {
+            if (! $studentAnswer || ! $studentAnswer->selected_answer_id) {
                 // Skipped or unanswered — 0 marks
                 continue;
             }

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Question;
 use App\Models\Answer;
+use App\Models\Question;
 use App\Models\Quiz;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +23,7 @@ class QuestionController extends Controller
             'success' => true,
             'data' => [
                 'questions' => $questions,
-            ]
+            ],
         ]);
     }
 
@@ -45,25 +45,25 @@ class QuestionController extends Controller
         if ($validated['question_type'] === 'TF' && count($validated['answers']) !== 2) {
             return response()->json([
                 'success' => false,
-                'message' => 'True/False questions must have exactly 2 answers'
+                'message' => 'True/False questions must have exactly 2 answers',
             ], 422);
         }
 
         // For MCQ (Multiple Choice) questions, validate that at least one answer is correct
-        if ($validated['question_type'] === 'MCQ' && collect($validated['answers'])->filter(fn($answer) => $answer['is_correct'])->isEmpty()) {
+        if ($validated['question_type'] === 'MCQ' && collect($validated['answers'])->filter(fn ($answer) => $answer['is_correct'])->isEmpty()) {
             return response()->json([
                 'success' => false,
-                'message' => 'MCQ questions must have at least one correct answer'
+                'message' => 'MCQ questions must have at least one correct answer',
             ], 422);
         }
 
         // For TF (True/False) questions, validate that exactly one answer is correct
         if ($validated['question_type'] === 'TF') {
-            $correctAnswersCount = collect($validated['answers'])->filter(fn($answer) => $answer['is_correct'])->count();
+            $correctAnswersCount = collect($validated['answers'])->filter(fn ($answer) => $answer['is_correct'])->count();
             if ($correctAnswersCount !== 1) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'True/False questions must have exactly one correct answer'
+                    'message' => 'True/False questions must have exactly one correct answer',
                 ], 422);
             }
         }
@@ -73,7 +73,7 @@ class QuestionController extends Controller
         // So we'll allow Short questions to have answers but without specific constraints
 
         $maxOrder = $quiz->questions()->max('question_order') ?? 0;
-        
+
         $question = Question::create([
             'quiz_id' => $quiz->quiz_id,
             'question_text' => $validated['question_text'],
@@ -97,7 +97,7 @@ class QuestionController extends Controller
             'data' => [
                 'question' => $question,
             ],
-            'message' => 'Question added'
+            'message' => 'Question added',
         ], 201);
     }
 
@@ -125,7 +125,7 @@ class QuestionController extends Controller
             'data' => [
                 'question' => $question,
             ],
-            'message' => 'Question updated'
+            'message' => 'Question updated',
         ]);
     }
 
@@ -138,7 +138,7 @@ class QuestionController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Question deleted'
+            'message' => 'Question deleted',
         ]);
     }
 
@@ -161,7 +161,7 @@ class QuestionController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Questions reordered'
+            'message' => 'Questions reordered',
         ]);
     }
 }

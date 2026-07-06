@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
+use App\Mail\VerifyEmailMailable;
+use App\Models\EmailVerificationToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
@@ -39,7 +41,7 @@ class ProfileController extends Controller
         if ($emailChanged) {
             // Generate new verification token
             $token = Str::random(64);
-            \App\Models\EmailVerificationToken::create([
+            EmailVerificationToken::create([
                 'user_id' => $user->id,
                 'token' => $token,
                 'email' => $validated['email'],
@@ -47,7 +49,7 @@ class ProfileController extends Controller
             ]);
 
             // Send verification email
-            Mail::queue(new \App\Mail\VerifyEmailMailable($user, $token));
+            Mail::queue(new VerifyEmailMailable($user, $token));
 
             // #156: Flash message about verification
             session()->flash('warning', 'Please verify your new email address. Check your inbox for a verification link.');

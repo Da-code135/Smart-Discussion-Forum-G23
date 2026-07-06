@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Answer extends Model
 {
     protected $primaryKey = 'answer_id';
+
     protected $table = 'answers';
 
     protected $fillable = [

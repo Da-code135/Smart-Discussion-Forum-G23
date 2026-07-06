@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
-use App\Models\User;
-use App\Models\Warning;
 use App\Models\BlacklistRecord;
 use App\Models\SystemConfig;
+use App\Models\User;
+use App\Models\Warning;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -50,6 +50,7 @@ class MonitorMemberActivity extends Command
 
         if ($users->isEmpty()) {
             $this->info('No active or warned users found.');
+
             return Command::SUCCESS;
         }
 
@@ -86,7 +87,7 @@ class MonitorMemberActivity extends Command
 
         $this->newLine();
         $this->info('Activity monitoring complete!');
-        $this->info("Results:");
+        $this->info('Results:');
         $this->line("  - Warned: {$warnedCount}");
         $this->line("  - Blacklisted: {$this->blacklistedCount}");
         $this->line("  - Skipped (active): {$skippedCount}");
@@ -104,9 +105,6 @@ class MonitorMemberActivity extends Command
      * - Inactive (no warnings) → Warning 1
      * - Warning 1 expired (deadline passed, not acknowledged) → Warning 2
      * - Warning 2 expired → Blacklist
-     *
-     * @param User $user
-     * @return void
      */
     private function issueWarning(User $user): void
     {
@@ -136,6 +134,7 @@ class MonitorMemberActivity extends Command
 
             $this->line("  <fg=yellow>✓ Warning 1 issued</> - Deadline: {$warningResponseDays} days");
             Log::info("Warning 1 issued to user {$user->id} ({$user->email}) for inactivity");
+
             return;
         }
 
@@ -154,24 +153,23 @@ class MonitorMemberActivity extends Command
 
             $this->line("  <fg=yellow>⚠ Warning 2 issued</> - Deadline: {$warningResponseDays} days");
             Log::info("Warning 2 issued to user {$user->id} ({$user->email}) - Warning 1 expired unacknowledged");
+
             return;
         }
 
         if ($latestWarning->warning_number === 2 && $latestWarning->response_deadline->isPast()) {
             // Warning 2 expired → Blacklist user
             $this->blacklistUser($user);
+
             return;
         }
 
         // Warning exists but deadline hasn't passed yet - no action needed
-        $this->line("  <comment>User has active warning - deadline not yet passed</comment>");
+        $this->line('  <comment>User has active warning - deadline not yet passed</comment>');
     }
 
     /**
      * Blacklist an inactive user.
-     *
-     * @param User $user
-     * @return void
      */
     private function blacklistUser(User $user): void
     {

@@ -2,14 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\QuizPublished;
 use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\Quiz;
 use App\Models\QuizConfiguration;
-use App\Models\Question;
-use App\Models\Grade;
-use App\Models\User;
-use App\Events\QuizPublished;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +24,7 @@ class QuizController extends Controller
 
         // System admins see all quizzes.
         // Others (Group Admins, Lecturers, Members) see only accessible groups.
-        if (!$user->isSystemAdmin()) {
+        if (! $user->isSystemAdmin()) {
             $query->whereIn('group_id', $user->accessibleGroupIds());
         }
 
@@ -43,7 +40,7 @@ class QuizController extends Controller
                 'last_page' => $quizzes->lastPage(),
                 'per_page' => $quizzes->perPage(),
                 'total' => $quizzes->total(),
-            ]
+            ],
         ]);
     }
 
@@ -68,7 +65,7 @@ class QuizController extends Controller
         $group = null;
         if ($request->has('group_id')) {
             $group = Group::findOrFail($validated['group_id']);
-            if (!$user->canTeachGroup($group)) {
+            if (! $user->canTeachGroup($group)) {
                 return response()->json(['success' => false, 'message' => 'You cannot create quizzes for this group.'], 403);
             }
         } elseif ($user->group_id) {
@@ -103,7 +100,7 @@ class QuizController extends Controller
             'data' => [
                 'quiz' => $quiz->load('configuration', 'lecturer:id,full_name'),
             ],
-            'message' => 'Quiz created'
+            'message' => 'Quiz created',
         ], 201);
     }
 
@@ -115,7 +112,7 @@ class QuizController extends Controller
         $user = $request->user();
 
         // Group isolation: only users with access can view the quiz
-        if (!$user->canAccessGroup($quiz->group_id)) {
+        if (! $user->canAccessGroup($quiz->group_id)) {
             return response()->json(['success' => false, 'message' => 'You do not have access to this quiz.'], 403);
         }
 
@@ -125,7 +122,7 @@ class QuizController extends Controller
             'success' => true,
             'data' => [
                 'quiz' => $quiz,
-            ]
+            ],
         ]);
     }
 
@@ -137,7 +134,7 @@ class QuizController extends Controller
         if ($quiz->published_at) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot update a published quiz'
+                'message' => 'Cannot update a published quiz',
             ], 422);
         }
 
@@ -172,7 +169,7 @@ class QuizController extends Controller
             'data' => [
                 'quiz' => $quiz->load('configuration', 'lecturer:id,full_name'),
             ],
-            'message' => 'Quiz updated'
+            'message' => 'Quiz updated',
         ]);
     }
 
@@ -184,7 +181,7 @@ class QuizController extends Controller
         if ($quiz->published_at) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete a published quiz'
+                'message' => 'Cannot delete a published quiz',
             ], 422);
         }
 
@@ -192,7 +189,7 @@ class QuizController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Quiz deleted'
+            'message' => 'Quiz deleted',
         ]);
     }
 
@@ -204,22 +201,22 @@ class QuizController extends Controller
         if ($quiz->published_at) {
             return response()->json([
                 'success' => false,
-                'message' => 'Quiz is already published'
+                'message' => 'Quiz is already published',
             ], 422);
         }
 
         if ($quiz->questions()->count() === 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot publish a quiz with no questions'
+                'message' => 'Cannot publish a quiz with no questions',
             ], 422);
         }
 
-        $scheduledDateTime = Carbon::parse($quiz->scheduled_date . ' ' . $quiz->start_time);
+        $scheduledDateTime = Carbon::parse($quiz->scheduled_date.' '.$quiz->start_time);
         if ($scheduledDateTime->isPast()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot publish a quiz with a past scheduled date/time'
+                'message' => 'Cannot publish a quiz with a past scheduled date/time',
             ], 422);
         }
 
@@ -233,7 +230,7 @@ class QuizController extends Controller
             'data' => [
                 'quiz' => $quiz->load('configuration', 'lecturer:id,full_name'),
             ],
-            'message' => 'Quiz published'
+            'message' => 'Quiz published',
         ]);
     }
 
@@ -245,7 +242,7 @@ class QuizController extends Controller
         $user = $request->user();
 
         // Group isolation: only users with access can view the quiz report
-        if (!$user->canAccessGroup($quiz->group_id)) {
+        if (! $user->canAccessGroup($quiz->group_id)) {
             return response()->json(['success' => false, 'message' => 'You do not have access to this quiz report.'], 403);
         }
 
@@ -281,7 +278,7 @@ class QuizController extends Controller
             'data' => [
                 'summary' => $summary,
                 'students' => $students,
-            ]
+            ],
         ]);
     }
 }

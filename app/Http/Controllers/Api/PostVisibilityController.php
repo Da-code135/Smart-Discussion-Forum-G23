@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Post;
 use App\Models\PostVisibility;
 use App\Models\User;
-use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 
 class PostVisibilityController extends Controller
@@ -26,7 +25,7 @@ class PostVisibilityController extends Controller
         $post = Post::with('topic')->findOrFail($postId);
 
         // Group isolation check via topic
-        if (!$user->canAccessGroup($post->topic->group_id)) {
+        if (! $user->canAccessGroup($post->topic->group_id)) {
             return response()->json([
                 'message' => 'You do not have access to this post.',
             ], 403);
@@ -53,7 +52,7 @@ class PostVisibilityController extends Controller
         }
 
         // Validate excluded user is in an accessible group
-        if (!$user->canAccessGroup($targetUser->group_id)) {
+        if (! $user->canAccessGroup($targetUser->group_id)) {
             return response()->json([
                 'message' => 'The specified user is not in a group you can access.',
             ], 422);
@@ -104,10 +103,10 @@ class PostVisibilityController extends Controller
     {
         $user = $request->user();
 
-        $post = Post::with("topic")->findOrFail($postId);
+        $post = Post::with('topic')->findOrFail($postId);
 
         // Group isolation check via topic
-        if (!$user->canAccessGroup($post->topic->group_id)) {
+        if (! $user->canAccessGroup($post->topic->group_id)) {
             return response()->json([
                 'message' => 'You do not have access to this post.',
             ], 403);
@@ -120,7 +119,7 @@ class PostVisibilityController extends Controller
             ], 403);
         }
 
-        $visibility = PostVisibility::where("post_id", $post->id)
+        $visibility = PostVisibility::where('post_id', $post->id)
             ->where('excluded_user_id', $userId)
             ->firstOrFail();
 
@@ -142,10 +141,10 @@ class PostVisibilityController extends Controller
     {
         $user = $request->user();
 
-        $post = Post::with("topic")->findOrFail($postId);
+        $post = Post::with('topic')->findOrFail($postId);
 
         // Group isolation check via topic
-        if (!$user->canAccessGroup($post->topic->group_id)) {
+        if (! $user->canAccessGroup($post->topic->group_id)) {
             return response()->json([
                 'message' => 'You do not have access to this post.',
             ], 403);

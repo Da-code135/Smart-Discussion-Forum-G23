@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class StudentAnswer extends Model
 {
     protected $table = 'student_answers';
-    
+
     protected $fillable = [
         'attempt_id',
         'question_id',

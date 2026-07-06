@@ -32,7 +32,7 @@ class PasswordResetOtpMailable extends Mailable implements ShouldQueue
             view: 'email.password-reset-otp',
             with: [
                 'user' => $this->user,
-                'otp'  => $this->otp,
+                'otp' => $this->otp,
             ],
         );
     }

@@ -6,6 +6,7 @@ use App\Models\AdminIpWhitelist;
 use App\Services\AuditLogService;
 use Closure;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class IpWhitelist
 {
@@ -19,14 +20,14 @@ class IpWhitelist
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next)
     {
         // Check if IP whitelisting is enabled
         $whitelistEnabled = config('security.ip_whitelist_enabled', false);
-        
-        if (!$whitelistEnabled) {
+
+        if (! $whitelistEnabled) {
             return $next($request);
         }
 
@@ -34,7 +35,7 @@ class IpWhitelist
         $clientIp = $request->ip();
 
         // Check if IP is in whitelist
-        if (!AdminIpWhitelist::isIpAllowed($clientIp)) {
+        if (! AdminIpWhitelist::isIpAllowed($clientIp)) {
             // Log the unauthorized access attempt
             $this->auditLogService->log(
                 action: 'admin.ip.blocked',
