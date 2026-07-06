@@ -185,7 +185,7 @@ private function gradeQuiz(StudentAttempt $attempt): void
 {
     $quiz = $attempt->quiz;
 
-    // Load all questions with their correct answers
+    // Load all questions with their  answers
     $questions = $quiz->questions()->with('answers')->get();
 
     // Load all student answers for this attempt, keyed by question_id
