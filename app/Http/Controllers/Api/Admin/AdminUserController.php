@@ -10,6 +10,9 @@ use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\Rule;
 
 class AdminUserController extends Controller
 {
@@ -235,5 +238,181 @@ class AdminUserController extends Controller
             'message' => 'Warning issued successfully',
             'data' => $warning,
         ], 201);
+    }
+
+    /**
+     * POST /api/v1/admin/users
+     * Create a new user. System Admin only.
+     */
+    public function store(Request $request)
+    {
+        if (!auth()->user()->isSystemAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only System Administrators can create users.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'full_name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:8',
+            'role_name' => 'required|string|exists:roles,role_name',
+            'group_id' => 'nullable|exists:groups,id',
+        ]);
+
+        $role = Role::where('role_name', $validated['role_name'])->firstOrFail();
+
+        $user = User::create([
+            'full_name' => $validated['full_name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'role_id' => $role->id,
+            'group_id' => $validated['group_id'],
+            'account_status' => 'active',
+        ]);
+
+        $this->auditLogService->log('user_created', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'role' => $role->role_name,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User created.',
+            'data' => [
+                'user' => $user->load('role', 'group'),
+            ],
+        ], 201);
+    }
+
+    /**
+     * PUT /api/v1/admin/users/{userId}
+     * Update an existing user. System Admin for all fields; Group Admin
+     * can edit users in their groups but cannot change roles.
+     */
+    public function update(Request $request, $userId)
+    {
+        $currentUser = auth()->user();
+        $user = User::findOrFail($userId);
+
+        // Group-admin scope: can only edit users in their own groups
+        if ($currentUser->isGroupAdmin()) {
+            $adminGroupIds = $currentUser->administeredGroups()->pluck('groups.id');
+            if (!in_array($user->group_id, $adminGroupIds->toArray())) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot edit users outside your groups.',
+                ], 403);
+            }
+        }
+
+        // Group admins cannot change roles
+        if ($currentUser->isGroupAdmin() && $request->has('role_id')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Group Administrators cannot change user roles.',
+            ], 403);
+        }
+
+        $rules = [
+            'full_name' => 'sometimes|string|max:255',
+            'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
+            'group_id' => 'sometimes|exists:groups,id',
+        ];
+
+        // Only System Admin can change role_id
+        if ($currentUser->isSystemAdmin() && $request->has('role_id')) {
+            $rules['role_id'] = 'exists:roles,id';
+        }
+
+        $validated = $request->validate($rules);
+
+        $user->update($validated);
+
+        $this->auditLogService->log('user_updated', [
+            'user_id' => $user->id,
+            'updated_fields' => array_keys($validated),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User updated.',
+            'data' => [
+                'user' => $user->fresh()->load('role', 'group'),
+            ],
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/admin/users/{userId}
+     * Delete a user. System Admin only. Cannot delete yourself.
+     */
+    public function destroy($userId)
+    {
+        $currentUser = auth()->user();
+
+        if (!$currentUser->isSystemAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only System Administrators can delete users.',
+            ], 403);
+        }
+
+        if ((int)$userId === $currentUser->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot delete your own account.',
+            ], 422);
+        }
+
+        $user = User::findOrFail($userId);
+        $user->delete();
+
+        $this->auditLogService->log('user_deleted', [
+            'user_id' => $userId,
+            'email' => $user->email,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User deleted.',
+        ]);
+    }
+
+    /**
+     * POST /api/v1/admin/users/{userId}/reset-password
+     * Send a password reset link. System Admin only.
+     */
+    public function resetPassword($userId)
+    {
+        if (!auth()->user()->isSystemAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only System Administrators can reset passwords.',
+            ], 403);
+        }
+
+        $user = User::findOrFail($userId);
+
+        $status = Password::sendResetLink(['email' => $user->email]);
+
+        if ($status === Password::RESET_LINK_SENT) {
+            $this->auditLogService->log('password_reset', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Password reset link sent.',
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Unable to send reset link.',
+        ], 500);
     }
 }

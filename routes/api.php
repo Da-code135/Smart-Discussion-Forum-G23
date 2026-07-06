@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\GroupBrowseController;
 use App\Http\Controllers\Api\Admin\WarningController;
 use App\Http\Controllers\Api\Admin\BlacklistController;
+use App\Http\Controllers\Api\Admin\ModerationController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\QuestionController;
@@ -359,11 +360,22 @@ Route::prefix($API_VERSION)->group(function () {
                         "warn",
                     ]);
 
+                    // User CRUD (System Admin only for create/delete — enforced in controller)
+                    Route::post("/users", [AdminUserController::class, "store"]);
+                    Route::put("/users/{userId}", [AdminUserController::class, "update"]);
+                    Route::delete("/users/{userId}", [AdminUserController::class, "destroy"]);
+                    Route::post("/users/{userId}/reset-password", [AdminUserController::class, "resetPassword"]);
+
                     // User role management (System Admin only - enforced in controller)
                     Route::post("/users/{userId}/change-role", [
                         AdminUserController::class,
                         "changeRole",
                     ]);
+
+                    // Post Moderation (All admins, group-scoped — enforced in controller)
+                    Route::get("/moderation", [ModerationController::class, "index"]);
+                    Route::post("/moderation/{post}/remove", [ModerationController::class, "removePost"]);
+                    Route::post("/moderation/{post}/ignore", [ModerationController::class, "ignoreReport"]);
 
                     // Warning Management (W1-W4, All admins, group-scoped)
                     Route::get("/warnings", [
