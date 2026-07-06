@@ -28,17 +28,24 @@ class ForumController extends Controller
      */
     public function index()
     {
-        //this fetches all topics from the user's group and displays them in a list
-        $topics = Topic::where("group_id", Auth::user()->group_id) //this queries the Topic model to fetch topics where groupId matches the logged-in user's group. This prevents cross-group data leaks
-            ->where("status", "active") //only show topics whose status is active
-            ->with("creator") // Eager load creator (avoids N+1) -> this line tells laravel "When you fetch the topics, also fetch the creator (user) for each topic"
-            ->withCount("posts") // // Add posts_count property (total replies) without extra database queries> Adds a count of related records to each topic
-            ->latest() //Sorts the results by the created_at column in descending order (newest first) It's a shortcut for ->orderBy('created_at', 'desc')
-            ->paginate(10); //Split the results into pages of 10 items each
+        $user = Auth::user();
 
-        $group = Auth::user()->group; // Get the authenticated user's group
+        // Build the query: active topics only
+        $query = Topic::where("status", "active")
+            ->with("creator")
+            ->withCount("posts");
 
-        return view("forum.index", compact("topics", "group")); //compact passes data to the template compact('topics') is shorthand for ['topics' => $topics] It takes the variable $topics and makes it available in the view
+        // Group isolation: System Admins see all topics;
+        // others (including Lecturers with cross-group access) see only accessible groups
+        if (!$user->isSystemAdmin()) {
+            $query->whereIn("group_id", $user->accessibleGroupIds());
+        }
+
+        $topics = $query->latest()->paginate(10);
+
+        $group = $user->group;
+
+        return view("forum.index", compact("topics", "group"));
     }
 
     /**
@@ -104,8 +111,8 @@ class ForumController extends Controller
      */
     public function edit(Topic $topic)
     {
-        // Group isolation (SysAdmin bypass)
-        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
+        // Group isolation (SysAdmin / Lecturer / Group Admin bypass)
+        if (!Auth::user()->canAccessGroup($topic->group_id)) {
             abort(403, "You do not have access to this topic.");
         }
 
@@ -131,8 +138,8 @@ class ForumController extends Controller
      */
     public function update(Request $request, Topic $topic)
     {
-        // Group isolation (SysAdmin bypass)
-        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
+        // Group isolation (SysAdmin / Lecturer / Group Admin bypass)
+        if (!Auth::user()->canAccessGroup($topic->group_id)) {
             abort(403, "You do not have access to this topic.");
         }
 
@@ -191,8 +198,7 @@ class ForumController extends Controller
     public function show(Topic $topic)
     {
         // === GROUP ISOLATION CHECK (Defense in depth) ===
-        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
-            //checks whether the groupId for the topic is the same as that for the logged in user
+        if (!Auth::user()->canAccessGroup($topic->group_id)) {
             abort(403, "You do not have access to this topic.");
         }
 
@@ -236,7 +242,7 @@ class ForumController extends Controller
     public function replyStore(Request $request, Topic $topic)
     {
         // === GROUP ISOLATION CHECK ===
-        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
+        if (!Auth::user()->canAccessGroup($topic->group_id)) {
             abort(403, "You do not have access to this topic.");
         }
 
@@ -362,7 +368,7 @@ class ForumController extends Controller
         }
 
         // === GROUP ISOLATION CHECK ===
-        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
+        if (!Auth::user()->canAccessGroup($topic->group_id)) {
             abort(403, "You do not have access to this topic.");
         }
 
@@ -419,7 +425,7 @@ class ForumController extends Controller
         }
 
         // === GROUP ISOLATION CHECK ===
-        if ($topic->group_id !== Auth::user()->group_id && !Auth::user()->isSystemAdmin()) {
+        if (!Auth::user()->canAccessGroup($topic->group_id)) {
             abort(403, "You do not have access to this topic.");
         }
 

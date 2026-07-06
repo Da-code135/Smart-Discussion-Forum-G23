@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
@@ -350,6 +351,11 @@ class AuditLogService
             $query->where('created_at', '<=', $filters['end_date']);
         }
 
+        // Group isolation: filter by user IDs belonging to specific groups
+        if (!empty($filters['group_ids'])) {
+            $query->whereIn('user_id', User::whereIn('group_id', $filters['group_ids'])->pluck('id'));
+        }
+
         return $query->paginate($perPage);
     }
 
@@ -370,6 +376,11 @@ class AuditLogService
 
         if (!empty($filters['end_date'])) {
             $query->where('created_at', '<=', $filters['end_date']);
+        }
+
+        // Group isolation: filter by user IDs belonging to specific groups
+        if (!empty($filters['group_ids'])) {
+            $query->whereIn('user_id', User::whereIn('group_id', $filters['group_ids'])->pluck('id'));
         }
 
         return $query->latest()->get()->map(function ($log) {

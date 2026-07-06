@@ -101,9 +101,36 @@ class User extends Authenticatable
      */
     public function administeredGroups()
     {
-        return $this->belongsToMany(Group::class, "group_admins")
-            ->withPivot("assigned_by", "assigned_at")
+        return $this->belongsToMany(Group::class, 'group_admins')
+            ->withPivot('assigned_by', 'assigned_at')
             ->withTimestamps();
+    }
+
+    /**
+     * Get groups this user can teach (for Lecturers).
+     * Maps via the lecturer_group_access pivot table.
+     */
+    public function taughtGroups()
+    {
+        return $this->belongsToMany(Group::class, 'lecturer_group_access', 'lecturer_id', 'group_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Check if a lecturer can teach a specific group.
+     */
+    public function canTeachGroup(Group $group): bool
+    {
+        if ($this->isSystemAdmin()) {
+            return true;
+        }
+
+        // Own group or explicitly assigned
+        if ($this->group_id === $group->id) {
+            return true;
+        }
+
+        return $this->taughtGroups()->where('groups.id', $group->id)->exists();
     }
 
     /**
@@ -128,6 +155,22 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->isSystemAdmin() || $this->isGroupAdmin();
+    }
+
+    /**
+     * Check if user is a Lecturer
+     */
+    public function isLecturer(): bool
+    {
+        return $this->role && $this->role->role_name === 'Lecturer';
+    }
+
+    /**
+     * Check if user is a Student
+     */
+    public function isStudent(): bool
+    {
+        return $this->role && $this->role->role_name === 'Student';
     }
 
     /**
@@ -180,6 +223,49 @@ class User extends Authenticatable
     public function isBlacklisted(): bool
     {
         return $this->blacklisted_at !== null;
+    }
+
+    /**
+     * Get the IDs of all groups this user can access.
+     *
+     * - Regular members: only their own group
+     * - Group Admins: their own + administered groups
+     * - Lecturers: their own + taught groups
+     * - System Admins: bypass this filter entirely (caller checks isSystemAdmin first)
+     *
+     * @return int[]
+     */
+    public function accessibleGroupIds(): array
+    {
+        $ids = [$this->group_id];
+
+        if ($this->isGroupAdmin()) {
+            $ids = array_merge(
+                $ids,
+                $this->administeredGroups()->pluck('groups.id')->toArray(),
+            );
+        }
+
+        // Any user with taught group access (primarily lecturers)
+        $ids = array_merge(
+            $ids,
+            $this->taughtGroups()->pluck('groups.id')->toArray(),
+        );
+
+        return array_unique(array_filter($ids));
+    }
+
+    /**
+     * Check if user can access a specific group.
+     * Covers System Admins, Group Admins, Lecturers, and own-group membership.
+     */
+    public function canAccessGroup(int $groupId): bool
+    {
+        if ($this->isSystemAdmin()) {
+            return true;
+        }
+
+        return in_array($groupId, $this->accessibleGroupIds(), true);
     }
 
     /**

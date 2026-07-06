@@ -38,8 +38,14 @@ Route::middleware("auth")->group(function () {
         $recommendedTopics = collect();
 
         if ($user->group_id) {
-            $recentTopics = Topic::where("group_id", $user->group_id)
-                ->where("status", "active")
+            $topicQuery = Topic::where("status", "active");
+
+            // System admins see all topics; others see only accessible groups
+            if (!$user->isSystemAdmin()) {
+                $topicQuery->whereIn("group_id", $user->accessibleGroupIds());
+            }
+
+            $recentTopics = (clone $topicQuery)
                 ->with("creator")
                 ->withCount("posts")
                 ->latest()
@@ -55,8 +61,7 @@ Route::middleware("auth")->group(function () {
                     ],
                 );
 
-            $recommendedTopics = Topic::where("group_id", $user->group_id)
-                ->where("status", "active")
+            $recommendedTopics = (clone $topicQuery)
                 ->withCount("posts")
                 ->orderByDesc("posts_count")
                 ->take(2)

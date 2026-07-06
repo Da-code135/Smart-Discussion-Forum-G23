@@ -18,11 +18,20 @@ class QuizNotificationController extends Controller
      */
     public function upcoming()
     {
-        $quizzes = Quiz::where('published_at', '!=', null)
+        $user = Auth::user();
+
+        // Scope quizzes to the user's accessible groups (multi-tenant isolation)
+        $query = Quiz::where('published_at', '!=', null)
             ->where('is_active', false)
             ->whereDate('scheduled_date', '>=', today())
-            ->with('lecturer:id,full_name')
-            ->orderBy('scheduled_date')
+            ->with('lecturer:id,full_name');
+
+        // System admins see all upcoming quizzes; others see only their accessible groups
+        if (!$user->isSystemAdmin()) {
+            $query->whereIn('group_id', $user->accessibleGroupIds());
+        }
+
+        $quizzes = $query->orderBy('scheduled_date')
             ->take(10)
             ->get()
             ->map(function (Quiz $quiz) {
@@ -59,9 +68,18 @@ class QuizNotificationController extends Controller
      */
     public function live()
     {
-        $quizzes = Quiz::where('is_active', true)
-            ->with('lecturer:id,full_name')
-            ->get()
+        $user = Auth::user();
+
+        // Scope quizzes to the user's accessible groups (multi-tenant isolation)
+        $query = Quiz::where('is_active', true)
+            ->with('lecturer:id,full_name');
+
+        // System admins see all live quizzes; others see only their accessible groups
+        if (!$user->isSystemAdmin()) {
+            $query->whereIn('group_id', $user->accessibleGroupIds());
+        }
+
+        $quizzes = $query->get()
             ->map(function (Quiz $quiz) {
                 return [
                     'quiz_id'          => $quiz->quiz_id,

@@ -32,6 +32,11 @@ class StudentQuizController extends Controller
     {
         $user = Auth::user();
 
+        // Group isolation: only users in the quiz's group can access
+        if ($quiz->group_id && $quiz->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+            abort(403, 'This quiz is not available for your group.');
+        }
+
         // Only users matching the target role can access
         if ($quiz->target_category !== $user->role->role_name) {
             abort(403, 'This quiz is not for your role.');
@@ -84,6 +89,11 @@ class StudentQuizController extends Controller
     public function showQuiz(Request $request, Quiz $quiz)
     {
         $user = Auth::user();
+
+        // Group isolation: only users in the quiz's group can access
+        if ($quiz->group_id && $quiz->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+            abort(403, 'This quiz is not available for your group.');
+        }
 
         // Role gate
         if ($quiz->target_category !== $user->role->role_name) {

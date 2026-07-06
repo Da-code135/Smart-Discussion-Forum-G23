@@ -24,8 +24,8 @@ class PostController extends Controller
 
         $topic = Topic::findOrFail($topicId);
 
-        // Group isolation check (SysAdmin bypass)
-        if ($topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Group isolation check (SysAdmin / Lecturer / Group Admin bypass)
+        if (!$user->canAccessGroup($topic->group_id)) {
             return response()->json(
                 [
                     "message" => "You do not have access to this topic.",
@@ -119,11 +119,8 @@ class PostController extends Controller
 
         $post = Post::with("topic")->findOrFail($postId);
 
-        // Group isolation check via topic (SysAdmin bypass)
-        if (
-            $post->topic->group_id !== $user->group_id &&
-            !$user->isSystemAdmin()
-        ) {
+        // Group isolation check via topic (SysAdmin / Lecturer / Group Admin bypass)
+        if (!$user->canAccessGroup($post->topic->group_id)) {
             return response()->json(
                 [
                     "message" => "You do not have access to this post.",
@@ -198,11 +195,8 @@ class PostController extends Controller
 
         $post = Post::with("topic")->findOrFail($postId);
 
-        // Group isolation check via topic (SysAdmin bypass)
-        if (
-            $post->topic->group_id !== $user->group_id &&
-            !$user->isSystemAdmin()
-        ) {
+        // Group isolation check via topic (SysAdmin / Lecturer / Group Admin bypass)
+        if (!$user->canAccessGroup($post->topic->group_id)) {
             return response()->json(
                 [
                     "message" => "You do not have access to this post.",

@@ -26,7 +26,7 @@ class PostVisibilityController extends Controller
         $post = Post::with('topic')->findOrFail($postId);
 
         // Group isolation check via topic
-        if ($post->topic->group_id !== $user->group_id) {
+        if (!$user->canAccessGroup($post->topic->group_id)) {
             return response()->json([
                 'message' => 'You do not have access to this post.',
             ], 403);
@@ -52,10 +52,10 @@ class PostVisibilityController extends Controller
             ], 422);
         }
 
-        // Validate excluded user is in the same group (SysAdmin bypass)
-        if ($targetUser->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Validate excluded user is in an accessible group
+        if (!$user->canAccessGroup($targetUser->group_id)) {
             return response()->json([
-                'message' => 'The specified user is not in your group.',
+                'message' => 'The specified user is not in a group you can access.',
             ], 422);
         }
 
@@ -106,8 +106,8 @@ class PostVisibilityController extends Controller
 
         $post = Post::with("topic")->findOrFail($postId);
 
-        // Group isolation check via topic (SysAdmin bypass)
-        if ($post->topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Group isolation check via topic
+        if (!$user->canAccessGroup($post->topic->group_id)) {
             return response()->json([
                 'message' => 'You do not have access to this post.',
             ], 403);
@@ -144,8 +144,8 @@ class PostVisibilityController extends Controller
 
         $post = Post::with("topic")->findOrFail($postId);
 
-        // Group isolation check via topic (SysAdmin bypass)
-        if ($post->topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Group isolation check via topic
+        if (!$user->canAccessGroup($post->topic->group_id)) {
             return response()->json([
                 'message' => 'You do not have access to this post.',
             ], 403);

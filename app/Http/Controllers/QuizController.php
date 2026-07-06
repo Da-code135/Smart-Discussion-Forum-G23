@@ -7,6 +7,7 @@ use App\Models\Question;
 use App\Models\Answer;
 use App\Models\QuizConfiguration;
 use App\Models\Grade;
+use App\Models\Group;
 use App\Events\QuizPublished;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -16,13 +17,17 @@ use Illuminate\Support\Facades\Gate;
 class QuizController extends Controller
 {
     /**
-     * Show list of all quizzes (lecturer dashboard)
+     * Show list of quizzes scoped to the lecturer's accessible groups.
      */
     public function index()
     {
-        // Get all quizzes by current lecturer
-        $quizzes = Quiz::where('lecturer_id', Auth::id())
-                        ->with('configuration')  // Load config for each quiz
+        $user = Auth::user();
+
+        $accessibleGroupIds = Quiz::lecturerAccessibleGroupIds($user);
+
+        $quizzes = Quiz::where('lecturer_id', $user->id)
+                        ->whereIn('group_id', $accessibleGroupIds)
+                        ->with('configuration', 'group')  // Load config + group for each quiz
                         ->latest()
                         ->paginate(10);
 
@@ -34,7 +39,13 @@ class QuizController extends Controller
      */
     public function create()
     {
-        return view('quizzes.create');
+        $user = Auth::user();
+
+        // Groups this lecturer can create quizzes for
+        $accessibleGroupIds = Quiz::lecturerAccessibleGroupIds($user);
+        $groups = Group::whereIn('id', $accessibleGroupIds)->orderBy('group_name')->get();
+
+        return view('quizzes.create', compact('groups'));
     }
 
     /**
@@ -53,14 +64,29 @@ class QuizController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'target_category' => 'required|in:Student,Lecturer,Administrator,Member',
+            'group_id' => 'nullable|integer|exists:groups,id',
             'scheduled_date' => 'required|date|after_or_equal:today',  // Can't schedule in past
             'start_time' => 'required|date_format:H:i',  // Format: 10:30
             'duration_minutes' => 'required|integer|min:1|max:480',  // Max 8 hours
         ]);
 
+        $user = Auth::user();
+
+        // Determine the group for this quiz
+        $group = null;
+        if ($request->has('group_id')) {
+            $group = Group::findOrFail($validated['group_id']);
+            if (!$user->canTeachGroup($group)) {
+                abort(403, 'You cannot create quizzes for this group.');
+            }
+        } elseif ($user->group_id) {
+            $group = Group::find($user->group_id);
+        }
+
         // Create the quiz
         $quiz = Quiz::create([
-            'lecturer_id' => Auth::id(),  // Current user is the lecturer
+            'lecturer_id' => $user->id,  // Current user is the lecturer
+            'group_id' => $group?->id,
             'title' => $validated['title'],
             'description' => $validated['description'],
             'target_category' => $validated['target_category'],

@@ -42,6 +42,23 @@
                     @enderror
                 </div>
 
+                {{-- Group Selector --}}
+                <div class="form-group">
+                    <label for="group_id" class="form-label">Target Group *</label>
+                    <select id="group_id"
+                            name="group_id"
+                            class="form-input @error('group_id') is-invalid @enderror"
+                            required>
+                        <option value="">-- Select Group --</option>
+                        @foreach($groups as $g)
+                            <option value="{{ $g->id }}" {{ old('group_id') == $g->id ? 'selected' : '' }}>{{ $g->group_name }}</option>
+                        @endforeach
+                    </select>
+                    @error('group_id')
+                        <p class="form-error">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 {{-- Target Category --}}
                 <div class="form-group">
                     <label for="target_category" class="form-label">Who takes this quiz? *</label>

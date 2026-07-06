@@ -34,6 +34,7 @@
                 <thead>
                     <tr>
                         <th>Title</th>
+                        <th>Group</th>
                         <th>Target</th>
                         <th>Scheduled</th>
                         <th>Duration</th>
@@ -46,6 +47,7 @@
                     @foreach ($quizzes as $quiz)
                         <tr>
                             <td><strong>{{ $quiz->title }}</strong></td>
+                            <td><span class="badge badge-info">{{ $quiz->group->group_name ?? 'General' }}</span></td>
                             <td><span class="badge badge-secondary">{{ $quiz->target_category }}</span></td>
                             <td>{{ $quiz->scheduled_date->format('M d, Y') }} @ {{ $quiz->start_time }}</td>
                             <td>{{ $quiz->duration_minutes }} min</td>

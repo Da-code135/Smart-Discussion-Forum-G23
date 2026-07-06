@@ -17,6 +17,7 @@ class Quiz extends Model
 
     protected $fillable = [
         'lecturer_id',
+        'group_id',
         'title',
         'description',
         'target_category',
@@ -40,6 +41,22 @@ class Quiz extends Model
     public function lecturer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'lecturer_id');
+    }
+
+    /**
+     * The group this quiz belongs to (multi-tenant isolation).
+     */
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(Group::class);
+    }
+
+    /**
+     * Scope: only quizzes for a specific group.
+     */
+    public function scopeForGroup($query, int $groupId)
+    {
+        return $query->where('group_id', $groupId);
     }
 
     /**
@@ -72,5 +89,20 @@ class Quiz extends Model
     public function grades(): HasMany
     {
         return $this->hasMany(Grade::class, 'quiz_id', 'quiz_id');
+    }
+
+    /**
+     * Get the IDs of groups this lecturer can teach.
+     * Combines the lecturer's own group_id with explicit lecturer_group_access records.
+     *
+     * Delegates to User::accessibleGroupIds() so all roles are handled consistently.
+     */
+    public static function lecturerAccessibleGroupIds(User $lecturer): array
+    {
+        if ($lecturer->isSystemAdmin()) {
+            return Group::pluck('id')->toArray();
+        }
+
+        return $lecturer->accessibleGroupIds();
     }
 }

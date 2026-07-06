@@ -25,9 +25,9 @@ class TopicController extends Controller
 
         $query = Topic::with("creator")->withCount("posts")->latest();
 
-        // System admins see all topics; regular users see only their group
+        // System admins see all topics; others see only accessible groups
         if (!$user->isSystemAdmin()) {
-            $query->forGroup($user->group_id);
+            $query->whereIn('group_id', $user->accessibleGroupIds());
         }
 
         $topics = $query->active()->paginate(20);
@@ -54,8 +54,8 @@ class TopicController extends Controller
 
         $topic = Topic::with("creator")->findOrFail($topicId);
 
-        // Group isolation check (SysAdmin bypass)
-        if ($topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Group isolation check (SysAdmin / Lecturer / Group Admin bypass)
+        if (!$user->canAccessGroup($topic->group_id)) {
             return response()->json(
                 [
                     "message" => "You do not have access to this topic.",
@@ -179,8 +179,8 @@ class TopicController extends Controller
 
         $topic = Topic::findOrFail($topicId);
 
-        // Group isolation check (SysAdmin bypass)
-        if ($topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Group isolation check (SysAdmin / Lecturer / Group Admin bypass)
+        if (!$user->canAccessGroup($topic->group_id)) {
             return response()->json(
                 [
                     "message" => "You do not have access to this topic.",
@@ -253,8 +253,8 @@ class TopicController extends Controller
 
         $topic = Topic::findOrFail($topicId);
 
-        // Group isolation check (SysAdmin bypass)
-        if ($topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Group isolation check (SysAdmin / Lecturer / Group Admin bypass)
+        if (!$user->canAccessGroup($topic->group_id)) {
             return response()->json(
                 [
                     "message" => "You do not have access to this topic.",
@@ -307,8 +307,8 @@ class TopicController extends Controller
 
         $topic = Topic::findOrFail($topicId);
 
-        // Group isolation check (SysAdmin bypass)
-        if ($topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Group isolation check (SysAdmin / Lecturer / Group Admin bypass)
+        if (!$user->canAccessGroup($topic->group_id)) {
             return response()->json(
                 [
                     "message" => "You do not have access to this topic.",
@@ -360,9 +360,9 @@ class TopicController extends Controller
             ->withCount("posts")
             ->latest();
 
-        // System admins see all topics; regular users see only their group
+        // System admins see all topics; others see only accessible groups
         if (!$user->isSystemAdmin()) {
-            $query->forGroup($user->group_id);
+            $query->whereIn('group_id', $user->accessibleGroupIds());
         }
 
         $topics = $query->paginate(20);
@@ -393,8 +393,8 @@ class TopicController extends Controller
 
         $topic = Topic::with(["creator", "group"])->findOrFail($topicId);
 
-        // Group isolation check (SysAdmin bypass)
-        if ($topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Group isolation check (SysAdmin / Lecturer / Group Admin bypass)
+        if (!$user->canAccessGroup($topic->group_id)) {
             return response()->json(
                 [
                     "message" => "You do not have access to this topic.",
@@ -452,8 +452,8 @@ class TopicController extends Controller
 
         $topic = Topic::findOrFail($topicId);
 
-        // Group isolation check (SysAdmin bypass)
-        if ($topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Group isolation check (SysAdmin / Lecturer / Group Admin bypass)
+        if (!$user->canAccessGroup($topic->group_id)) {
             return response()->json(
                 [
                     "message" => "You do not have access to this topic.",
@@ -597,8 +597,8 @@ class TopicController extends Controller
         $user = $request->user();
         $topic = Topic::findOrFail($topicId);
 
-        // Group isolation check (SysAdmin bypass)
-        if ($topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Group isolation check (SysAdmin / Lecturer / Group Admin bypass)
+        if (!$user->canAccessGroup($topic->group_id)) {
             return response()->json(
                 [
                     "message" => "You do not have access to this topic.",
@@ -658,8 +658,8 @@ class TopicController extends Controller
         $user = $request->user();
         $topic = Topic::findOrFail($topicId);
 
-        // Group isolation check (SysAdmin bypass)
-        if ($topic->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+        // Group isolation check (SysAdmin / Lecturer / Group Admin bypass)
+        if (!$user->canAccessGroup($topic->group_id)) {
             return response()->json(
                 [
                     "message" => "You do not have access to this topic.",

@@ -22,6 +22,14 @@ class StudentQuizController extends Controller
     {
         $user = Auth::user();
 
+        // Group isolation: only users in the quiz's group can access
+        if ($quiz->group_id && $quiz->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This quiz is not available for your group.',
+            ], 403);
+        }
+
         // Role gate: only users matching the quiz target category can see it
         if ($user->role->role_name !== $quiz->target_category) {
             return response()->json([
@@ -68,6 +76,14 @@ class StudentQuizController extends Controller
     public function start(Quiz $quiz)
     {
         $user = Auth::user();
+
+        // Group isolation: only users in the quiz's group can start
+        if ($quiz->group_id && $quiz->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This quiz is not available for your group.',
+            ], 403);
+        }
 
         // Role gate
         if ($user->role->role_name !== $quiz->target_category) {
@@ -154,6 +170,14 @@ class StudentQuizController extends Controller
     public function showAttempt(Quiz $quiz)
     {
         $user = Auth::user();
+
+        // Group isolation: only users in the quiz's group can view their attempt
+        if ($quiz->group_id && $quiz->group_id !== $user->group_id && !$user->isSystemAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have access to this quiz.',
+            ], 403);
+        }
 
         $attempt = StudentAttempt::where('quiz_id', $quiz->quiz_id)
             ->where('student_id', $user->id)

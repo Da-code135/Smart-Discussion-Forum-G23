@@ -22,8 +22,10 @@ class AuditLogController extends Controller
      */
     public function index(Request $request)
     {
+        $currentUser = auth()->user();
+
         // Authorization check
-        if (!auth()->user()->isAdmin()) {
+        if (!$currentUser->isAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized. Admin access required.'
@@ -37,6 +39,12 @@ class AuditLogController extends Controller
             'start_date' => $request->input('start_date'),
             'end_date' => $request->input('end_date'),
         ];
+
+        // Group admins only see logs related to users in their administered groups
+        if ($currentUser->isGroupAdmin()) {
+            $adminGroupIds = $currentUser->administeredGroups()->pluck('groups.id');
+            $filters['group_ids'] = $adminGroupIds->toArray();
+        }
 
         $logs = $this->auditLogService->getPaginatedLogs(
             $request->input('per_page', 20),
@@ -98,6 +106,12 @@ class AuditLogController extends Controller
             'start_date' => $request->input('start_date'),
             'end_date' => $request->input('end_date'),
         ];
+
+        // Group admins only see logs related to users in their administered groups
+        if (auth()->user()->isGroupAdmin()) {
+            $adminGroupIds = auth()->user()->administeredGroups()->pluck('groups.id');
+            $filters['group_ids'] = $adminGroupIds->toArray();
+        }
 
         $logs = $this->auditLogService->exportLogs($filters);
 

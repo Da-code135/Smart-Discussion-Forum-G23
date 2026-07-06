@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Group;
 use App\Models\Quiz;
 use App\Models\QuizConfiguration;
 use App\Models\Question;
@@ -21,15 +22,13 @@ class QuizController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Quiz::withCount('questions')->with('configuration', 'lecturer:id,full_name')->latest();
-
-        // If user is group admin, filter to quizzes where group_id matches their administered groups
         $user = Auth::user();
-        if ($user->isGroupAdmin()) {
-            $adminGroupIds = $user->administeredGroups()->pluck('groups.id');
-            $query->whereHas('lecturer', function ($q) use ($adminGroupIds) {
-                $q->whereIn('group_id', $adminGroupIds);
-            });
+        $query = Quiz::withCount('questions')->with('configuration', 'lecturer:id,full_name', 'group')->latest();
+
+        // System admins see all quizzes.
+        // Others (Group Admins, Lecturers, Members) see only accessible groups.
+        if (!$user->isSystemAdmin()) {
+            $query->whereIn('group_id', $user->accessibleGroupIds());
         }
 
         $quizzes = $query->paginate(20);
@@ -53,17 +52,32 @@ class QuizController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'target_category' => ['required', Rule::in(['Student', 'Lecturer', 'Administrator', 'Member'])],
+            'group_id' => 'nullable|integer|exists:groups,id',
             'scheduled_date' => 'required|date|after_or_equal:today',
             'start_time' => 'required|date_format:H:i',
             'duration_minutes' => 'required|integer|min:1|max:480',
         ]);
 
+        // Determine the group for this quiz
+        $group = null;
+        if ($request->has('group_id')) {
+            $group = Group::findOrFail($validated['group_id']);
+            if (!$user->canTeachGroup($group)) {
+                return response()->json(['success' => false, 'message' => 'You cannot create quizzes for this group.'], 403);
+            }
+        } elseif ($user->group_id) {
+            $group = Group::find($user->group_id);
+        }
+
         $quiz = Quiz::create([
-            'lecturer_id' => Auth::id(),
+            'lecturer_id' => $user->id,
+            'group_id' => $group?->id,
             'title' => $validated['title'],
             'description' => $validated['description'],
             'target_category' => $validated['target_category'],
@@ -96,9 +110,16 @@ class QuizController extends Controller
     /**
      * Display the specified quiz.
      */
-    public function show(Quiz $quiz)
+    public function show(Request $request, Quiz $quiz)
     {
-        $quiz->load('questions.answers', 'configuration', 'lecturer:id,full_name');
+        $user = $request->user();
+
+        // Group isolation: only users with access can view the quiz
+        if (!$user->canAccessGroup($quiz->group_id)) {
+            return response()->json(['success' => false, 'message' => 'You do not have access to this quiz.'], 403);
+        }
+
+        $quiz->load('questions.answers', 'configuration', 'lecturer:id,full_name', 'group');
 
         return response()->json([
             'success' => true,
@@ -203,7 +224,7 @@ class QuizController extends Controller
         }
 
         $quiz->update(['published_at' => now()]);
-        
+
         // Dispatch event
         event(new QuizPublished($quiz));
 
@@ -221,10 +242,17 @@ class QuizController extends Controller
      */
     public function report(Request $request, Quiz $quiz)
     {
+        $user = $request->user();
+
+        // Group isolation: only users with access can view the quiz report
+        if (!$user->canAccessGroup($quiz->group_id)) {
+            return response()->json(['success' => false, 'message' => 'You do not have access to this quiz report.'], 403);
+        }
+
         $quiz->load('grades.student:id,full_name,email');
 
         $gradesCollection = $quiz->grades;
-        
+
         $avgScore = $gradesCollection->avg('percentage');
         $maxScore = $gradesCollection->max('percentage');
         $minScore = $gradesCollection->min('percentage');

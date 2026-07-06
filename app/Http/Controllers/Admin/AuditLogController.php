@@ -29,6 +29,14 @@ class AuditLogController extends Controller
             'end_date' => $request->input('end_date'),
         ];
 
+        $currentUser = auth()->user();
+
+        // Group admins only see logs related to users in their administered groups
+        if ($currentUser->isGroupAdmin()) {
+            $adminGroupIds = $currentUser->administeredGroups()->pluck('groups.id');
+            $filters['group_ids'] = $adminGroupIds->toArray();
+        }
+
         $logs = $this->auditLogService->getPaginatedLogs(20, $filters);
 
         // Get unique actions for filter dropdown
@@ -73,6 +81,14 @@ class AuditLogController extends Controller
             'end_date' => $request->input('end_date'),
         ];
 
+        $currentUser = auth()->user();
+
+        // Group admins only see logs related to users in their administered groups
+        if ($currentUser->isGroupAdmin()) {
+            $adminGroupIds = $currentUser->administeredGroups()->pluck('groups.id');
+            $filters['group_ids'] = $adminGroupIds->toArray();
+        }
+
         $logs = $this->auditLogService->exportLogs($filters);
 
         if ($format === 'csv') {
@@ -92,7 +108,7 @@ class AuditLogController extends Controller
     protected function exportCsv(array $logs)
     {
         $filename = 'audit-logs-' . now()->format('Y-m-d-His') . '.csv';
-        
+
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
@@ -100,10 +116,10 @@ class AuditLogController extends Controller
 
         $callback = function () use ($logs) {
             $file = fopen('php://output', 'w');
-            
+
             // CSV header
             fputcsv($file, ['ID', 'Timestamp', 'User', 'Action', 'Target Type', 'Target ID', 'Description', 'IP Address']);
-            
+
             // CSV data
             foreach ($logs as $log) {
                 fputcsv($file, [
@@ -117,7 +133,7 @@ class AuditLogController extends Controller
                     $log['ip_address'],
                 ]);
             }
-            
+
             fclose($file);
         };
 

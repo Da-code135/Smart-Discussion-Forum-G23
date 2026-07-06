@@ -9,11 +9,12 @@ class Grade extends Model
 {
     protected $primaryKey = 'grade_id';
     protected $table = 'grades';
-    
+
     protected $fillable = [
         'attempt_id',
         'student_id',
         'quiz_id',
+        'group_id',
         'total_score',
         'max_score',
         'percentage',
@@ -21,7 +22,7 @@ class Grade extends Model
         'final_grade',
         'graded_at',
     ];
-    
+
     protected $casts = [
         'total_score' => 'decimal:2',
         'max_score' => 'decimal:2',
@@ -55,5 +56,13 @@ class Grade extends Model
     public function quiz(): BelongsTo
     {
         return $this->belongsTo(Quiz::class, 'quiz_id', 'quiz_id');
+    }
+
+    /**
+     * Scope: only grades for a specific group.
+     */
+    public function scopeForGroup($query, int $groupId)
+    {
+        return $query->where('group_id', $groupId);
     }
 }
