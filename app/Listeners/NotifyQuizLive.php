@@ -5,18 +5,12 @@ namespace App\Listeners;
 use App\Events\QuizWentLive;
 use App\Models\Notification;
 use App\Models\User;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
-
 /**
  * When a quiz goes live (is_active flipped to true), notify every
  * eligible student that the quiz is now available.
- *
- * This runs in the background (ShouldQueue).
  */
-class NotifyQuizLive implements ShouldQueue
+class NotifyQuizLive
 {
-    use InteractsWithQueue;
 
     /**
      * Handle the event.

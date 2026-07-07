@@ -14,6 +14,49 @@ class StudentQuizController extends Controller
 {
     /**
      * ============================================
+     * STUDENT QUIZ DASHBOARD (List available quizzes)
+     * ============================================
+     *
+     * Shows all published quizzes the student can access:
+     *   - Upcoming: published but not yet active (pre-quiz landing)
+     *   - Live: currently active and available to start
+     *   - Completed: already submitted with results
+     */
+    public function index()
+    {
+        $user = Auth::user();
+
+        $quizzes = Quiz::where('published_at', '!=', null)
+            ->whereHas('lecturer', function ($q) use ($user) {
+                $q->where('group_id', $user->group_id);
+            })
+            ->where('target_category', $user->role->role_name)
+            ->with('lecturer', 'configuration')
+            ->withCount('questions')
+            ->orderBy('scheduled_date')
+            ->orderBy('start_time')
+            ->get()
+            ->map(function ($quiz) use ($user) {
+                $scheduled = $quiz->getScheduledDateTime();
+                $attempt = \App\Models\StudentAttempt::where('quiz_id', $quiz->quiz_id)
+                    ->where('student_id', $user->id)
+                    ->first();
+                return (object) [
+                    'quiz' => $quiz,
+                    'scheduled' => $scheduled,
+                    'has_started' => now()->isAfter($scheduled),
+                    'is_live' => $quiz->is_active && !$attempt,
+                    'attempt' => $attempt,
+                    'is_submitted' => $attempt && $attempt->is_submitted,
+                    'result_available' => $attempt && $attempt->is_submitted && $quiz->configuration?->show_results_after_close,
+                ];
+            });
+
+        return view('quizzes.student-index', compact('quizzes'));
+    }
+
+    /**
+     * ============================================
      * SHOW QUIZ ANNOUNCEMENT (Pre-quiz landing page)
      * ============================================
      *

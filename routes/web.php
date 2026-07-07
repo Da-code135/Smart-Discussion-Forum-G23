@@ -359,6 +359,10 @@ Route::middleware('auth')->group(function () {
 // ============================================
 
 Route::middleware('auth')->group(function () {
+    // Student: Dashboard listing all available quizzes
+    // Separate path to avoid clashing with the lecturer's GET /quizzes
+    Route::get('/my-quizzes', [StudentQuizController::class, 'index'])->name('quizzes.my-quizzes');
+
     Route::prefix('quizzes')->name('quizzes.')->group(function () {
         // Student: Quiz announcement page (shown BEFORE quiz starts)
         Route::get('/{quiz}/announcement', [
