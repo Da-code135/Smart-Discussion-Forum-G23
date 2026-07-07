@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SystemConfigController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\WarningController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AnswerController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
@@ -46,56 +47,12 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
     // DASHBOARD
-    Route::get('/dashboard', function () {
-        $user = Auth::user();
+    Route::get('/dashboard', [DashboardController::class, 'show'])
+        ->name('dashboard');
 
-        $recentTopics = collect();
-        $recommendedTopics = collect();
-
-        // System admins (group-agnostic) always see topics; others need a group
-        if ($user->isSystemAdmin() || $user->group_id) {
-            $topicQuery = Topic::where('status', 'active');
-
-            // System admins see all topics; others see only accessible groups
-            if (! $user->isSystemAdmin()) {
-                $topicQuery->whereIn('group_id', $user->accessibleGroupIds());
-            }
-
-            $recentTopics = (clone $topicQuery)
-                ->with('creator')
-                ->withCount('posts')
-                ->latest()
-                ->take(5)
-                ->get()
-                ->map(
-                    fn (Topic $topic) => [
-                        'id' => $topic->id,
-                        'title' => $topic->title,
-                        'creator_name' => optional($topic->creator)->full_name ?? 'Deleted User',
-                        'reply_count' => $topic->posts_count,
-                        'created_at' => $topic->created_at,
-                    ],
-                );
-
-            $recommendedTopics = (clone $topicQuery)
-                ->withCount('posts')
-                ->orderByDesc('posts_count')
-                ->take(2)
-                ->get()
-                ->map(
-                    fn (Topic $topic) => [
-                        'id' => $topic->id,
-                        'title' => $topic->title,
-                        'member_count' => $topic->posts_count,
-                    ],
-                );
-        }
-
-        return view(
-            'auth.dashboard',
-            compact('recentTopics', 'recommendedTopics'),
-        );
-    })->name('dashboard');
+    // RECOMMENDATIONS
+    Route::get('/recommendations', [DashboardController::class, 'showRecommendations'])
+        ->name('recommendations.index');
 
     // WARNING ACKNOWLEDGEMENT
     Route::get('/warning-acknowledgement', [
