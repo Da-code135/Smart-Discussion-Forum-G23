@@ -26,6 +26,7 @@ class Topic extends Model
         'post_type',
         'is_answered',
         'is_pinned',
+        'category_id',
     ];
 
     /**
@@ -51,6 +52,17 @@ class Topic extends Model
     public function posts()
     {
         return $this->hasMany(Post::class);
+    }
+
+    /**
+     * The category this topic is classified under (nullable until classified).
+     *
+     * Used by the ML classifier and recommendation engine to group similar
+     * topics together. Set to null when the category is deleted.
+     */
+    public function category()
+    {
+        return $this->belongsTo(TopicCategory::class, 'category_id');
     }
 
     /**
