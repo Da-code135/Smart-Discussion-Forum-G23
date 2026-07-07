@@ -243,15 +243,27 @@ Route::prefix($API_VERSION)->group(function () {
                 'members',
             ]); // G4: Group members
 
-            // Notifications (N1-N2)
+            // Notifications (N1-N5)
             Route::get('/me/notifications', [
                 NotificationController::class,
                 'index',
             ]); // N1: List my notifications
+            Route::get('/me/notifications/unread-count', [
+                NotificationController::class,
+                'unreadCount',
+            ]); // N2: Unread notification count
+            Route::post('/notifications/read-all', [
+                NotificationController::class,
+                'readAll',
+            ]); // N3: Mark all as read
             Route::post('/notifications/{id}/read', [
                 NotificationController::class,
                 'markAsRead',
-            ]); // N2: Mark as read
+            ]); // N4: Mark single notification as read
+            Route::delete('/notifications/{id}', [
+                NotificationController::class,
+                'destroy',
+            ]); // N5: Delete a notification
 
             // Topic Toggles (N3-N4)
             Route::post('/topics/{topicId}/toggle-answered', [
@@ -311,8 +323,7 @@ Route::prefix($API_VERSION)->group(function () {
                 Route::get('/quiz-notifications', [QuizNotificationController::class, 'quizNotifications']);
             });
 
-            // Quiz notification mark-as-read
-            Route::post('/notifications/{id}/read', [QuizNotificationController::class, 'markRead']);
+            // Quiz notification mark-as-read is handled by NotificationController above (N4)
 
             // ============================================
             // QUIZ API (Lecturer/Admin — Quiz CRUD + Questions + Answers)

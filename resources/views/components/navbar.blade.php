@@ -51,8 +51,16 @@
         </nav>
 
         <div class="app-topbar-actions">
-            <a href="{{ route('notifications') }}" class="app-topbar-icon-btn" aria-label="Notifications">
+            <a href="{{ route('notifications') }}" class="app-topbar-icon-btn" aria-label="Notifications" style="position: relative;">
                 <span class="material-symbols-outlined">notifications</span>
+                @php
+                    $unreadNotifCount = Auth::user()->notifications()->whereNull('read_at')->count();
+                @endphp
+                @if ($unreadNotifCount > 0)
+                    <span style="position: absolute; top: 2px; right: 2px; background: #f44336; color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; line-height: 1;">
+                        {{ min($unreadNotifCount, 99) }}
+                    </span>
+                @endif
             </a>
 
             <div class="user-menu" data-user-menu>

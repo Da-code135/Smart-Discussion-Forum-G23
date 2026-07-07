@@ -19,6 +19,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\WarningAcknowledgementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ForumController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\ReportController;
@@ -146,14 +147,10 @@ Route::middleware('auth')->group(function () {
         });
 
     // NOTIFICATIONS
-    Route::get('/notifications', [
-        ForumController::class,
-        'notifications',
-    ])->name('notifications');
-    Route::post('/notifications/{notificationId}/read', [
-        ForumController::class,
-        'markNotificationAsRead',
-    ])->name('notifications.read');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::delete('/notifications/{id}', [NotificationController::class, 'delete'])->name('notifications.delete');
 });
 
 // Topic sharing route (outside auth middleware)
