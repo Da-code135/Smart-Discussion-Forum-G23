@@ -6,6 +6,7 @@ use Database\Factories\TopicFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use App\Services\TopicClassificationService;
 
 class Topic extends Model
 {
@@ -28,6 +29,17 @@ class Topic extends Model
         'is_pinned',
         'category_id',
     ];
+
+    /**
+     * Model event: after creating a topic, classify it
+     */
+    protected static function booted()
+    {
+        static::created(function ($topic) {
+            // Auto-classify the new topic
+            app(TopicClassificationService::class)->classifyTopic($topic);
+        });
+    }
 
     /**
      * The group that owns this topic.
