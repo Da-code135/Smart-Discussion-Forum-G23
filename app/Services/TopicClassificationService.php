@@ -27,18 +27,18 @@ class TopicClassificationService
      */
     public function classifyTopic(Topic $topic)
     {
-        $text = strtolower($topic->title . ' ' . $topic->description);
+        $text = strtolower($topic->title.' '.$topic->description);
         $scores = [];
 
         // Score each category based on keyword matches
         foreach ($this->categoryKeywords as $categoryName => $keywords) {
             $score = 0;
-            
+
             foreach ($keywords as $keyword) {
                 // Count how many times this keyword appears
                 $score += substr_count($text, $keyword);
             }
-            
+
             $scores[$categoryName] = $score;
         }
 
@@ -75,8 +75,8 @@ class TopicClassificationService
     public function classifyGroupTopics($groupId)
     {
         $topics = Topic::where('group_id', $groupId)
-                       ->whereNull('category_id')  // Only unclassified
-                       ->get();
+            ->whereNull('category_id')  // Only unclassified
+            ->get();
 
         foreach ($topics as $topic) {
             $this->classifyTopic($topic);

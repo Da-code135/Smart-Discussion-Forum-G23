@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -99,15 +100,16 @@ class Quiz extends Model
      * is cast to 'datetime:H:i', both of which can serialize unexpectedly
      * when concatenated directly.
      */
-    public function getScheduledDateTime(): \Carbon\Carbon
+    public function getScheduledDateTime(): Carbon
     {
-        $dateStr = $this->scheduled_date instanceof \Carbon\Carbon
+        $dateStr = $this->scheduled_date instanceof Carbon
             ? $this->scheduled_date->format('Y-m-d')
             : $this->scheduled_date;
-        $timeStr = $this->start_time instanceof \Carbon\Carbon
+        $timeStr = $this->start_time instanceof Carbon
             ? $this->start_time->format('H:i:s')
             : $this->start_time;
-        return \Carbon\Carbon::parse($dateStr.' '.$timeStr);
+
+        return Carbon::parse($dateStr.' '.$timeStr);
     }
 
     /**

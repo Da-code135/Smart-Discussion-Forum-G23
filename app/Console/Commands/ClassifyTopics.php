@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 class ClassifyTopics extends Command
 {
     protected $signature = 'app:classify-topics {groupId?}';
+
     protected $description = 'Classify topics in a group';
 
     public function handle()

@@ -5,13 +5,13 @@ namespace App\Listeners;
 use App\Events\QuizPublished;
 use App\Models\Notification;
 use App\Models\User;
+
 /**
  * When a quiz is published (announced), notify every student whose
  * role matches the quiz's target_category within the same group.
  */
 class SendQuizAnnouncement
 {
-
     /**
      * Handle the event.
      *

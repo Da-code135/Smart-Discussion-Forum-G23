@@ -20,7 +20,7 @@ class GroupStatisticsController extends Controller
     public function index()
     {
         // System Admin only
-        if (!Auth::user()->isSystemAdmin()) {
+        if (! Auth::user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized. System Administrator access required.',
@@ -61,7 +61,7 @@ class GroupStatisticsController extends Controller
     public function show(Group $group)
     {
         // System Admin only
-        if (!Auth::user()->isSystemAdmin()) {
+        if (! Auth::user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized. System Administrator access required.',

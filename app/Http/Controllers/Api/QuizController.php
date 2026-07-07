@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\Quiz;
 use App\Models\QuizConfiguration;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;

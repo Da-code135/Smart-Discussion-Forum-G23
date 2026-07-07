@@ -46,7 +46,7 @@ class StatisticsController extends Controller
         }
 
         // Get or create statistics for each group
-        $groupStats = $groups->map(function (Group $group) use ($user) {
+        $groupStats = $groups->map(function (Group $group) {
             $stats = Statistics::firstOrCreate(
                 ['group_id' => $group->id],
                 [
@@ -124,13 +124,13 @@ class StatisticsController extends Controller
         Statistics::updateOrCreate(
             ['group_id' => $groupId],
             [
-                'total_members'          => $totalMembers,
+                'total_members' => $totalMembers,
                 'active_members_this_week' => $activeMembersThisWeek,
-                'total_topics'           => $totalTopics,
-                'total_posts'            => $totalPosts,
-                'unanswered_questions'   => $unansweredQuestions,
+                'total_topics' => $totalTopics,
+                'total_posts' => $totalPosts,
+                'unanswered_questions' => $unansweredQuestions,
                 'inactive_members_30days' => $inactiveMembers30days,
-                'last_calculated_at'     => now(),
+                'last_calculated_at' => now(),
             ]
         );
 

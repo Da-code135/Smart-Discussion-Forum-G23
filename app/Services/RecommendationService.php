@@ -2,11 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\Post;
 use App\Models\RecommendationLog;
 use App\Models\Topic;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\Collection;
 
 class RecommendationService
 {
@@ -20,22 +19,21 @@ class RecommendationService
      * 4. Log each recommendation so we don't repeat them.
      * 5. Fall back to popular topics for new/inactive users.
      *
-     * @param  User  $user
-     * @param  int   $limit  Max recommendations to return
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @param  int  $limit  Max recommendations to return
+     * @return Collection
      */
     public function generateRecommendations(User $user, int $limit = 5)
     {
         // 1. Find topic categories the user has engaged with
         $userEngagedCategoryIds = Topic::whereIn('id', function ($q) use ($user) {
             $q->select('topic_id')
-              ->from('posts')
-              ->where('user_id', $user->id);
+                ->from('posts')
+                ->where('user_id', $user->id);
         })
-        ->whereNotNull('category_id')
-        ->pluck('category_id')
-        ->unique()
-        ->toArray();
+            ->whereNotNull('category_id')
+            ->pluck('category_id')
+            ->unique()
+            ->toArray();
 
         // 2. If user hasn't engaged with anything, recommend popular topics
         if (empty($userEngagedCategoryIds)) {
@@ -43,20 +41,20 @@ class RecommendationService
         }
 
         // 3. Find topics in those categories the user hasn't interacted with
-        $recommendations = Topic::where('group_id', $user->group_id)
-            ->whereIn('category_id', $userEngagedCategoryIds)
+        $recommendations = Topic::whereIn('category_id', $userEngagedCategoryIds)
             ->where('status', 'active')
+            ->when($user->group_id !== null, fn ($q) => $q->where('group_id', $user->group_id))
             ->whereNotIn('id', function ($q) use ($user) {
                 // Exclude topics user already posted in
                 $q->select('topic_id')
-                  ->from('posts')
-                  ->where('user_id', $user->id);
+                    ->from('posts')
+                    ->where('user_id', $user->id);
             })
             ->whereNotIn('id', function ($q) use ($user) {
                 // Exclude topics already recommended
                 $q->select('topic_id')
-                  ->from('recommendation_log')
-                  ->where('user_id', $user->id);
+                    ->from('recommendation_log')
+                    ->where('user_id', $user->id);
             })
             ->with('creator')
             ->with('category')
@@ -84,18 +82,22 @@ class RecommendationService
      * Fallback: return the most popular topics (most replies) when
      * the user hasn't engaged with enough categories yet.
      *
-     * @param  User  $user
-     * @param  int   $limit
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return Collection
      */
     private function getPopularTopics(User $user, int $limit = 5)
     {
-        return Topic::forGroup($user->group_id)
-            ->active()
+        $query = Topic::active()
             ->with('creator')
             ->with('category')
-            ->withCount('posts')
-            ->orderBy('posts_count', 'desc')
+            ->withCount('posts');
+
+        // System admins see popular topics across all groups;
+        // regular users see only their own group.
+        if ($user->group_id !== null) {
+            $query->forGroup($user->group_id);
+        }
+
+        return $query->orderBy('posts_count', 'desc')
             ->limit($limit)
             ->get();
     }
