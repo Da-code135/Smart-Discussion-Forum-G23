@@ -81,6 +81,10 @@
                                 <span class="material-symbols-outlined">group_work</span>
                                 <span>Group management</span>
                             </a>
+                            <a href="{{ route('admin.statistics.index') }}" class="user-menu__link">
+                                <span class="material-symbols-outlined">bar_chart</span>
+                                <span>Statistics</span>
+                            </a>
                         @endif
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
