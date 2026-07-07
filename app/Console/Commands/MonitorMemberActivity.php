@@ -108,8 +108,13 @@ class MonitorMemberActivity extends Command
      */
     private function issueWarning(User $user): void
     {
-        // Fetch warning response days from config
-        $warningResponseDays = (int) SystemConfig::getValue('warning_response_days', 7);
+        // Fetch escalation timing from config.
+        // Each step can be configured independently; falls back to the legacy
+        // warning_response_days if the new specific key hasn't been set yet.
+        $secondWarningDays = (int) (SystemConfig::getValue('days_before_second_warning')
+            ?: SystemConfig::getValue('warning_response_days', 7));
+        $blacklistDays = (int) (SystemConfig::getValue('days_before_blacklist')
+            ?: SystemConfig::getValue('warning_response_days', 7));
 
         // Check for existing unresolved warnings
         $unresolvedWarnings = Warning::where('user_id', $user->id)
@@ -123,7 +128,7 @@ class MonitorMemberActivity extends Command
                 'user_id' => $user->id,
                 'warning_number' => 1,
                 'reason' => 'Account inactivity - No activity for extended period',
-                'response_deadline' => now()->addDays($warningResponseDays),
+                'response_deadline' => now()->addDays($secondWarningDays),
                 'is_acknowledged' => false,
                 'is_resolved' => false,
             ]);
@@ -132,7 +137,7 @@ class MonitorMemberActivity extends Command
                 $user->update(['account_status' => 'warned']);
             }
 
-            $this->line("  <fg=yellow>✓ Warning 1 issued</> - Deadline: {$warningResponseDays} days");
+            $this->line("  <fg=yellow>✓ Warning 1 issued</> - Deadline: {$secondWarningDays} days");
             Log::info("Warning 1 issued to user {$user->id} ({$user->email}) for inactivity");
 
             return;
@@ -146,12 +151,12 @@ class MonitorMemberActivity extends Command
                 'user_id' => $user->id,
                 'warning_number' => 2,
                 'reason' => 'Account inactivity - Failed to respond to Warning 1',
-                'response_deadline' => now()->addDays($warningResponseDays),
+                'response_deadline' => now()->addDays($blacklistDays),
                 'is_acknowledged' => false,
                 'is_resolved' => false,
             ]);
 
-            $this->line("  <fg=yellow>⚠ Warning 2 issued</> - Deadline: {$warningResponseDays} days");
+            $this->line("  <fg=yellow>⚠ Warning 2 issued</> - Deadline: {$blacklistDays} days");
             Log::info("Warning 2 issued to user {$user->id} ({$user->email}) - Warning 1 expired unacknowledged");
 
             return;
