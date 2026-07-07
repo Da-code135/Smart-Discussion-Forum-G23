@@ -42,9 +42,7 @@ class ActivateQuizzes extends Command
         $activated = 0;
 
         foreach ($quizzes as $quiz) {
-            $scheduledTime = Carbon::parse(
-                $quiz->scheduled_date.' '.$quiz->start_time,
-            );
+            $scheduledTime = $quiz->getScheduledDateTime();
 
             // Has the scheduled time arrived or passed?
             if ($now->isAfter($scheduledTime)) {

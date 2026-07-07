@@ -42,9 +42,7 @@ class SendQuizReminders extends Command
         $totalRemindersSent = 0;
 
         foreach ($quizzes as $quiz) {
-            $scheduledTime = Carbon::parse(
-                $quiz->scheduled_date.' '.$quiz->start_time,
-            );
+            $scheduledTime = $quiz->getScheduledDateTime();
 
             // Minutes from now until the quiz starts (negative = already past)
             $minutesUntilStart = $now->diffInMinutes($scheduledTime, false);

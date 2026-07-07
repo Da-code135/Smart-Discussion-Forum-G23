@@ -212,7 +212,7 @@ class QuizController extends Controller
             ], 422);
         }
 
-        $scheduledDateTime = Carbon::parse($quiz->scheduled_date.' '.$quiz->start_time);
+        $scheduledDateTime = $quiz->getScheduledDateTime();
         if ($scheduledDateTime->isPast()) {
             return response()->json([
                 'success' => false,

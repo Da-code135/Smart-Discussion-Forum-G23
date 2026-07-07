@@ -48,9 +48,7 @@ class StudentQuizController extends Controller
         }
 
         // Parse the scheduled start time
-        $scheduledTime = Carbon::parse(
-            $quiz->scheduled_date.' '.$quiz->start_time,
-        );
+        $scheduledTime = $quiz->getScheduledDateTime();
         $now = now();
 
         // Diff in seconds (negative if the start time has passed)
@@ -100,9 +98,7 @@ class StudentQuizController extends Controller
             abort(403, 'This quiz is not for your role.');
         }
 
-        $scheduledTime = Carbon::parse(
-            $quiz->scheduled_date.' '.$quiz->start_time,
-        );
+        $scheduledTime = $quiz->getScheduledDateTime();
         $now = now();
 
         // === Quiz not yet active ===
@@ -352,9 +348,7 @@ class StudentQuizController extends Controller
     public function getStatus(Quiz $quiz)
     {
         $user = Auth::user();
-        $scheduledTime = Carbon::parse(
-            $quiz->scheduled_date.' '.$quiz->start_time,
-        );
+        $scheduledTime = $quiz->getScheduledDateTime();
         $now = now();
 
         $attempt = StudentAttempt::where('quiz_id', $quiz->quiz_id)

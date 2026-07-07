@@ -93,6 +93,24 @@ class Quiz extends Model
     }
 
     /**
+     * Get the fully combined scheduled date+time as a Carbon instance.
+     *
+     * Handles the fact that scheduled_date is cast to 'date' and start_time
+     * is cast to 'datetime:H:i', both of which can serialize unexpectedly
+     * when concatenated directly.
+     */
+    public function getScheduledDateTime(): \Carbon\Carbon
+    {
+        $dateStr = $this->scheduled_date instanceof \Carbon\Carbon
+            ? $this->scheduled_date->format('Y-m-d')
+            : $this->scheduled_date;
+        $timeStr = $this->start_time instanceof \Carbon\Carbon
+            ? $this->start_time->format('H:i:s')
+            : $this->start_time;
+        return \Carbon\Carbon::parse($dateStr.' '.$timeStr);
+    }
+
+    /**
      * Get the IDs of groups this lecturer can teach.
      * Combines the lecturer's own group_id with explicit lecturer_group_access records.
      *

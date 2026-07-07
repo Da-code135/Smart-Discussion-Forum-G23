@@ -235,7 +235,7 @@ class QuizController extends Controller
         }
 
         // Validation: Scheduled date/time must be in future
-        $scheduledDateTime = Carbon::parse($quiz->scheduled_date.' '.$quiz->start_time);
+        $scheduledDateTime = $quiz->getScheduledDateTime();
         if ($scheduledDateTime->isPast()) {
             return back()->with('error', 'Quiz date/time must be in the future.');
         }

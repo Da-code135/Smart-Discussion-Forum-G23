@@ -46,7 +46,7 @@ class StudentQuizController extends Controller
             ], 404);
         }
 
-        $scheduledTime = Carbon::parse($quiz->scheduled_date.' '.$quiz->start_time);
+        $scheduledTime = $quiz->getScheduledDateTime();
         $now = now();
         $timeUntilStart = $scheduledTime->diffInSeconds($now, false);
 
@@ -113,7 +113,7 @@ class StudentQuizController extends Controller
             ], 409);
         }
 
-        $scheduledTime = Carbon::parse($quiz->scheduled_date.' '.$quiz->start_time);
+        $scheduledTime = $quiz->getScheduledDateTime();
         $isLate = now()->isAfter($scheduledTime);
 
         // Create attempt
@@ -441,7 +441,7 @@ class StudentQuizController extends Controller
             ->first();
 
         if (! $attempt) {
-            $scheduledTime = Carbon::parse($quiz->scheduled_date.' '.$quiz->start_time);
+            $scheduledTime = $quiz->getScheduledDateTime();
             $hasStarted = now()->isAfter($scheduledTime);
 
             return response()->json([
