@@ -39,7 +39,7 @@ class ThrottlePosts
     {
         // Every route this middleware is applied to requires authentication,
         // but guard against the off-chance it's reached without a logged-in user.
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return response()->json([
                 'message' => 'You are posting too fast. Please wait.',
             ], 429);
@@ -58,7 +58,7 @@ class ThrottlePosts
 
         // Build a per-user, per-action cache key so replying and topic-creation
         // limits are tracked independently (e.g. 5 replies AND 3 topics per minute).
-        $key = 'throttle.posts.' . $action . '.' . $user->id;
+        $key = 'throttle.posts.'.$action.'.'.$user->id;
 
         if ($this->limiter->tooManyAttempts($key, $limits['max_attempts'])) {
             $retryAfter = $this->limiter->availableIn($key);

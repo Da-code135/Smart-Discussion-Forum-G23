@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\User;
-use App\Models\Group;
 use App\Models\AuditLog;
+use App\Models\Group;
+use App\Models\User;
 use App\Models\Warning;
-use App\Models\BlacklistRecord;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -15,18 +15,15 @@ class AdvancedSearchService
 {
     /**
      * Advanced user search with filtering, sorting, and pagination
-     * 
-     * @param Request $request
-     * @param bool $isAdmin
-     * @param Collection|null $allowedGroupIds
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     *
+     * @return LengthAwarePaginator
      */
     public function searchUsers(Request $request, bool $isAdmin = false, ?Collection $allowedGroupIds = null)
     {
         $query = User::with(['role', 'group']);
 
         // Apply group restriction for Group Admins
-        if (!$isAdmin && $allowedGroupIds) {
+        if (! $isAdmin && $allowedGroupIds) {
             $query->whereIn('group_id', $allowedGroupIds);
         }
 
@@ -35,7 +32,7 @@ class AdvancedSearchService
             $search = $request->input('search');
             $query->where(function (Builder $q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -97,7 +94,7 @@ class AdvancedSearchService
         // Sorting
         $sortBy = $request->input('sort_by', 'created_at');
         $sortOrder = $request->input('sort_order', 'desc');
-        
+
         $allowedSorts = ['full_name', 'email', 'created_at', 'last_active_at', 'account_status', 'role_id', 'group_id'];
         if (in_array($sortBy, $allowedSorts)) {
             $query->orderBy($sortBy, $sortOrder === 'asc' ? 'asc' : 'desc');
@@ -114,11 +111,8 @@ class AdvancedSearchService
 
     /**
      * Advanced group search with filtering, sorting, and pagination
-     * 
-     * @param Request $request
-     * @param bool $isAdmin
-     * @param Collection|null $allowedGroupIds
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     *
+     * @return LengthAwarePaginator
      */
     public function searchGroups(Request $request, bool $isAdmin = false, ?Collection $allowedGroupIds = null)
     {
@@ -126,7 +120,7 @@ class AdvancedSearchService
             ->with('createdBy');
 
         // Apply group restriction for Group Admins
-        if (!$isAdmin && $allowedGroupIds) {
+        if (! $isAdmin && $allowedGroupIds) {
             $query->whereIn('id', $allowedGroupIds);
         }
 
@@ -135,7 +129,7 @@ class AdvancedSearchService
             $search = $request->input('search');
             $query->where(function (Builder $q) use ($search) {
                 $q->where('group_name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -163,7 +157,7 @@ class AdvancedSearchService
         // Sorting
         $sortBy = $request->input('sort_by', 'created_at');
         $sortOrder = $request->input('sort_order', 'desc');
-        
+
         $allowedSorts = ['group_name', 'created_at', 'users_count'];
         if (in_array($sortBy, $allowedSorts)) {
             if ($sortBy === 'users_count') {
@@ -184,9 +178,8 @@ class AdvancedSearchService
 
     /**
      * Advanced audit log search with filtering, sorting, and pagination
-     * 
-     * @param Request $request
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     *
+     * @return LengthAwarePaginator
      */
     public function searchAuditLogs(Request $request)
     {
@@ -197,7 +190,7 @@ class AdvancedSearchService
             $search = $request->input('search');
             $query->where(function (Builder $q) use ($search) {
                 $q->where('description', 'like', "%{$search}%")
-                  ->orWhere('action', 'like', "%{$search}%");
+                    ->orWhere('action', 'like', "%{$search}%");
             });
         }
 
@@ -237,7 +230,7 @@ class AdvancedSearchService
         // Sorting
         $sortBy = $request->input('sort_by', 'created_at');
         $sortOrder = $request->input('sort_order', 'desc');
-        
+
         $allowedSorts = ['created_at', 'action', 'user_id'];
         if (in_array($sortBy, $allowedSorts)) {
             $query->orderBy($sortBy, $sortOrder === 'asc' ? 'asc' : 'desc');
@@ -254,18 +247,15 @@ class AdvancedSearchService
 
     /**
      * Advanced warning search with filtering, sorting, and pagination
-     * 
-     * @param Request $request
-     * @param bool $isAdmin
-     * @param Collection|null $allowedGroupIds
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     *
+     * @return LengthAwarePaginator
      */
     public function searchWarnings(Request $request, bool $isAdmin = false, ?Collection $allowedGroupIds = null)
     {
         $query = Warning::with(['user', 'createdByUser']);
 
         // Apply group restriction for Group Admins
-        if (!$isAdmin && $allowedGroupIds) {
+        if (! $isAdmin && $allowedGroupIds) {
             $query->whereHas('user', function (Builder $q) use ($allowedGroupIds) {
                 $q->whereIn('group_id', $allowedGroupIds);
             });
@@ -318,13 +308,13 @@ class AdvancedSearchService
         // Filter overdue warnings
         if ($request->filled('overdue') && $request->boolean('overdue')) {
             $query->where('is_acknowledged', false)
-                  ->where('response_deadline', '<', now());
+                ->where('response_deadline', '<', now());
         }
 
         // Sorting
         $sortBy = $request->input('sort_by', 'created_at');
         $sortOrder = $request->input('sort_order', 'desc');
-        
+
         $allowedSorts = ['created_at', 'warning_number', 'response_deadline', 'is_acknowledged', 'is_resolved'];
         if (in_array($sortBy, $allowedSorts)) {
             $query->orderBy($sortBy, $sortOrder === 'asc' ? 'asc' : 'desc');
@@ -341,9 +331,6 @@ class AdvancedSearchService
 
     /**
      * Get available sort options for a model
-     * 
-     * @param string $model
-     * @return array
      */
     public function getSortOptions(string $model): array
     {
@@ -377,9 +364,6 @@ class AdvancedSearchService
 
     /**
      * Get available filter options for a model
-     * 
-     * @param string $model
-     * @return array
      */
     public function getFilterOptions(string $model): array
     {
@@ -403,8 +387,6 @@ class AdvancedSearchService
 
     /**
      * Get audit action type labels
-     * 
-     * @return array
      */
     private function getAuditActionTypes(): array
     {

@@ -113,11 +113,11 @@ class PostTest extends TestCase
         // Create moderation logs for the post
         $moderationLog1 = ModerationLog::factory()->create([
             'post_id' => $post->id,
-            'admin_id' => $admin->id
+            'admin_id' => $admin->id,
         ]);
         $moderationLog2 = ModerationLog::factory()->create([
             'post_id' => $post->id,
-            'admin_id' => $admin->id
+            'admin_id' => $admin->id,
         ]);
 
         // Load the moderation logs relationship

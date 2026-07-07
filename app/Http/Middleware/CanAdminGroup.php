@@ -14,15 +14,15 @@ class CanAdminGroup
      */
     public function handle(Request $request, Closure $next)
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return redirect('/login')->with('error', 'Please login to continue');
         }
 
         $user = auth()->user();
-        
+
         // Get group from route parameter
         $groupId = $request->route('group');
-        
+
         if ($groupId instanceof Group) {
             $group = $groupId;
         } else {
@@ -30,7 +30,7 @@ class CanAdminGroup
         }
 
         // Check if user can admin this specific group
-        if (!$user->canAdminGroup($group)) {
+        if (! $user->canAdminGroup($group)) {
             abort(403, 'Unauthorized. You do not have permission to manage this group.');
         }
 

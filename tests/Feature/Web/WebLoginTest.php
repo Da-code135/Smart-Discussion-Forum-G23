@@ -5,13 +5,12 @@ namespace Tests\Feature\Web;
 use App\Models\BlacklistRecord;
 use App\Models\Warning;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Tests\CreatesTestUsers;
 use Tests\TestCase;
 
 class WebLoginTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -221,7 +220,7 @@ class WebLoginTest extends TestCase
         for ($i = 0; $i < 5; $i++) {
             $this->post('/login', [
                 'email' => 'student@test.com',
-                'password' => 'WrongPass' . $i,
+                'password' => 'WrongPass'.$i,
             ]);
         }
 

@@ -3,17 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Role;
-use App\Models\Group;
 use App\Models\BlacklistRecord;
+use App\Models\Group;
+use App\Models\Role;
+use App\Models\User;
 use App\Models\Warning;
-use App\Models\OnboardingAgreement;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Auth\Events\Registered;
 
 class AuthController extends Controller
 {
@@ -22,8 +21,7 @@ class AuthController extends Controller
      *
      * POST /api/v1/register
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function register(Request $request)
     {
@@ -38,7 +36,7 @@ class AuthController extends Controller
         $role = Role::where('role_name', 'Member')->first();
         $group = Group::where('group_name', 'General')->first();
 
-        if (!$role || !$group) {
+        if (! $role || ! $group) {
             return response()->json([
                 'message' => 'Required role or group not found in database. Please contact administrator.',
             ], 500);
@@ -71,14 +69,13 @@ class AuthController extends Controller
      *
      * POST /api/v1/login
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function login(Request $request)
     {
         // Rate limiting check
-        $key = 'api-login-attempts:' . $request->input('email') . '|' . $request->ip();
-        $emailKey = 'api-login-attempts-email:' . $request->input('email');
+        $key = 'api-login-attempts:'.$request->input('email').'|'.$request->ip();
+        $emailKey = 'api-login-attempts-email:'.$request->input('email');
         $maxAttempts = 5;
         $lockoutSeconds = 30;
 
@@ -86,7 +83,7 @@ class AuthController extends Controller
             $seconds = max(RateLimiter::availableIn($key), RateLimiter::availableIn($emailKey));
 
             return response()->json([
-                'message' => 'Too many login attempts. Try again in ' . $seconds . ' seconds.',
+                'message' => 'Too many login attempts. Try again in '.$seconds.' seconds.',
             ], 429);
         }
 
@@ -100,7 +97,7 @@ class AuthController extends Controller
         $user = User::where('email', $request->input('email'))->first();
 
         // Check credentials
-        if (!$user || !Hash::check($request->input('password'), $user->password)) {
+        if (! $user || ! Hash::check($request->input('password'), $user->password)) {
             RateLimiter::hit($key, $lockoutSeconds);
             RateLimiter::hit($emailKey, $lockoutSeconds);
 
@@ -120,7 +117,7 @@ class AuthController extends Controller
                 RateLimiter::hit($emailKey, $lockoutSeconds);
 
                 return response()->json([
-                    'message' => 'Your account is blacklisted until ' . $blacklistRecord->expires_at->format('M d, Y') . '.',
+                    'message' => 'Your account is blacklisted until '.$blacklistRecord->expires_at->format('M d, Y').'.',
                 ], 403);
             }
         }
@@ -163,8 +160,7 @@ class AuthController extends Controller
      * POST /api/v1/logout
      * Protected by auth:sanctum middleware
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function logout(Request $request)
     {
@@ -181,8 +177,7 @@ class AuthController extends Controller
      * DELETE /api/v1/account
      * Protected by auth:sanctum middleware
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function deleteAccount(Request $request)
     {
@@ -193,7 +188,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         // Verify password
-        if (!Hash::check($validated['password'], $user->password)) {
+        if (! Hash::check($validated['password'], $user->password)) {
             return response()->json([
                 'message' => 'Invalid password',
             ], 403);
@@ -222,8 +217,7 @@ class AuthController extends Controller
      * POST /api/v1/token/refresh
      * Protected by auth:sanctum middleware
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function refreshToken(Request $request)
     {
@@ -247,8 +241,7 @@ class AuthController extends Controller
      * GET /api/v1/tokens
      * Protected by auth:sanctum middleware
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function listTokens(Request $request)
     {
@@ -276,15 +269,14 @@ class AuthController extends Controller
      * DELETE /api/v1/tokens/{tokenId}
      * Protected by auth:sanctum middleware
      *
-     * @param Request $request
-     * @param int $tokenId
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $tokenId
+     * @return JsonResponse
      */
     public function revokeToken(Request $request, $tokenId)
     {
         $token = $request->user()->tokens()->where('id', $tokenId)->first();
 
-        if (!$token) {
+        if (! $token) {
             return response()->json([
                 'message' => 'Token not found',
             ], 404);
@@ -299,9 +291,6 @@ class AuthController extends Controller
 
     /**
      * Format user data for API response.
-     *
-     * @param User $user
-     * @return array
      */
     private function formatUserResponse(User $user): array
     {

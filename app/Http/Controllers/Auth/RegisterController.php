@@ -3,18 +3,20 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Mail\WelcomeMailable;
+use App\Models\Group;
 use App\Models\OnboardingAgreement;
+use App\Models\Role;
+use App\Models\User;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
-use App\Models\Role;
-use App\Models\Group;
-use App\Mail\WelcomeMailable;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Auth\Events\Registered;
+use Illuminate\Validation\Rules\Password;
+use Illuminate\View\View;
 
 class RegisterController extends Controller
 {
@@ -24,7 +26,7 @@ class RegisterController extends Controller
      * GET /register
      * Route name: 'register'
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function showRegister()
     {
@@ -42,8 +44,7 @@ class RegisterController extends Controller
      * - email: required, email, unique in users table
      * - password: required, confirmed, min 8, mixed case, at least 1 number
      *
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
     public function storeRegister(Request $request)
     {
@@ -58,7 +59,7 @@ class RegisterController extends Controller
                 'confirmed',
                 Password::min(8)
                     ->mixedCase()
-                    ->numbers()
+                    ->numbers(),
             ],
         ], [
             'email.unique' => 'An account with this email already exists.',
@@ -85,7 +86,7 @@ class RegisterController extends Controller
      *
      * Passes available student groups for the user to select from.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function showOnboarding()
     {
@@ -110,8 +111,7 @@ class RegisterController extends Controller
      * 2. OnboardingAgreement record with agreed = true
      * 3. Logs in the user automatically
      *
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
     public function agreeOnboarding(Request $request)
     {
@@ -119,7 +119,7 @@ class RegisterController extends Controller
         $registrationData = session('registration_data');
 
         // Return error if session data is missing
-        if (!$registrationData) {
+        if (! $registrationData) {
             return redirect()->route('register')
                 ->with('error', 'Registration data expired. Please register again.');
         }
@@ -132,7 +132,7 @@ class RegisterController extends Controller
         // Look up role by name (dynamic, not hardcoded)
         $role = Role::where('role_name', 'Member')->first();
 
-        if (!$role) {
+        if (! $role) {
             return redirect()->route('register')
                 ->with('error', 'Required role not found. Please contact administrator.');
         }
@@ -195,8 +195,7 @@ class RegisterController extends Controller
      * 2. Does NOT create a User record
      * 3. Clears session and redirects to register
      *
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
     public function declineOnboarding(Request $request)
     {
@@ -206,4 +205,3 @@ class RegisterController extends Controller
             ->with('info', 'You have declined the platform rules. You can register again if you change your mind.');
     }
 }
-

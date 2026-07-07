@@ -1,223 +1,101 @@
-# Smart Discussion Forum - API Documentation (v1)
+# Smart Discussion Forum — API Guide
 
-## Overview
+> **For desktop app developers.**
+> This guide explains how the API works, what each endpoint does, and how your desktop client should talk to the server. Code examples use HTTP directly so you can adapt them to any language (C#, Python, Java, Electron, Tauri, etc.).
 
-This document provides comprehensive documentation for the Smart Discussion Forum API (version 1). The API is designed for desktop client integration and uses Laravel Sanctum for token-based authentication.
-
-**Base URL**: `http://localhost:8000/api/v1`
-
-**Authentication**: Bearer Token (Sanctum)
-
-**Rate Limiting**: 60 requests per minute per IP
+**Base URL:** `http://localhost:8000/api/v1`
 
 ---
 
 ## Table of Contents
 
-1. [Authentication Flow](#authentication-flow)
-2. [API Endpoints](#api-endpoints)
-   - [Public Endpoints](#public-endpoints)
-     - [Register](#post-apiv1register)
-     - [Login](#post-apiv1login)
-     - [Forgot Password](#post-apiv1passwordforgot)
-     - [Reset Password](#post-apiv1passwordreset)
-   - [Protected Endpoints](#protected-endpoints)
-     - [Logout](#post-apiv1logout)
-     - [Get Current User](#get-apiv1me)
-     - [Update Profile](#post-apiv1profile)
-     - [Change Password](#post-apiv1passwordchange)
-     - [Delete Account](#delete-apiv1account)
-     - [Email Verification](#post-apiv1emailverify)
-     - [Resend Verification](#post-apiv1emailresend)
-     - [Token Management](#token-management)
-   - [Forum Endpoints](#forum-endpoints)
-     - [Topics (T1-T7)](#topics)
-     - [Posts (P1-P3)](#posts)
-   - [Post Visibility Endpoints](#post-visibility-endpoints)
-     - [Exclude User (P5)](#post-apiv1postspostidvisibilityexclude)
-     - [Remove Exclusion (P6)](#delete-apiv1postspostidvisibilityuserid)
-     - [List Exclusions (P7)](#get-apiv1postspostidvisibility)
-   - [Category Endpoints](#category-endpoints)
-     - [List Categories (C1)](#get-apiv1categories)
-     - [Category Topics (C2)](#get-apiv1categoriescategoryidtopics)
-     - [Admin Category CRUD (C3-C5)](#admin-category-management)
-   - [Group Browsing Endpoints](#group-browsing-endpoints)
-     - [List Groups (G1)](#get-apiv1groups)
-     - [Show Group (G2)](#get-apiv1groupsgroupid)
-     - [Group Topics (G3)](#get-apiv1groupsgroupidtopics)
-     - [Group Members (G4)](#get-apiv1groupsgroupidmembers)
-   - [Admin Warning Management](#admin-warning-management)
-     - [List Warnings (W1)](#get-apiv1adminwarnings)
-     - [Show Warning (W2)](#get-apiv1adminwarningswarningid)
-     - [Issue Warning (W3)](#post-apiv1adminusersuseridwarnings)
-     - [Resolve Warning (W4)](#post-apiv1adminwarningswarningidresolve)
-   - [Admin Blacklist Management](#admin-blacklist-management)
-     - [List Records (W5)](#get-apiv1adminblacklist-records)
-     - [Blacklist User (W6)](#post-apiv1adminusersuseridblacklist)
-     - [Lift Blacklist (W7)](#post-apiv1adminblacklist-recordsrecordidlift)
-    - [Admin Bulk Operations](#admin-bulk-operations)
-    - [Admin Advanced Search](#admin-advanced-search)
-3. [Error Responses](#error-responses)
-4. [Rate Limiting](#rate-limiting)
-5. [Security Headers](#security-headers)
-6. [CORS Configuration](#cors-configuration)
+1. [What This App Is (in plain English)](#what-this-app-is-in-plain-english)
+2. [How Users Are Organized — Groups & Roles](#how-users-are-organized--groups--roles)
+3. [Authentication — How Your Desktop Client Logs In](#authentication--how-your-desktop-client-logs-in)
+   - [The token lifecycle](#the-token-lifecycle)
+   - [Sending the token with every request](#sending-the-token-with-every-request)
+   - [Token management endpoints](#token-management-endpoints)
+4. [Working with the Forum](#working-with-the-forum)
+   - [Topics — the conversation starters](#topics--the-conversation-starters)
+   - [Posts — the replies inside a topic](#posts--the-replies-inside-a-topic)
+   - [Post visibility — hiding posts from specific people](#post-visibility--hiding-posts-from-specific-people)
+   - [Categories — organising topics by subject](#categories--organising-topics-by-subject)
+   - [Exporting and sharing topics](#exporting-and-sharing-topics)
+5. [Browsing Groups](#browsing-groups)
+6. [Notifications](#notifications)
+7. [Quiz & Assessment System](#quiz--assessment-system)
+   - [For lecturers/admins — creating and managing quizzes](#for-lecturersadmins--creating-and-managing-quizzes)
+   - [For students — taking a quiz](#for-students--taking-a-quiz)
+   - [Results and reports](#results-and-reports)
+8. [Admin Features — Managing Users and Content](#admin-features--managing-users-and-content)
+   - [User management](#user-management)
+   - [Warnings](#warnings)
+   - [Blacklist](#blacklist)
+   - [Post moderation](#post-moderation)
+   - [Bulk operations](#bulk-operations)
+   - [Advanced search](#advanced-search)
+   - [System configuration](#system-configuration)
+   - [Audit logs](#audit-logs)
+   - [IP whitelist](#ip-whitelist)
+   - [Group management](#group-management)
+9. [How the Desktop Client Should Work (End-to-End Flow)](#how-the-desktop-client-should-work-end-to-end-flow)
+10. [Error Responses](#error-responses)
+11. [Rate Limits — How Fast You Can Send Requests](#rate-limits--how-fast-you-can-send-requests)
+12. [Security Headers](#security-headers)
+13. [CORS Configuration](#cors-configuration)
+14. [Activity Monitoring — Automatic Inactivity Handling](#activity-monitoring--automatic-inactivity-handling)
+15. [Quick Reference — All Endpoints at a Glance](#quick-reference--all-endpoints-at-a-glance)
 
 ---
 
-## Authentication Flow
+## What This App Is (in plain English)
 
-### Overview
+This is a **discussion forum** where users sign up, join a group, create discussion topics, and reply to each other. Think of it like a private online community for a school, company, or organisation.
 
-The API uses Laravel Sanctum for token-based authentication. The flow is:
+It also has a **quiz system** where lecturers can create timed quizzes, students can take them inside the app, and results get graded automatically.
 
-1. **Login** → Send credentials → Receive API token
-2. **Use Token** → Include `Authorization: Bearer {token}` header in all subsequent requests
-3. **Logout** → Invalidate token when done
+Admins can **warn** or **blacklist** users who break the rules, moderate posts, and manage everything from a set of admin screens.
 
-### Token Usage
+Your desktop app talks to this server through a REST API. Everything the server can do — registering users, posting replies, running quizzes, managing warnings — is available through this API.
 
-Include the token in the `Authorization` header:
+---
 
-```http
-Authorization: Bearer your-token-here
+## How Users Are Organized — Groups & Roles
+
+This is the most important concept to understand, because **everything in the app is scoped to a group**.
+
+### Groups
+
+Every user belongs to exactly **one group**. A group is like a classroom, a department, or a team. When you're logged in, you can only see topics, posts, and members from **your own group** — the server enforces this on every single request (it's called **group isolation**). The only exception is System Administrators, who can see everything across all groups.
+
+### Roles
+
+Each user has one of these roles:
+
+| Role | What they can do |
+|------|------------------|
+| **Member** | A regular user. Can create topics, reply to posts, take quizzes, and see content in their own group. This is the default role when someone registers. |
+| **Group Administrator** | Can manage users, warnings, and blacklists **within the groups they administer**. They can also create and manage quizzes. They cannot see groups they don't admin. |
+| **System Administrator** | Full access to everything across all groups. Can create/delete groups, change roles, manage any user, configure system settings. |
+| **Lecturer** | Can create and manage quizzes, grade students, view reports. They bypass posting rate limits (more on that later). |
+
+The front page of your desktop app should show different menus and options depending on the user's role. For example:
+- A **Member** just sees the forum (topics, posts, categories) and any quizzes assigned to them.
+- A **Group Admin** also sees admin options: manage users in their group, issue warnings, etc.
+- A **System Admin** sees everything, including system configuration and group management.
+- A **Lecturer** sees quiz creation tools and grade reports.
+
+---
+
+## Authentication — How Your Desktop Client Logs In
+
+The API uses **token-based authentication** via Laravel Sanctum. Here's how it works end-to-end:
+
+### Step 1: Register or Login
+
+**Register** (first time — creates an account):
+
 ```
-
-### Token Lifecycle
-
-- Tokens are created per login and can be refreshed manually
-- Tokens are invalidated on logout or when explicitly revoked
-- Users can have multiple active tokens
-- Token records expose `last_used_at` and nullable `expires_at` metadata
-- Users can view and revoke their active tokens
-
----
-
-## API Endpoints
-
-### API Endpoints Summary
-
-#### Authentication & User Management
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/v1/register` | ❌ | Register new user account |
-| POST | `/api/v1/login` | ❌ | Login and get API token |
-| POST | `/api/v1/password/forgot` | ❌ | Request password reset link |
-| POST | `/api/v1/password/reset` | ❌ | Reset password with token |
-| POST | `/api/v1/logout` | ✅ | Logout and revoke token |
-| GET | `/api/v1/me` | ✅ | Get current user data |
-| POST | `/api/v1/profile` | ✅ | Update profile information |
-| POST | `/api/v1/password/change` | ✅ | Change password |
-| DELETE | `/api/v1/account` | ✅ | Delete account permanently |
-| POST | `/api/v1/email/verify` | ✅ | Verify email address |
-| POST | `/api/v1/email/resend` | ✅ | Resend verification email |
-| GET | `/api/v1/tokens` | ✅ | List all active tokens |
-| POST | `/api/v1/token/refresh` | ✅ | Refresh current token |
-| DELETE | `/api/v1/tokens/{id}` | ✅ | Revoke specific token |
-
-#### Forum - Topics & Posts
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/v1/topics` | ✅ | List active topics in user's group |
-| GET | `/api/v1/topics/type/{type}` | ✅ | Filter topics by type (discussion/question) |
-| POST | `/api/v1/topics` | ✅ | Create a new topic |
-| GET | `/api/v1/topics/{topicId}` | ✅ | Get topic detail with posts |
-| PUT | `/api/v1/topics/{topicId}` | ✅ | Update topic (creator or admin) |
-| DELETE | `/api/v1/topics/{topicId}` | ✅ | Archive topic (creator or admin) |
-| GET | `/api/v1/topics/{topicId}/posts` | ✅ | List posts in a topic |
-| POST | `/api/v1/topics/{topicId}/posts` | ✅ | Create a reply in a topic |
-| PUT | `/api/v1/posts/{postId}` | ✅ | Update own post |
-| DELETE | `/api/v1/posts/{postId}` | ✅ | Soft-delete own post |
-
-#### Forum - Post Visibility
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/v1/posts/{postId}/visibility` | ✅ | List users excluded from post |
-| POST | `/api/v1/posts/{postId}/visibility/exclude` | ✅ | Exclude user from seeing post |
-| DELETE | `/api/v1/posts/{postId}/visibility/{userId}` | ✅ | Remove user exclusion |
-
-#### Forum - Categories
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/v1/categories` | ✅ | List categories in user's group |
-| GET | `/api/v1/categories/{categoryId}/topics` | ✅ | List topics under a category |
-| POST | `/api/v1/admin/categories` | ✅🔑 | Create category (admin) |
-| PUT | `/api/v1/admin/categories/{categoryId}` | ✅🔑 | Update category (admin) |
-| DELETE | `/api/v1/admin/categories/{categoryId}` | ✅🔑 | Delete category (admin) |
-
-#### Forum - Group Browsing
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/v1/groups` | ✅ | List accessible groups |
-| GET | `/api/v1/groups/{groupId}` | ✅ | Show group details |
-| GET | `/api/v1/groups/{groupId}/topics` | ✅ | List topics in a group |
-| GET | `/api/v1/groups/{groupId}/members` | ✅ | List members of a group |
-
-#### Admin - Warning Management
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/v1/admin/warnings` | ✅🔑 | List warnings (group-scoped) |
-| GET | `/api/v1/admin/warnings/{warningId}` | ✅🔑 | Show warning detail |
-| POST | `/api/v1/admin/users/{userId}/warnings` | ✅🔑 | Issue warning to user |
-| POST | `/api/v1/admin/warnings/{warningId}/resolve` | ✅🔑 | Resolve a warning |
-
-#### Admin - Blacklist Management
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/v1/admin/blacklist-records` | ✅🔑 | List blacklist records (group-scoped) |
-| POST | `/api/v1/admin/users/{userId}/blacklist` | ✅🔑 | Blacklist a user |
-| POST | `/api/v1/admin/blacklist-records/{recordId}/lift` | ✅🔑 | Lift a blacklist |
-
-#### Admin Bulk Operations
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/v1/admin/bulk/change-roles` | ✅🔑 | Change roles for multiple users |
-| POST | `/api/v1/admin/bulk/change-status` | ✅🔑 | Update account status for multiple users |
-| POST | `/api/v1/admin/bulk/assign-group` | ✅🔑 | Move multiple users to a group |
-| POST | `/api/v1/admin/bulk/blacklist` | ✅🔑 | Blacklist multiple users |
-| POST | `/api/v1/admin/bulk/lift-blacklist` | ✅🔑 | Lift blacklists for multiple users |
-| POST | `/api/v1/admin/bulk/warn` | ✅🔑 | Issue warnings to multiple users |
-| POST | `/api/v1/admin/bulk/assign-group-admins` | ✅🔑 | Assign group admins in bulk |
-
-#### Admin Advanced Search
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/v1/admin/search/users` | ✅🔑 | Search users with filters |
-| POST | `/api/v1/admin/search/groups` | ✅🔑 | Search groups with filters |
-| POST | `/api/v1/admin/search/audit-logs` | ✅🔑 | Search audit logs with filters |
-| POST | `/api/v1/admin/search/warnings` | ✅🔑 | Search warnings with filters |
-| GET | `/api/v1/admin/search/options/{model}` | ✅🔑 | Get filter options for a model |
-| GET | `/api/v1/admin/search/suggestions/{type}` | ✅🔑 | Get search suggestions |
-
-> ✅ = Authentication required | 🔑 = Admin role required (System Admin or Group Admin)
-
----
-
-### Public Endpoints
-
-These endpoints do not require authentication.
-
----
-
-### POST /api/v1/register
-
-Register a new user account and receive an API token.
-
-**Authentication**: Not required (public endpoint)
-
-**Rate Limit**: 3 requests per 60 minutes
-
-#### Request
-
-```http
 POST /api/v1/register
 Content-Type: application/json
 
@@ -229,17 +107,13 @@ Content-Type: application/json
 }
 ```
 
-#### Request Parameters
+What happens on the server:
+1. It validates your input (name, unique email, password with at least 8 chars including uppercase, lowercase, and a number).
+2. It creates a user with the role **Member** in the **General** group.
+3. It sends a verification email (the user can verify later — this is optional).
+4. It generates an API token and sends it back.
 
-| Parameter             | Type   | Required | Description                          |
-|-----------------------|--------|----------|--------------------------------------|
-| full_name             | string | Yes      | User's full name (max 100 chars)     |
-| email                 | string | Yes      | User email address (must be unique)  |
-| password              | string | Yes      | Password (min 8 chars)               |
-| password_confirmation | string | Yes      | Must match password                  |
-
-#### Success Response (201 Created)
-
+**Response (201 Created):**
 ```json
 {
   "message": "Registration successful",
@@ -250,70 +124,33 @@ Content-Type: application/json
     "email": "john@example.com",
     "account_status": "active",
     "role": "Member",
-    "group": "Default Group",
+    "group": "General",
     "email_verified_at": null,
     "last_active_at": null
   }
 }
 ```
 
-#### Error Responses
+**Login** (returning user):
 
-**422 Validation Error**
-```json
-{
-  "message": "The email has already been taken.",
-  "errors": {
-    "email": ["The email has already been taken."]
-  }
-}
 ```
-
-**500 Server Error - Missing Role/Group**
-```json
-{
-  "message": "Required role or group not found in database. Please contact administrator."
-}
-```
-
-**429 Too Many Requests**
-```json
-{
-  "message": "Too many requests. Please try again later."
-}
-```
-
----
-
-### POST /api/v1/login
-
-Authenticate user and receive API token.
-
-**Authentication**: Not required (public endpoint)
-
-**Rate Limit**: 5 attempts per 30 seconds
-
-#### Request
-
-```http
 POST /api/v1/login
 Content-Type: application/json
 
 {
-  "email": "user@example.com",
-  "password": "MyPassword123"
+  "email": "john@example.com",
+  "password": "Password123"
 }
 ```
 
-#### Request Parameters
+The server checks the credentials, then checks two gates:
 
-| Parameter | Type   | Required | Description              |
-|-----------|--------|----------|--------------------------|
-| email     | string | Yes      | User email address       |
-| password  | string | Yes      | User password (min 8 chars) |
+1. **Blacklist gate** — if the user was blacklisted, login is blocked with a 403 error that says when the blacklist expires.
+2. **Warning gate** — if the user has an unacknowledged warning, login returns a special 403 response. The user needs to acknowledge the warning before they can continue.
 
-#### Success Response (200 OK)
+If everything is fine, you get back a token and user data:
 
+**Response (200 OK):**
 ```json
 {
   "message": "Login successful",
@@ -321,1257 +158,267 @@ Content-Type: application/json
   "user": {
     "id": 1,
     "full_name": "John Doe",
-    "email": "user@example.com",
+    "email": "john@example.com",
     "account_status": "active",
     "role": "Member",
-    "group": "Default Group",
+    "group": "General",
     "email_verified_at": "2026-06-26T10:30:00.000000Z",
     "last_active_at": "2026-06-26T15:45:00.000000Z"
   }
 }
 ```
 
-#### Error Responses
+**What your desktop client should do:** Save this token somewhere safe (a config file, keychain, or encrypted storage). Use it for every subsequent API call.
 
-**401 Unauthorized - Invalid Credentials**
-```json
-{
-  "message": "Invalid credentials."
-}
+> **Registration rate limit:** 3 requests per 60 seconds per IP address.
+> **Login rate limit:** 5 attempts per 30 seconds per email address. If you hit this, the server tells you how many seconds to wait.
+
+### Step 2: Send the token with every request
+
+Every protected endpoint requires the token in the `Authorization` header:
+
+```
+Authorization: Bearer 1|abc123def456...
 ```
 
-**403 Forbidden - Account Blacklisted**
-```json
-{
-  "message": "Your account is blacklisted until Jul 15, 2026."
-}
+Like this:
+
+```
+GET /api/v1/me
+Authorization: Bearer 1|abc123def456...
 ```
 
-**403 Forbidden - Warning Not Acknowledged**
-```json
-{
-  "message": "Your account is warned. Please acknowledge the warning before continuing.",
-  "requires_warning_acknowledgement": true,
-  "user": {
-    "id": 1,
-    "full_name": "John Doe",
-    "email": "user@example.com",
-    "account_status": "warned",
-    "role": "Member",
-    "group": "Default Group",
-    "email_verified_at": null,
-    "last_active_at": "2026-06-20T10:00:00.000000Z"
-  }
-}
+If the token is missing, expired, or invalid, the server responds with `401 Unauthorized`.
+
+### The token lifecycle
+
+- A **token is created** when the user registers or logs in.
+- A token has **no expiry by default** — it lasts until the user logs out or explicitly revokes it.
+- A **user can have multiple active tokens** at the same time. This means they could be logged in on the desktop app and the web app simultaneously with two different tokens.
+- When the user **logs out**, the current token is revoked (the server marks it as deleted from the database).
+- When the user **resets their password**, **all tokens** are revoked. They must log in again.
+- Each token records when it was **last used**, so you can see which tokens are active and which have gone stale.
+
+### Token management endpoints
+
+Your desktop client should offer a "sessions" or "devices" screen where users can see and manage their active tokens.
+
+**List all active tokens:**
+
+```
+GET /api/v1/tokens
+Authorization: Bearer 1|abc123def456...
 ```
 
-**429 Too Many Requests**
-```json
-{
-  "message": "Too many login attempts. Try again in 25 seconds."
-}
+Response includes each token's ID, when it was created, last used, and when it expires (if at all).
+
+**Refresh the current token** (gets a new token, invalidates the old one):
+
+```
+POST /api/v1/token/refresh
+Authorization: Bearer 1|abc123def456...
 ```
 
-**422 Validation Error**
-```json
-{
-  "message": "The email field must be a valid email address.",
-  "errors": {
-    "email": ["The email field must be a valid email address."]
-  }
-}
+Returns a new token. Your desktop client should save this new token and discard the old one.
+
+**Revoke a specific token** (e.g., if the user wants to log out a different device):
+
+```
+DELETE /api/v1/tokens/123
+Authorization: Bearer 1|abc123def456...
 ```
 
----
+### Logout
 
-### POST /api/v1/password/forgot
+```
+POST /api/v1/logout
+Authorization: Bearer 1|abc123def456...
+```
 
-Send a 6-digit OTP to the user's email address to begin the password reset flow.
+The server revokes the current token. Your desktop client should delete the saved token and return to the login screen.
 
-The desktop client calls this endpoint, then immediately shows an OTP input screen inside the app. The user reads the code from their email and types it in — they never leave the application to click a link in a browser.
+### Forgot / Reset Password (Desktop Client Flow)
 
-> **Web interface note:** The web app (`/forgot-password`) continues to use the original token-link flow. This OTP flow is **API / desktop client only**.
+The password reset flow is designed to work **entirely inside your desktop app** — the user never has to open a browser.
 
-**Authentication**: Not required (public endpoint)  
-**Rate limit**: 3 requests per 15 minutes per email address
+**Step 1: Request a reset code**
 
-#### Request
-
-```http
+```
 POST /api/v1/password/forgot
 Content-Type: application/json
 
 {
-  "email": "user@example.com"
+  "email": "john@example.com"
 }
 ```
 
-#### Request Parameters
+The server sends a **6-digit OTP code** (like `482910`) to the user's email address. The code expires in 10 minutes.
 
-| Parameter | Type   | Required | Description        |
-|-----------|--------|----------|--------------------|
-| email     | string | Yes      | Registered email   |
+Your desktop app should show an "enter the code" screen immediately after this call — the user reads the code from their email and types it into your app.
 
-#### Success Response (200 OK)
+Rate limit: 3 requests per 15 minutes per email address.
 
-```json
-{
-  "message": "A 6-digit reset code has been sent to your email. It expires in 10 minutes."
-}
+**Step 2: Reset the password with the code**
+
 ```
-
-#### Error Responses
-
-**429 Too Many Requests**
-```json
-{
-  "message": "Too many reset requests. Try again in 847 seconds."
-}
-```
-
-**422 Validation Error**
-```json
-{
-  "message": "The email field must be a valid email address.",
-  "errors": {
-    "email": ["The email field must be a valid email address."]
-  }
-}
-```
-
----
-
-### POST /api/v1/password/reset
-
-Validate the 6-digit OTP and set a new password.
-
-On success all existing API tokens for the account are revoked — the user must log in again with the new password.
-
-**Authentication**: Not required (public endpoint)  
-**Rate limit**: 5 guess attempts per 10 minutes per email address (prevents brute-forcing the OTP)
-
-#### Request
-
-```http
 POST /api/v1/password/reset
 Content-Type: application/json
 
 {
-  "email": "user@example.com",
+  "email": "john@example.com",
   "otp": "482910",
-  "password": "NewPassword123",
-  "password_confirmation": "NewPassword123"
+  "password": "MyNewPassword123",
+  "password_confirmation": "MyNewPassword123"
 }
 ```
 
-#### Request Parameters
+The server validates the OTP, resets the password, and **revokes all existing tokens**. The user must log in again with their new password.
 
-| Parameter             | Type   | Required | Description                                   |
-|-----------------------|--------|----------|-----------------------------------------------|
-| email                 | string | Yes      | Registered email address                      |
-| otp                   | string | Yes      | 6-digit code from the reset email             |
-| password              | string | Yes      | New password (see requirements below)         |
-| password_confirmation | string | Yes      | Must match `password`                         |
-
-#### Password Requirements
-
-- Minimum 8 characters
-- At least one uppercase letter
-- At least one lowercase letter
-- At least one number
-
-#### Success Response (200 OK)
-
-```json
-{
-  "message": "Password reset successfully. Please log in with your new password."
-}
-```
-
-> All existing Sanctum tokens are revoked on success. The client must call `POST /api/v1/login` to obtain a new token before making any further authenticated requests.
-
-#### Error Responses
-
-**400 Bad Request — wrong OTP**
-```json
-{
-  "message": "Invalid reset code. Please check the code and try again."
-}
-```
-
-**400 Bad Request — expired OTP**
-```json
-{
-  "message": "This reset code has expired. Please request a new one."
-}
-```
-
-**429 Too Many Requests**
-```json
-{
-  "message": "Too many attempts. Try again in 523 seconds."
-}
-```
-
-**422 Validation Error**
-```json
-{
-  "message": "The password must be at least 8 characters.",
-  "errors": {
-    "password": ["The password must be at least 8 characters."]
-  }
-}
-```
+Rate limit: 5 OTP guess attempts per 10 minutes per email address (prevents brute-forcing the 6-digit code).
 
 ---
 
-### POST /api/v1/logout
+## Working with the Forum
 
-Revoke the current API token.
+### Topics — the conversation starters
 
-**Authentication**: Required (Bearer token)
+A **topic** is a new conversation. Think of it like a forum thread. Every topic belongs to a group, so users only see topics from their own group.
 
-#### Request
+Topics have a **type**: `discussion` (open conversation) or `question` (expects an answer). And a **status**: `active` (open for replies) or `archived` (closed, no more replies).
 
-```http
-POST /api/v1/logout
-Authorization: Bearer your-token-here
+**List topics** (in your group, most recent first, paginated):
+
 ```
-
-#### Success Response (200 OK)
-
-```json
-{
-  "message": "Logged out successfully"
-}
-```
-
-#### Error Responses
-
-**401 Unauthorized - Invalid/Expired Token**
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
----
-
-### GET /api/v1/me
-
-Get authenticated user data with role and group information.
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
-GET /api/v1/me
-Authorization: Bearer your-token-here
-```
-
-#### Success Response (200 OK)
-
-```json
-{
-  "user": {
-    "id": 1,
-    "full_name": "John Doe",
-    "email": "user@example.com",
-    "account_status": "active",
-    "role": {
-      "id": 2,
-      "name": "Member"
-    },
-    "group": {
-      "id": 1,
-      "name": "Default Group"
-    },
-    "email_verified_at": "2026-06-26T10:30:00.000000Z",
-    "last_active_at": "2026-06-26T15:45:00.000000Z",
-    "profile_picture": "avatars/profile.jpg",
-    "created_at": "2026-06-01T08:00:00.000000Z",
-    "updated_at": "2026-06-26T15:45:00.000000Z"
-  }
-}
-```
-
-#### Error Responses
-
-**401 Unauthorized**
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
----
-
-### POST /api/v1/profile
-
-Update user profile information (full name and email).
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
-POST /api/v1/profile
-Authorization: Bearer your-token-here
-Content-Type: application/json
-
-{
-  "full_name": "John Updated",
-  "email": "newemail@example.com"
-}
-```
-
-#### Request Parameters
-
-| Parameter | Type   | Required | Description                    |
-|-----------|--------|----------|--------------------------------|
-| full_name | string | Yes      | User's full name (max 255)     |
-| email     | string | Yes      | New email address (must be unique) |
-
-#### Success Response (200 OK)
-
-```json
-{
-  "message": "Profile updated successfully",
-  "email_verification_required": true,
-  "user": {
-    "id": 1,
-    "full_name": "John Updated",
-    "email": "newemail@example.com",
-    "email_verified_at": null
-  }
-}
-```
-
-**Note**: If email is changed, `email_verified_at` is set to `null` and a verification email is sent.
-
-#### Error Responses
-
-**401 Unauthorized**
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
-**422 Validation Error - Email Already Exists**
-```json
-{
-  "message": "The email has already been taken.",
-  "errors": {
-    "email": ["The email has already been taken."]
-  }
-}
-```
-
-**422 Validation Error - Invalid Email**
-```json
-{
-  "message": "The email must be a valid email address.",
-  "errors": {
-    "email": ["The email must be a valid email address."]
-  }
-}
-```
-
----
-
-### POST /api/v1/password/change
-
-Change the authenticated user's password.
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
-POST /api/v1/password/change
-Authorization: Bearer your-token-here
-Content-Type: application/json
-
-{
-  "current_password": "OldPassword123",
-  "new_password": "NewPassword456",
-  "new_password_confirmation": "NewPassword456"
-}
-```
-
-#### Request Parameters
-
-| Parameter                   | Type   | Required | Description                          |
-|-----------------------------|--------|----------|--------------------------------------|
-| current_password            | string | Yes      | Current password                     |
-| new_password                | string | Yes      | New password (see requirements below)|
-| new_password_confirmation   | string | Yes      | Must match new_password              |
-
-#### Password Requirements
-
-- Minimum 8 characters
-- Must contain uppercase letters
-- Must contain lowercase letters
-- Must contain numbers
-- Must be different from current password
-
-#### Success Response (200 OK)
-
-```json
-{
-  "message": "Password updated successfully"
-}
-```
-
-#### Error Responses
-
-**401 Unauthorized**
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
-**422 Validation Error - Incorrect Current Password**
-```json
-{
-  "message": "The current password is incorrect.",
-  "errors": {
-    "current_password": ["The current password is incorrect."]
-  }
-}
-```
-
-**422 Validation Error - Password Too Weak**
-```json
-{
-  "message": "Password must be at least 8 characters with uppercase, lowercase, and numbers.",
-  "errors": {
-    "new_password": ["Password must be at least 8 characters with uppercase, lowercase, and numbers."]
-  }
-}
-```
-
-**422 Validation Error - Passwords Don't Match**
-```json
-{
-  "message": "The passwords do not match.",
-  "errors": {
-    "new_password": ["The passwords do not match."]
-  }
-}
-```
-
-**422 Validation Error - Same as Current**
-```json
-{
-  "message": "The new password must be different from your current password.",
-  "errors": {
-    "new_password": ["The new password must be different from your current password."]
-  }
-}
-```
-
----
-
-### DELETE /api/v1/account
-
-Permanently delete the authenticated user's account and all associated data.
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
-DELETE /api/v1/account
-Authorization: Bearer your-token-here
-Content-Type: application/json
-
-{
-  "password": "YourPassword123"
-}
-```
-
-#### Request Parameters
-
-| Parameter | Type   | Required | Description              |
-|-----------|--------|----------|--------------------------|
-| password  | string | Yes      | Current password for verification |
-
-#### Success Response (200 OK)
-
-```json
-{
-  "message": "Account deleted successfully"
-}
-```
-
-**Note**: This action is irreversible. All user data including warnings, blacklist records, and tokens will be permanently deleted.
-
-#### Error Responses
-
-**401 Unauthorized**
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
-**403 Forbidden - Invalid Password**
-```json
-{
-  "message": "Invalid password"
-}
-```
-
-**422 Validation Error**
-```json
-{
-  "message": "The password field is required.",
-  "errors": {
-    "password": ["The password field is required."]
-  }
-}
-```
-
----
-
-### POST /api/v1/email/verify
-
-Verify email address using the token received via email.
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
-POST /api/v1/email/verify
-Authorization: Bearer your-token-here
-Content-Type: application/json
-
-{
-  "token": "verification-token-from-email",
-  "email": "user@example.com"
-}
-```
-
-#### Request Parameters
-
-| Parameter | Type   | Required | Description              |
-|-----------|--------|----------|--------------------------|
-| token     | string | Yes      | Verification token from email |
-| email     | string | Yes      | User email address       |
-
-#### Success Response (200 OK)
-
-```json
-{
-  "message": "Email verified successfully"
-}
-```
-
-#### Error Responses
-
-**400 Bad Request - Invalid or Expired Token**
-```json
-{
-  "message": "Invalid or expired verification token"
-}
-```
-
-**422 Validation Error**
-```json
-{
-  "message": "The token field is required.",
-  "errors": {
-    "token": ["The token field is required."]
-  }
-}
-```
-
----
-
-### POST /api/v1/email/resend
-
-Resend email verification link.
-
-**Authentication**: Required (Bearer token)
-
-**Rate Limit**: 1 request per 60 seconds
-
-#### Request
-
-```http
-POST /api/v1/email/resend
-Authorization: Bearer your-token-here
-```
-
-#### Success Response (200 OK)
-
-```json
-{
-  "message": "Verification email sent"
-}
-```
-
-#### Error Responses
-
-**400 Bad Request - Already Verified**
-```json
-{
-  "message": "Email already verified"
-}
-```
-
-**401 Unauthorized**
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
-**429 Too Many Requests**
-```json
-{
-  "message": "Please wait 60 seconds before requesting another verification email"
-}
-```
-
----
-
-### Token Management
-
-#### GET /api/v1/tokens
-
-List all active API tokens for the authenticated user.
-
-**Authentication**: Required (Bearer token)
-
-##### Request
-
-```http
-GET /api/v1/tokens
-Authorization: Bearer your-token-here
-```
-
-##### Success Response (200 OK)
-
-```json
-{
-  "tokens": [
-    {
-      "id": 1,
-      "name": "desktop-client",
-      "created_at": "2026-06-26T10:00:00.000000Z",
-      "last_used_at": "2026-06-26T15:45:00.000000Z",
-      "expires_at": "2026-07-26T10:00:00.000000Z"
-    },
-    {
-      "id": 2,
-      "name": "desktop-client",
-      "created_at": "2026-06-20T08:00:00.000000Z",
-      "last_used_at": "2026-06-25T12:30:00.000000Z",
-      "expires_at": "2026-07-20T08:00:00.000000Z"
-    }
-  ]
-}
-```
-
-##### Error Responses
-
-**401 Unauthorized**
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
----
-
-#### POST /api/v1/token/refresh
-
-Refresh the current API token. The old token is invalidated and a new one is issued.
-
-**Authentication**: Required (Bearer token)
-
-##### Request
-
-```http
-POST /api/v1/token/refresh
-Authorization: Bearer your-token-here
-```
-
-##### Success Response (200 OK)
-
-```json
-{
-  "message": "Token refreshed successfully",
-  "token": "2|newtoken123abc..."
-}
-```
-
-**Note**: The old token is immediately invalidated. Update your client with the new token.
-
-##### Error Responses
-
-**401 Unauthorized**
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
----
-
-#### DELETE /api/v1/tokens/{tokenId}
-
-Revoke a specific API token.
-
-**Authentication**: Required (Bearer token)
-
-##### Request
-
-```http
-DELETE /api/v1/tokens/123
-Authorization: Bearer your-token-here
-```
-
-##### Path Parameters
-
-| Parameter | Type    | Required | Description              |
-|-----------|---------|----------|--------------------------|
-| tokenId   | integer | Yes      | ID of the token to revoke |
-
-##### Success Response (200 OK)
-
-```json
-{
-  "message": "Token revoked successfully"
-}
-```
-
-##### Error Responses
-
-**401 Unauthorized**
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
-**404 Not Found**
-```json
-{
-  "message": "Token not found"
-}
-```
-
----
-
-## Forum Endpoints
-
-All forum endpoints enforce **group isolation**: users can only access topics, posts, and data within their own group. Admins may have cross-group visibility depending on their role.
-
-### Topics
-
----
-
-#### GET /api/v1/topics
-
-**T1**: List active topics in the authenticated user's group, paginated and ordered by most recent.
-
-**Authentication**: Required (Bearer token)
-
-##### Request
-
-```http
 GET /api/v1/topics
-Authorization: Bearer your-token-here
+Authorization: Bearer 1|abc123def456...
 ```
 
-##### Success Response (200 OK)
+Returns a paginated list of topics with the creator's name and a count of replies.
 
-```json
-{
-  "data": {
-    "current_page": 1,
-    "data": [
-      {
-        "id": 1,
-        "title": "Welcome to the Forum",
-        "description": "Introduce yourself here",
-        "status": "active",
-        "post_type": "discussion",
-        "group_id": 1,
-        "created_by": 1,
-        "creator": {
-          "id": 1,
-          "full_name": "John Doe"
-        },
-        "posts_count": 5,
-        "created_at": "2026-06-30T10:00:00.000000Z",
-        "updated_at": "2026-06-30T10:00:00.000000Z"
-      }
-    ],
-    "last_page": 1,
-    "per_page": 20,
-    "total": 1
-  }
-}
+**Get a single topic with its posts:**
+
+```
+GET /api/v1/topics/{topicId}
+Authorization: Bearer 1|abc123def456...
 ```
 
----
+Returns the topic detail plus all posts inside it (paginated, with the poster's name). Posts that are removed or that the current user has been excluded from seeing are filtered out automatically.
 
-#### GET /api/v1/topics/type/{type}
+**Filter topics by type:**
 
-**T7**: Filter topics by post type (`discussion` or `question`).
-
-**Authentication**: Required (Bearer token)
-
-##### Request
-
-```http
+```
+GET /api/v1/topics/type/discussion
 GET /api/v1/topics/type/question
-Authorization: Bearer your-token-here
 ```
 
-##### Path Parameters
+**Create a new topic:**
 
-| Parameter | Type   | Required | Description                        |
-|-----------|--------|----------|------------------------------------|
-| type      | string | Yes      | Either `discussion` or `question`  |
-
-##### Success Response (200 OK)
-
-Same format as [GET /api/v1/topics](#get-apiv1topics), filtered by type.
-
-##### Error Responses
-
-**422 Invalid Type**
-```json
-{
-  "message": "Invalid type. Must be \"discussion\" or \"question\"."
-}
 ```
-
----
-
-#### POST /api/v1/topics
-
-**T3**: Create a new topic. The topic is automatically scoped to the user's group.
-
-**Authentication**: Required (Bearer token)
-
-##### Request
-
-```http
 POST /api/v1/topics
-Authorization: Bearer your-token-here
+Authorization: Bearer 1|abc123def456...
 Content-Type: application/json
 
 {
-  "title": "How to use the forum?",
-  "description": "A guide for new members on how to participate in discussions.",
-  "post_type": "discussion"
+  "title": "How do I reset my password?",
+  "description": "I've been trying to reset my password but the email never arrives.",
+  "post_type": "question"
 }
 ```
 
-##### Request Parameters
+- `title` (required) — max 255 characters, must be unique across all topics.
+- `description` (required) — the body text, max 10,000 characters.
+- `post_type` (optional) — `discussion` (default) or `question` (shows an answered/not-answered toggle).
 
-| Parameter   | Type   | Required | Description                              |
-|-------------|--------|----------|------------------------------------------|
-| title       | string | Yes      | Topic title (max 255, must be unique)    |
-| description | string | Yes      | Topic body (max 10000 chars)             |
-| post_type   | string | No       | `discussion` (default) or `question`     |
+**Anti-flood protection:** Regular users can create at most **3 topics per 60 seconds**. Admins and Lecturers bypass this limit.
 
-##### Success Response (201 Created)
+**Update a topic** (only the creator or an admin can do this):
 
-```json
-{
-  "message": "Topic created successfully.",
-  "data": {
-    "topic": {
-      "id": 2,
-      "title": "How to use the forum?",
-      "description": "A guide for new members...",
-      "post_type": "discussion",
-      "status": "active",
-      "group_id": 1,
-      "creator": {
-        "id": 1,
-        "full_name": "John Doe"
-      },
-      "created_at": "2026-06-30T12:00:00.000000Z",
-      "updated_at": "2026-06-30T12:00:00.000000Z"
-    }
-  }
-}
+```
+PUT /api/v1/topics/{topicId}
+Authorization: Bearer 1|abc123def456...
 ```
 
----
+You can update the title, description, status, and post_type.
 
-#### GET /api/v1/topics/{topicId}
+**Archive a topic** (soft delete — sets status to `archived`):
 
-**T2**: Get topic detail with its posts (paginated). Posts are filtered by visibility and moderation status.
-
-**Authentication**: Required (Bearer token)
-
-##### Request
-
-```http
-GET /api/v1/topics/1
-Authorization: Bearer your-token-here
+```
+DELETE /api/v1/topics/{topicId}
+Authorization: Bearer 1|abc123def456...
 ```
 
-##### Success Response (200 OK)
+Only the creator or an admin can archive a topic. Archived topics still exist in the database but are hidden from the topic list.
 
-```json
-{
-  "data": {
-    "topic": {
-      "id": 1,
-      "title": "Welcome to the Forum",
-      "description": "Introduce yourself here",
-      "status": "active",
-      "post_type": "discussion",
-      "group_id": 1,
-      "creator": {
-        "id": 1,
-        "full_name": "John Doe"
-      },
-      "posts_count": 5,
-      "created_at": "2026-06-30T10:00:00.000000Z",
-      "updated_at": "2026-06-30T10:00:00.000000Z"
-    },
-    "posts": {
-      "current_page": 1,
-      "data": [
-        {
-          "id": 1,
-          "topic_id": 1,
-          "content": "Hello everyone!",
-          "user_id": 1,
-          "is_removed": false,
-          "user": {
-            "id": 1,
-            "full_name": "John Doe"
-          },
-          "created_at": "2026-06-30T10:05:00.000000Z"
-        }
-      ],
-      "per_page": 20,
-      "total": 5
-    }
-  }
-}
+**Toggle "answered"** (for question-type topics only):
+
+```
+POST /api/v1/topics/{topicId}/toggle-answered
+Authorization: Bearer 1|abc123def456...
 ```
 
-##### Error Responses
+**Toggle "pinned"** (pinned topics appear at the top):
 
-**403 Forbidden - Group Isolation**
-```json
-{
-  "message": "You do not have access to this topic."
-}
+```
+POST /api/v1/topics/{topicId}/toggle-pinned
+Authorization: Bearer 1|abc123def456...
 ```
 
----
+### Posts — the replies inside a topic
 
-#### PUT /api/v1/topics/{topicId}
+A **post** is a reply someone writes inside a topic. Anyone in the same group can reply to an active topic.
 
-**T4**: Update a topic. Only the topic creator or an admin can update.
+**List posts in a topic** (same as getting the topic detail):
 
-**Authentication**: Required (Bearer token)
+```
+GET /api/v1/topics/{topicId}/posts
+Authorization: Bearer 1|abc123def456...
+```
 
-##### Request
+**Create a reply:**
 
-```http
-PUT /api/v1/topics/1
-Authorization: Bearer your-token-here
+```
+POST /api/v1/topics/{topicId}/posts
+Authorization: Bearer 1|abc123def456...
 Content-Type: application/json
 
 {
-  "title": "Updated Title",
-  "description": "Updated description"
+  "content": "Check your spam folder — the email usually ends up there."
 }
 ```
 
-##### Request Parameters
+- `content` is required, max 10,000 characters.
+- The topic must be in your group and have status `active`.
+- **Anti-flood:** Regular users can post at most **5 replies per 60 seconds**. Admins and Lecturers bypass this.
 
-| Parameter   | Type   | Required | Description                          |
-|-------------|--------|----------|--------------------------------------|
-| title       | string | No       | New title (max 255, must be unique)  |
-| description | string | No       | New body (max 10000 chars)           |
-| status      | string | No       | `active` or `archived`               |
-| post_type   | string | No       | `discussion` or `question`           |
+**Edit your own post:**
 
-##### Success Response (200 OK)
-
-```json
-{
-  "message": "Topic updated successfully.",
-  "data": {
-    "topic": {
-      "id": 1,
-      "title": "Updated Title",
-      "description": "Updated description",
-      "status": "active",
-      "post_type": "discussion",
-      "group_id": 1,
-      "creator": { "id": 1, "full_name": "John Doe" },
-      "created_at": "2026-06-30T10:00:00.000000Z",
-      "updated_at": "2026-06-30T12:30:00.000000Z"
-    }
-  }
-}
+```
+PUT /api/v1/posts/{postId}
+Authorization: Bearer 1|abc123def456...
 ```
 
-##### Error Responses
+Only the original author can edit a post. Posts that have been removed (soft-deleted by an admin) cannot be edited.
 
-**403 Forbidden**
-```json
-{
-  "message": "You are not authorized to update this topic."
-}
+**Delete your own post** (soft delete — just hides it):
+
+```
+DELETE /api/v1/posts/{postId}
+Authorization: Bearer 1|abc123def456...
 ```
 
----
+The post author or an admin can delete a post. It's a soft delete — the `is_removed` flag is set to `true`, and the post is excluded from normal views.
 
-#### DELETE /api/v1/topics/{topicId}
+### Post visibility — hiding posts from specific people
 
-**T5**: Archive (soft-delete) a topic. Sets status to `archived`. Only the creator or admin can delete.
+This is the "mute" feature. If you write a post and want to hide it from a specific person, you can exclude them. They won't see your post when they view the topic.
 
-**Authentication**: Required (Bearer token)
+**Who can use this:** Only the post author. You cannot manage visibility of someone else's post.
 
-##### Request
+**Exclude a user:**
 
-```http
-DELETE /api/v1/topics/1
-Authorization: Bearer your-token-here
 ```
-
-##### Success Response (200 OK)
-
-```json
-{
-  "message": "Topic archived successfully."
-}
-```
-
-##### Error Responses
-
-**403 Forbidden**
-```json
-{
-  "message": "You are not authorized to delete this topic."
-}
-```
-
----
-
-#### GET /api/v1/topics/{topicId}/posts
-
-**T6**: List posts in a topic (paginated, filtered by visibility and moderation).
-
-**Authentication**: Required (Bearer token)
-
-##### Request
-
-```http
-GET /api/v1/topics/1/posts
-Authorization: Bearer your-token-here
-```
-
-##### Success Response (200 OK)
-
-```json
-{
-  "data": {
-    "current_page": 1,
-    "data": [
-      {
-        "id": 1,
-        "topic_id": 1,
-        "content": "Hello everyone!",
-        "user_id": 1,
-        "is_removed": false,
-        "user": { "id": 1, "full_name": "John Doe" },
-        "created_at": "2026-06-30T10:05:00.000000Z"
-      }
-    ],
-    "per_page": 20,
-    "total": 5
-  }
-}
-```
-
----
-
-### Posts
-
----
-
-#### POST /api/v1/topics/{topicId}/posts
-
-**P1**: Create a reply in a topic. Topic must be active and in the user's group.
-
-**Authentication**: Required (Bearer token)
-
-##### Request
-
-```http
-POST /api/v1/topics/1/posts
-Authorization: Bearer your-token-here
-Content-Type: application/json
-
-{
-  "content": "Thanks for the welcome! I'm excited to join."
-}
-```
-
-##### Request Parameters
-
-| Parameter | Type   | Required | Description                  |
-|-----------|--------|----------|------------------------------|
-| content   | string | Yes      | Post content (max 10000 chars) |
-
-##### Success Response (201 Created)
-
-```json
-{
-  "message": "Reply posted successfully.",
-  "data": {
-    "post": {
-      "id": 6,
-      "topic_id": 1,
-      "content": "Thanks for the welcome! I'm excited to join.",
-      "user": {
-        "id": 2,
-        "full_name": "Jane Smith"
-      },
-      "created_at": "2026-06-30T14:00:00.000000Z",
-      "updated_at": "2026-06-30T14:00:00.000000Z"
-    }
-  }
-}
-```
-
-##### Error Responses
-
-**403 Forbidden - Topic Closed**
-```json
-{
-  "message": "This topic is closed for replies."
-}
-```
-
----
-
-#### PUT /api/v1/posts/{postId}
-
-**P2**: Update own post content. Only the post author can edit.
-
-**Authentication**: Required (Bearer token)
-
-##### Request
-
-```http
-PUT /api/v1/posts/6
-Authorization: Bearer your-token-here
-Content-Type: application/json
-
-{
-  "content": "Updated: Thanks for the warm welcome!"
-}
-```
-
-##### Success Response (200 OK)
-
-```json
-{
-  "message": "Post updated successfully.",
-  "data": {
-    "post": {
-      "id": 6,
-      "topic_id": 1,
-      "content": "Updated: Thanks for the warm welcome!",
-      "user": { "id": 2, "full_name": "Jane Smith" },
-      "created_at": "2026-06-30T14:00:00.000000Z",
-      "updated_at": "2026-06-30T14:15:00.000000Z"
-    }
-  }
-}
-```
-
-##### Error Responses
-
-**403 Forbidden - Not Author**
-```json
-{
-  "message": "You can only edit your own posts."
-}
-```
-
-**403 Forbidden - Post Removed**
-```json
-{
-  "message": "This post has been removed and cannot be edited."
-}
-```
-
----
-
-#### DELETE /api/v1/posts/{postId}
-
-**P3**: Soft-delete a post (sets `is_removed = true`). Only the post author or an admin can delete.
-
-**Authentication**: Required (Bearer token)
-
-##### Request
-
-```http
-DELETE /api/v1/posts/6
-Authorization: Bearer your-token-here
-```
-
-##### Success Response (200 OK)
-
-```json
-{
-  "message": "Post deleted successfully."
-}
-```
-
-##### Error Responses
-
-**403 Forbidden**
-```json
-{
-  "message": "You are not authorized to delete this post."
-}
-```
-
----
-
-## Post Visibility Endpoints
-
-Post visibility allows a post author to exclude specific users from seeing their post. Only users in the same group can be excluded.
-
----
-
-### POST /api/v1/posts/{postId}/visibility/exclude
-
-**P5**: Exclude a user from seeing a post. Only the post author can manage visibility.
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
-POST /api/v1/posts/1/visibility/exclude
-Authorization: Bearer your-token-here
+POST /api/v1/posts/{postId}/visibility/exclude
+Authorization: Bearer 1|abc123def456...
 Content-Type: application/json
 
 {
@@ -1579,579 +426,540 @@ Content-Type: application/json
 }
 ```
 
-#### Request Parameters
+- The excluded user must be in your group (you can't exclude someone from a different group).
+- Returns 409 Conflict if the user is already excluded.
 
-| Parameter | Type    | Required | Description                    |
-|-----------|---------|----------|--------------------------------|
-| user_id   | integer | Yes      | ID of user to exclude          |
+**Remove an exclusion:**
 
-#### Success Response (201 Created)
-
-```json
-{
-  "message": "User excluded from post successfully.",
-  "data": {
-    "visibility": {
-      "id": 1,
-      "post_id": 1,
-      "excluded_user": {
-        "id": 3,
-        "full_name": "Bob Wilson"
-      },
-      "created_at": "2026-06-30T15:00:00.000000Z"
-    }
-  }
-}
+```
+DELETE /api/v1/posts/{postId}/visibility/{userId}
+Authorization: Bearer 1|abc123def456...
 ```
 
-#### Error Responses
+**See who you've excluded:**
 
-**403 Forbidden - Not Author**
-```json
-{
-  "message": "Only the post author can manage visibility."
-}
+```
+GET /api/v1/posts/{postId}/visibility
+Authorization: Bearer 1|abc123def456...
 ```
 
-**409 Conflict - Already Excluded**
-```json
-{
-  "message": "This user is already excluded from this post."
-}
+### Categories — organising topics by subject
+
+Categories are like labels or folders. Each group can have its own set of categories. When a topic is created, it can be classified under a category. Categories have "keyword hints" to help auto-classify posts based on keywords in the content.
+
+**List categories in your group:**
+
 ```
-
-**422 Validation Error**
-```json
-{
-  "message": "The specified user is not in your group."
-}
-```
-
----
-
-### DELETE /api/v1/posts/{postId}/visibility/{userId}
-
-**P6**: Remove a user from the post's exclusion list. Only the post author can remove exclusions.
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
-DELETE /api/v1/posts/1/visibility/3
-Authorization: Bearer your-token-here
-```
-
-#### Success Response (200 OK)
-
-```json
-{
-  "message": "User exclusion removed successfully."
-}
-```
-
----
-
-### GET /api/v1/posts/{postId}/visibility
-
-**P7**: List all users excluded from seeing a post. Only the post author can view the exclusion list.
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
-GET /api/v1/posts/1/visibility
-Authorization: Bearer your-token-here
-```
-
-#### Success Response (200 OK)
-
-```json
-{
-  "data": {
-    "post_id": 1,
-    "excluded_users_count": 1,
-    "excluded_users": [
-      {
-        "id": 1,
-        "post_id": 1,
-        "excluded_user": {
-          "id": 3,
-          "full_name": "Bob Wilson"
-        },
-        "excluded_at": "2026-06-30T15:00:00.000000Z"
-      }
-    ]
-  }
-}
-```
-
----
-
-## Category Endpoints
-
-Categories allow organizing posts within topics. Each group can have its own set of categories.
-
----
-
-### GET /api/v1/categories
-
-**C1**: List all categories in the authenticated user's group.
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
 GET /api/v1/categories
-Authorization: Bearer your-token-here
+Authorization: Bearer 1|abc123def456...
 ```
 
-#### Success Response (200 OK)
+**List topics under a category:**
 
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "group_id": 1,
-      "category_name": "General Discussion",
-      "keyword_hints": "general,chat,talk",
-      "posts_count": 12,
-      "created_at": "2026-06-30T08:00:00.000000Z",
-      "updated_at": "2026-06-30T08:00:00.000000Z"
-    }
-  ]
-}
 ```
+GET /api/v1/categories/{categoryId}/topics
+Authorization: Bearer 1|abc123def456...
+```
+
+**Admin category management:** Only admins can create, update, or delete categories.
+
+```
+POST /api/v1/admin/categories       # Create
+PUT /api/v1/admin/categories/{id}   # Update
+DELETE /api/v1/admin/categories/{id} # Delete
+```
+
+- When creating: provide `group_id`, `category_name` (unique per group), and optional `keyword_hints` (comma-separated).
+- Deleting a category sets `category_id = null` on all posts that used it (the posts are NOT deleted).
+
+### Exporting and sharing topics
+
+**Export a topic as PDF:**
+
+```
+GET /api/v1/topics/{topicId}/export/pdf
+Authorization: Bearer 1|abc123def456...
+```
+
+Downloads a PDF file containing the topic and all its posts. Useful for printing or saving offline.
+
+**Generate a shareable link:**
+
+```
+POST /api/v1/topics/{topicId}/share
+Authorization: Bearer 1|abc123def456...
+```
+
+Generates a signed URL that anyone can open in a browser — no login required. The signed URL is cryptographically signed by the server so it can't be tampered with.
+
+Your desktop app should open this URL in the user's default browser or display it as a link they can copy and share.
+
+**Access a shared topic** (no authentication):
+
+```
+GET /api/v1/topics/{topicId}/shared?signature=...
+```
+
+This route is public — anyone with the signed URL can view the topic. Your desktop app doesn't need to call this; it's meant for the browser.
 
 ---
 
-### GET /api/v1/categories/{categoryId}/topics
+## Browsing Groups
 
-**C2**: List all active topics that have posts classified under a given category.
+These endpoints let users explore groups, topics, and members they have access to.
 
-**Authentication**: Required (Bearer token)
+**Who can see what:**
 
-#### Request
+| Role | Can see |
+|------|---------|
+| System Admin | All groups |
+| Group Admin | Groups they administer + their own group |
+| Regular user | Only their own group |
 
-```http
-GET /api/v1/categories/1/topics
-Authorization: Bearer your-token-here
+**List accessible groups:**
+
 ```
-
-#### Success Response (200 OK)
-
-```json
-{
-  "data": {
-    "current_page": 1,
-    "data": [
-      {
-        "id": 1,
-        "title": "Welcome to the Forum",
-        "description": "Introduce yourself here",
-        "status": "active",
-        "post_type": "discussion",
-        "group_id": 1,
-        "creator": { "id": 1, "full_name": "John Doe" },
-        "posts_count": 5,
-        "created_at": "2026-06-30T10:00:00.000000Z"
-      }
-    ],
-    "per_page": 20,
-    "total": 1
-  }
-}
-```
-
----
-
-### Admin Category Management
-
-> These endpoints require **admin** role (System Administrator or Group Administrator). Group Admins can only manage categories in groups they administer.
-
----
-
-#### POST /api/v1/admin/categories
-
-**C3**: Create a new category (admin only).
-
-**Authentication**: Required (Bearer token) + Admin role
-
-##### Request
-
-```http
-POST /api/v1/admin/categories
-Authorization: Bearer admin-token-here
-Content-Type: application/json
-
-{
-  "group_id": 1,
-  "category_name": "Q&A",
-  "keyword_hints": "question,answer,help"
-}
-```
-
-##### Request Parameters
-
-| Parameter     | Type   | Required | Description                    |
-|---------------|--------|----------|--------------------------------|
-| group_id      | int    | Yes      | Group to create category in    |
-| category_name | string | Yes      | Category name (max 100, unique per group) |
-| keyword_hints | string | No       | Comma-separated hints (max 5000) |
-
-##### Success Response (201 Created)
-
-```json
-{
-  "message": "Category created successfully.",
-  "data": {
-    "category": {
-      "id": 2,
-      "group_id": 1,
-      "category_name": "Q&A",
-      "keyword_hints": "question,answer,help",
-      "created_at": "2026-06-30T16:00:00.000000Z",
-      "updated_at": "2026-06-30T16:00:00.000000Z"
-    }
-  }
-}
-```
-
-##### Error Responses
-
-**409 Conflict**
-```json
-{
-  "message": "A category with this name already exists in this group."
-}
-```
-
----
-
-#### PUT /api/v1/admin/categories/{categoryId}
-
-**C4**: Update a category (admin only).
-
-**Authentication**: Required (Bearer token) + Admin role
-
-##### Request
-
-```http
-PUT /api/v1/admin/categories/2
-Authorization: Bearer admin-token-here
-Content-Type: application/json
-
-{
-  "category_name": "Questions & Answers"
-}
-```
-
-##### Success Response (200 OK)
-
-```json
-{
-  "message": "Category updated successfully.",
-  "data": {
-    "category": {
-      "id": 2,
-      "group_id": 1,
-      "category_name": "Questions & Answers",
-      "keyword_hints": "question,answer,help",
-      "created_at": "2026-06-30T16:00:00.000000Z",
-      "updated_at": "2026-06-30T16:30:00.000000Z"
-    }
-  }
-}
-```
-
----
-
-#### DELETE /api/v1/admin/categories/{categoryId}
-
-**C5**: Delete a category (admin only). Posts classified under this category will have `category_id` set to null.
-
-**Authentication**: Required (Bearer token) + Admin role
-
-##### Request
-
-```http
-DELETE /api/v1/admin/categories/2
-Authorization: Bearer admin-token-here
-```
-
-##### Success Response (200 OK)
-
-```json
-{
-  "message": "Category deleted successfully.",
-  "data": {
-    "affected_posts": 3
-  }
-}
-```
-
----
-
-## Group Browsing Endpoints
-
-Browse groups, their topics, and members. Access is controlled by group membership and admin role.
-
----
-
-### GET /api/v1/groups
-
-**G1**: List groups accessible to the authenticated user.
-
-- **System Admin**: sees all groups
-- **Group Admin**: sees groups they administer + their own group
-- **Regular user**: sees only their own group
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
 GET /api/v1/groups
-Authorization: Bearer your-token-here
+Authorization: Bearer 1|abc123def456...
 ```
 
-#### Success Response (200 OK)
+**Show group details:**
 
-```json
+```
+GET /api/v1/groups/{groupId}
+Authorization: Bearer 1|abc123def456...
+```
+
+**List topics in a group:**
+
+```
+GET /api/v1/groups/{groupId}/topics
+Authorization: Bearer 1|abc123def456...
+```
+
+**List members of a group:**
+```
+GET /api/v1/groups/{groupId}/members
+Authorization: Bearer 1|abc123def456...
+```
+
+Returns paginated member list with each user's full name, email, role name, account status, and last active timestamp.
+
+---
+
+## Notifications
+
+Users receive notifications for various events (someone replied to their topic, a quiz is upcoming, a warning was issued, etc.).
+
+**List my notifications:**
+```
+GET /api/v1/me/notifications
+Authorization: Bearer 1|abc123def456...
+```
+
+Returns a paginated list. Each notification has a `type` (string), `data` (JSON payload with details), and `read_at` (null if unread).
+
+**Mark a notification as read:**
+```
+POST /api/v1/notifications/{id}/read
+Authorization: Bearer 1|abc123def456...
+```
+
+Your desktop app should show unread notifications with a visual indicator (e.g., a badge on a bell icon) and mark them as read when the user taps them.
+
+---
+
+## Quiz & Assessment System
+
+The quiz system has two sides:
+
+- **Lecturer/Admin side:** Create quizzes, add questions, schedule them, publish, and view results.
+- **Student side:** See announcements, start an attempt, answer questions, submit.
+
+### For lecturers/admins — creating and managing quizzes
+
+**List all quizzes** (paginated with question count and configuration):
+
+```
+GET /api/v1/quizzes?page=1&per_page=20
+Authorization: Bearer admin-token
+```
+
+**Create a quiz:**
+
+```
+POST /api/v1/quizzes
+Authorization: Bearer admin-token
+Content-Type: application/json
+
 {
-  "data": [
-    {
-      "id": 1,
-      "group_name": "Default Group",
-      "description": "The default user group",
-      "users_count": 25,
-      "created_at": "2026-06-23T00:00:00.000000Z",
-      "updated_at": "2026-06-23T00:00:00.000000Z"
-    }
+  "title": "Midterm Exam - Laravel Basics",
+  "description": "Covers routing, controllers, Eloquent",
+  "target_category": "Student",
+  "scheduled_date": "2026-07-15",
+  "start_time": "14:00",
+  "duration_minutes": 60
+}
+```
+
+- `target_category` must be one of: `Student`, `Lecturer`, `Administrator`, `Member` — this controls who can take the quiz.
+- `scheduled_date` must be today or later.
+- `duration_minutes` can be 1 to 480 (8 hours).
+
+A default configuration is created alongside the quiz. Default settings: `allow_late_join = false`, `lock_screen_on_start = true`, `show_results_after_close = true`, `show_correct_answers = false`.
+
+**View a quiz** (with all questions, answers, and config):
+
+```
+GET /api/v1/quizzes/{quiz}
+Authorization: Bearer admin-token
+```
+
+**Update a quiz:**
+
+```
+PUT /api/v1/quizzes/{quiz}
+Authorization: Bearer admin-token
+```
+
+You can update any field plus the quiz configuration (e.g., `allow_late_join`, `show_correct_answers`, etc.). **Cannot update if the quiz is already published.**
+
+**Delete a quiz:**
+
+```
+DELETE /api/v1/quizzes/{quiz}
+Authorization: Bearer admin-token
+```
+
+**Cannot delete if published.**
+
+**Publish a quiz** (makes it visible to students):
+
+```
+POST /api/v1/quizzes/{quiz}/publish
+Authorization: Bearer admin-token
+```
+
+Validates that:
+1. The quiz has at least 1 question.
+2. It's scheduled in the future (not a past date/time).
+3. It's not already published.
+
+**View class performance report:**
+
+```
+GET /api/v1/quizzes/{quiz}/report
+Authorization: Bearer admin-token
+```
+
+Returns average/min/max scores, attempt count, and a per-student breakdown.
+
+#### Managing questions
+
+Questions are nested under a quiz. Each question has a `question_type` (MCQ, True/False, or Short Answer), `marks`, and a set of answer options.
+
+**Add a question with answers:**
+
+```
+POST /api/v1/quizzes/{quiz}/questions
+Authorization: Bearer admin-token
+Content-Type: application/json
+
+{
+  "question_text": "What is Laravel?",
+  "question_type": "MCQ",
+  "marks": 5,
+  "answers": [
+    { "answer_text": "A PHP framework", "is_correct": true },
+    { "answer_text": "A JavaScript library", "is_correct": false }
   ]
 }
 ```
 
----
+Validation rules by question type:
+- **TF** (True/False) — Must have exactly 2 answers, exactly 1 marked correct.
+- **MCQ** — Must have at least 1 answer, at least 1 marked correct.
+- **Short** (Short Answer) — No specific constraints on answers.
 
-### GET /api/v1/groups/{groupId}
+**List questions for a quiz:**
 
-**G2**: Show a single group's details.
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
-GET /api/v1/groups/1
-Authorization: Bearer your-token-here
+```
+GET /api/v1/quizzes/{quiz}/questions
+Authorization: Bearer admin-token
 ```
 
-#### Success Response (200 OK)
+**Update a question:**
 
-```json
+```
+PUT /api/v1/quizzes/{quiz}/questions/{question}
+Authorization: Bearer admin-token
+```
+
+**Delete a question** (deletes its answers too):
+
+```
+DELETE /api/v1/quizzes/{quiz}/questions/{question}
+Authorization: Bearer admin-token
+```
+
+**Reorder questions:**
+
+```
+PUT /api/v1/quizzes/{quiz}/questions/reorder
+Authorization: Bearer admin-token
+Content-Type: application/json
+
 {
-  "data": {
-    "id": 1,
-    "group_name": "Default Group",
-    "description": "The default user group",
-    "members_count": 25,
-    "created_by": {
-      "id": 1,
-      "full_name": "System Admin"
-    },
-    "created_at": "2026-06-23T00:00:00.000000Z",
-    "updated_at": "2026-06-23T00:00:00.000000Z"
-  }
+  "questions": [
+    { "id": 3, "order": 1 },
+    { "id": 1, "order": 2 },
+    { "id": 2, "order": 3 }
+  ]
 }
 ```
 
-#### Error Responses
+#### Managing answer options separately
 
-**403 Forbidden**
-```json
+You can also add/edit/delete answers independently of questions:
+
+```
+GET    /api/v1/questions/{question}/answers          # List answers
+POST   /api/v1/questions/{question}/answers          # Add answer
+PUT    /api/v1/answers/{answer}                      # Update answer
+DELETE /api/v1/answers/{answer}                      # Delete answer
+```
+
+### For students — taking a quiz
+
+**Before the quiz starts** — show the announcement/landing page:
+
+```
+GET /api/v1/quizzes/{quiz}/announcement
+Authorization: Bearer student-token
+```
+
+Returns quiz title, description, duration, question count, and time until start (in seconds). Use this to show a "Quiz starts in X minutes" screen.
+
+**Check real-time status** (useful for polling):
+
+```
+GET /api/v1/quizzes/{quiz}/status
+Authorization: Bearer student-token
+```
+
+Returns `has_started`, `is_submitted`, `time_remaining`, and `time_until_start`. Your desktop app can poll this endpoint (e.g., every 5 seconds) to detect when the quiz becomes active.
+
+**Start the quiz attempt:**
+
+```
+POST /api/v1/quizzes/{quiz}/attempt
+Authorization: Bearer student-token
+```
+
+This creates an attempt record and returns the questions — **without exposing the correct answers**. It also returns `time_remaining_seconds` for the countdown timer.
+
+A student cannot start the same quiz twice (returns 409 Conflict if they try).
+
+**Resume an existing attempt:**
+
+```
+GET /api/v1/quizzes/{quiz}/attempt
+Authorization: Bearer student-token
+```
+
+Returns the questions, the student's saved answers (so your app can restore their selections), and the remaining time. Useful if the student closes your app and comes back.
+
+**Save a single answer** (call this whenever the student clicks an option):
+
+```
+POST /api/v1/quizzes/{quiz}/answer
+Authorization: Bearer student-token
+Content-Type: application/json
+
 {
-  "message": "You do not have access to this group."
+  "question_id": 1,
+  "answer_id": 2
 }
 ```
 
----
+Pass `answer_id: null` to deselect/clear an answer.
 
-### GET /api/v1/groups/{groupId}/topics
+**Save multiple answers at once** (more efficient):
 
-**G3**: List active topics in a specific group.
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
-GET /api/v1/groups/1/topics
-Authorization: Bearer your-token-here
 ```
+POST /api/v1/quizzes/{quiz}/answers/batch
+Authorization: Bearer student-token
+Content-Type: application/json
 
-#### Success Response (200 OK)
-
-Same paginated format as [GET /api/v1/topics](#get-apiv1topics).
-
----
-
-### GET /api/v1/groups/{groupId}/members
-
-**G4**: List members of a specific group.
-
-**Authentication**: Required (Bearer token)
-
-#### Request
-
-```http
-GET /api/v1/groups/1/members
-Authorization: Bearer your-token-here
-```
-
-#### Success Response (200 OK)
-
-```json
 {
-  "data": {
-    "current_page": 1,
-    "data": [
-      {
-        "id": 1,
-        "full_name": "John Doe",
-        "email": "john@example.com",
-        "role_id": 2,
-        "account_status": "active",
-        "last_active_at": "2026-06-30T15:45:00.000000Z",
-        "profile_picture": null,
-        "created_at": "2026-06-01T08:00:00.000000Z",
-        "role": {
-          "id": 2,
-          "role_name": "Member"
-        }
-      }
-    ],
-    "per_page": 20,
-    "total": 25
-  }
+  "answers": [
+    { "question_id": 1, "answer_id": 2 },
+    { "question_id": 2, "answer_id": null }
+  ]
 }
 ```
 
+**Submit the quiz manually:**
+
+```
+POST /api/v1/quizzes/{quiz}/submit
+Authorization: Bearer student-token
+```
+
+Triggers grading immediately. After submission, no more answers can be saved.
+
+**Auto-submit** (when the countdown reaches 0):
+
+```
+POST /api/v1/quizzes/{quiz}/auto-submit
+Authorization: Bearer student-token
+```
+
+Same as submit, but sets `is_auto_submit = true` for audit purposes (so you can distinguish "student finished early" from "timer expired").
+
+> **Important:** Your desktop app should include a countdown timer that triggers auto-submit when it hits 0. Don't rely solely on the server — the server will also auto-submit, but the student should see their time run out locally first.
+
+### Results and reports
+
+**Student — view their own result:**
+
+```
+GET /api/v1/quizzes/{quiz}/result
+Authorization: Bearer student-token
+```
+
+Returns the grade (total score, max score, percentage, participation mark, final grade) plus the quiz configuration flags (whether correct answers are shown, whether results are visible). Respects `show_results_after_close` — if that's false, this endpoint returns 403.
+
+**List upcoming quizzes** (for the student dashboard):
+
+```
+GET /api/v1/quizzes/upcoming
+Authorization: Bearer student-token
+```
+
+**List currently active (live) quizzes:**
+
+```
+GET /api/v1/quizzes/live
+Authorization: Bearer student-token
+```
+
+**Student quiz history** (past attempts with grades):
+
+```
+GET /api/v1/me/quiz-history
+Authorization: Bearer student-token
+```
+
+**Student quiz notifications:**
+
+```
+GET /api/v1/me/quiz-notifications
+Authorization: Bearer student-token
+```
+
+**Lecturer — view all grades for a quiz:**
+
+```
+GET /api/v1/lecturer/quizzes/{quiz}/grades
+Authorization: Bearer admin-token
+```
+
+**Lecturer — single grade detail with per-question breakdown:**
+
+```
+GET /api/v1/lecturer/grades/{grade}
+Authorization: Bearer admin-token
+```
+
+**Lecturer — export grades as CSV:**
+
+```
+GET /api/v1/lecturer/quizzes/{quiz}/grades/export
+Authorization: Bearer admin-token
+```
+
+Downloads a CSV file with columns: Student Name, Email, Score, Max, Percentage, Participation, Final Grade.
+
 ---
 
-## Admin Warning Management
+## Admin Features — Managing Users and Content
 
-> All warning endpoints require **admin** role (System Administrator or Group Administrator).
-> - **System Admin**: can manage warnings for all users
-> - **Group Admin**: can only manage warnings for users in their administered groups
+All admin endpoints are under `/api/v1/admin`. They require the `admin` middleware, which checks that the user is either a System Administrator or a Group Administrator.
 
----
+**Important scope rules:**
+- **System Administrators** can do everything across all groups.
+- **Group Administrators** are scoped to the groups they administer. They can only see/manage users, warnings, blacklists, and content within those groups.
+- Some actions (creating users, deleting users, changing roles, creating/deleting groups, system config, IP whitelist) are **System Admin only** and enforced in the controller.
 
-### GET /api/v1/admin/warnings
+### User management
 
-**W1**: List all warnings, with optional filtering. Group-scoped for Group Admins.
+**List users:**
+```
+GET /api/v1/admin/users
+Authorization: Bearer admin-token
+```
 
-**Authentication**: Required (Bearer token) + Admin role
+With optional query parameters: `?role=Member`, `?status=active`, `?group_id=1`, `?search=john`, etc.
 
-#### Request
+**Show a single user:**
+```
+GET /api/v1/admin/users/{userId}
+Authorization: Bearer admin-token
+```
 
-```http
+**Create a user** (System Admin only):
+```
+POST /api/v1/admin/users
+Authorization: Bearer admin-token
+```
+
+**Update a user:**
+```
+PUT /api/v1/admin/users/{userId}
+Authorization: Bearer admin-token
+```
+
+**Delete a user** (System Admin only — permanently deletes everything):
+```
+DELETE /api/v1/admin/users/{userId}
+Authorization: Bearer admin-token
+```
+
+**Change a user's role** (System Admin only):
+```
+POST /api/v1/admin/users/{userId}/change-role
+Authorization: Bearer admin-token
+```
+
+**Reset a user's password** (forces them to use the forgot-password flow):
+```
+POST /api/v1/admin/users/{userId}/reset-password
+Authorization: Bearer admin-token
+```
+
+### Warnings
+
+Warnings are how admins notify users about policy violations. They follow an escalation system: warnings are numbered 1, 2, 3. On the **3rd warning, the user is automatically blacklisted**.
+
+**List warnings:**
+```
 GET /api/v1/admin/warnings?is_resolved=false&per_page=15
-Authorization: Bearer admin-token-here
+Authorization: Bearer admin-token
 ```
 
-#### Query Parameters
+You can filter by `user_id`, `is_resolved`, `is_acknowledged`, and set items per page.
 
-| Parameter       | Type    | Required | Description                          |
-|-----------------|---------|----------|--------------------------------------|
-| user_id         | integer | No       | Filter by specific user              |
-| is_resolved     | boolean | No       | Filter by resolved status            |
-| is_acknowledged | boolean | No       | Filter by acknowledged status        |
-| per_page        | integer | No       | Items per page (default: 15)         |
-
-#### Success Response (200 OK)
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "user_id": 3,
-      "warning_number": 1,
-      "reason": "Inactivity for 30 days",
-      "response_deadline": "2026-07-07T00:00:00.000000Z",
-      "is_acknowledged": false,
-      "is_resolved": false,
-      "resolved_at": null,
-      "created_by": 1,
-      "created_at": "2026-06-30T02:00:00.000000Z",
-      "user": { "id": 3, "full_name": "Bob Wilson" },
-      "createdBy": { "id": 1, "full_name": "System Admin" }
-    }
-  ],
-  "pagination": {
-    "total": 1,
-    "per_page": 15,
-    "current_page": 1,
-    "last_page": 1
-  }
-}
+**Show a single warning:**
+```
+GET /api/v1/admin/warnings/{warningId}
+Authorization: Bearer admin-token
 ```
 
----
-
-### GET /api/v1/admin/warnings/{warningId}
-
-**W2**: Show a specific warning's details.
-
-**Authentication**: Required (Bearer token) + Admin role
-
-#### Request
-
-```http
-GET /api/v1/admin/warnings/1
-Authorization: Bearer admin-token-here
+**Issue a warning to a user:**
 ```
-
-#### Success Response (200 OK)
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "user_id": 3,
-    "warning_number": 1,
-    "reason": "Inactivity for 30 days",
-    "response_deadline": "2026-07-07T00:00:00.000000Z",
-    "is_acknowledged": false,
-    "is_resolved": false,
-    "resolved_at": null,
-    "created_by": 1,
-    "created_at": "2026-06-30T02:00:00.000000Z",
-    "user": { "id": 3, "full_name": "Bob Wilson" },
-    "createdBy": { "id": 1, "full_name": "System Admin" }
-  }
-}
-```
-
----
-
-### POST /api/v1/admin/users/{userId}/warnings
-
-**W3**: Issue a warning to a user. Automatically computes the escalating warning number (1→2→3). On the 3rd warning, the user is **automatically blacklisted**.
-
-**Authentication**: Required (Bearer token) + Admin role
-
-#### Request
-
-```http
-POST /api/v1/admin/users/3/warnings
-Authorization: Bearer admin-token-here
+POST /api/v1/admin/users/{userId}/warnings
+Authorization: Bearer admin-token
 Content-Type: application/json
 
 {
@@ -2160,166 +968,33 @@ Content-Type: application/json
 }
 ```
 
-#### Request Parameters
+- `reason` (required) — max 500 characters.
+- `response_deadline` (required) — ISO date, must be in the future. This is the deadline for the user to respond/acknowledge.
+- The server automatically computes the warning number (1, 2, or 3).
+- If this is warning #3, `auto_blacklisted` is `true` in the response, and the user is immediately blacklisted.
 
-| Parameter         | Type   | Required | Description                          |
-|-------------------|--------|----------|--------------------------------------|
-| reason            | string | Yes      | Reason for warning (max 500 chars)   |
-| response_deadline | string | Yes      | Deadline to respond (ISO date, must be future) |
-
-#### Success Response (201 Created)
-
-```json
-{
-  "success": true,
-  "message": "Warning #2 issued successfully.",
-  "data": {
-    "warning": {
-      "id": 2,
-      "user_id": 3,
-      "warning_number": 2,
-      "reason": "Repeated violation of forum rules",
-      "response_deadline": "2026-07-07T23:59:59.000000Z",
-      "is_acknowledged": false,
-      "is_resolved": false,
-      "created_by": 1,
-      "created_at": "2026-06-30T16:00:00.000000Z"
-    },
-    "warning_number": 2,
-    "auto_blacklisted": false
-  }
-}
+**Resolve a warning:**
+```
+POST /api/v1/admin/warnings/{warningId}/resolve
+Authorization: Bearer admin-token
 ```
 
-**On 3rd warning (auto-blacklist)**:
-```json
-{
-  "success": true,
-  "message": "Warning #3 issued. User has been automatically blacklisted (3 warnings reached).",
-  "data": {
-    "warning": { ... },
-    "warning_number": 3,
-    "auto_blacklisted": true
-  }
-}
+If no other unresolved warnings remain for the user, their status reverts from `warned` to `active`.
+
+### Blacklist
+
+Blacklisting blocks a user from logging in. It's either manual (admin blacklists someone) or automatic (3 warnings).
+
+**List blacklist records:**
+```
+GET /api/v1/admin/blacklist-records?is_active=true
+Authorization: Bearer admin-token
 ```
 
----
-
-### POST /api/v1/admin/warnings/{warningId}/resolve
-
-**W4**: Resolve a warning. If no unresolved warnings remain for the user, their status reverts from `warned` to `active`.
-
-**Authentication**: Required (Bearer token) + Admin role
-
-#### Request
-
-```http
-POST /api/v1/admin/warnings/1/resolve
-Authorization: Bearer admin-token-here
+**Blacklist a user:**
 ```
-
-#### Success Response (200 OK)
-
-```json
-{
-  "success": true,
-  "message": "Warning resolved successfully.",
-  "data": {
-    "warning": {
-      "id": 1,
-      "user_id": 3,
-      "warning_number": 1,
-      "reason": "Inactivity for 30 days",
-      "is_resolved": true,
-      "resolved_at": "2026-06-30T17:00:00.000000Z"
-    },
-    "remaining_unresolved": 0,
-    "user_status": "active"
-  }
-}
-```
-
-#### Error Responses
-
-**409 Conflict - Already Resolved**
-```json
-{
-  "message": "This warning is already resolved."
-}
-```
-
----
-
-## Admin Blacklist Management
-
-> All blacklist endpoints require **admin** role (System Administrator or Group Administrator).
-> - **System Admin**: can manage blacklists for all users
-> - **Group Admin**: can only manage blacklists for users in their administered groups
-
----
-
-### GET /api/v1/admin/blacklist-records
-
-**W5**: List all blacklist records, with optional filtering. Group-scoped for Group Admins.
-
-**Authentication**: Required (Bearer token) + Admin role
-
-#### Request
-
-```http
-GET /api/v1/admin/blacklist-records?is_active=true&per_page=15
-Authorization: Bearer admin-token-here
-```
-
-#### Query Parameters
-
-| Parameter  | Type    | Required | Description                          |
-|------------|---------|----------|--------------------------------------|
-| user_id    | integer | No       | Filter by specific user              |
-| is_active  | boolean | No       | `true` = not yet lifted, `false` = lifted |
-| per_page   | integer | No       | Items per page (default: 15)         |
-
-#### Success Response (200 OK)
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "user_id": 3,
-      "reason": "Automatic blacklist: 3 warnings issued",
-      "expires_at": null,
-      "lifted_at": null,
-      "lifted_by": null,
-      "created_at": "2026-06-30T16:00:00.000000Z",
-      "user": { "id": 3, "full_name": "Bob Wilson" },
-      "liftedBy": null
-    }
-  ],
-  "pagination": {
-    "total": 1,
-    "per_page": 15,
-    "current_page": 1,
-    "last_page": 1
-  }
-}
-```
-
----
-
-### POST /api/v1/admin/users/{userId}/blacklist
-
-**W6**: Blacklist a user. Creates a blacklist record and sets user status to `blacklisted`.
-
-**Authentication**: Required (Bearer token) + Admin role
-
-#### Request
-
-```http
-POST /api/v1/admin/users/3/blacklist
-Authorization: Bearer admin-token-here
+POST /api/v1/admin/users/{userId}/blacklist
+Authorization: Bearer admin-token
 Content-Type: application/json
 
 {
@@ -2328,98 +1003,190 @@ Content-Type: application/json
 }
 ```
 
-#### Request Parameters
+- `duration_days` is optional. Omit for permanent, or set 1-365 for a timed blacklist.
+- If the user is already blacklisted, returns 409 Conflict.
 
-| Parameter     | Type    | Required | Description                          |
-|---------------|---------|----------|--------------------------------------|
-| reason        | string  | Yes      | Reason for blacklisting (max 500)    |
-| duration_days | integer | No       | Blacklist duration in days (1-365). Omit for permanent. |
-
-#### Success Response (201 Created)
-
-```json
-{
-  "success": true,
-  "message": "User has been blacklisted successfully.",
-  "data": {
-    "blacklist_record": {
-      "id": 2,
-      "user_id": 3,
-      "reason": "Severe violation of community guidelines",
-      "expires_at": "2026-07-30T16:00:00.000000Z",
-      "lifted_at": null,
-      "lifted_by": null,
-      "created_at": "2026-06-30T16:00:00.000000Z"
-    },
-    "expires_at": "2026-07-30T16:00:00.000000Z",
-    "is_permanent": false
-  }
-}
+**Lift a blacklist:**
+```
+POST /api/v1/admin/blacklist-records/{recordId}/lift
+Authorization: Bearer admin-token
 ```
 
-#### Error Responses
+If no other active blacklists remain for the user, their status reverts to `active`.
 
-**409 Conflict - Already Blacklisted**
-```json
-{
-  "message": "User is already blacklisted."
-}
+### Post moderation
+
+Admins can moderate (remove) inappropriate posts and ignore reports.
+
+**List reported content:**
 ```
+GET /api/v1/admin/moderation
+Authorization: Bearer admin-token
+```
+
+**Remove a post:**
+```
+POST /api/v1/admin/moderation/{post}/remove
+Authorization: Bearer admin-token
+```
+
+**Ignore a report on a post:**
+```
+POST /api/v1/admin/moderation/{post}/ignore
+Authorization: Bearer admin-token
+```
+
+### Bulk operations
+
+These let admins act on many users at once. Useful for mass enrollment, semester rollover, etc.
+
+```
+POST /api/v1/admin/bulk/change-roles        # Change role for multiple users
+POST /api/v1/admin/bulk/change-status        # Update account status
+POST /api/v1/admin/bulk/assign-group         # Move users to a different group
+POST /api/v1/admin/bulk/blacklist            # Blacklist multiple users
+POST /api/v1/admin/bulk/lift-blacklist       # Lift blacklists for multiple users
+POST /api/v1/admin/bulk/warn                 # Issue warnings to multiple users
+POST /api/v1/admin/bulk/assign-group-admins  # Assign group admins in bulk
+```
+
+All require admin role. Each accepts a list of user IDs plus the relevant parameters (role ID, status, group ID, reason, etc.).
+
+### Advanced search
+
+These let admins search across the entire system with filters.
+
+```
+POST /api/v1/admin/search/users              # Search users with filters
+POST /api/v1/admin/search/groups             # Search groups with filters
+POST /api/v1/admin/search/audit-logs         # Search audit logs with filters
+POST /api/v1/admin/search/warnings           # Search warnings with filters
+GET  /api/v1/admin/search/options/{model}    # Get available filter options for a model
+GET  /api/v1/admin/search/suggestions/{type} # Get search suggestions
+```
+
+### System configuration
+
+System-wide settings stored in the database (System Admin only).
+
+```
+GET    /api/v1/admin/system-config          # List all config
+GET    /api/v1/admin/system-config/{key}    # Get a specific config value
+PUT    /api/v1/admin/system-config          # Update config values
+```
+
+Known config keys:
+| Key | Default | What it controls |
+|-----|---------|------------------|
+| `inactivity_warning_days` | 30 | Days of inactivity before a warning is issued |
+| `warning_response_days` | 7 | Days a user has to respond to a warning |
+| `blacklist_duration_days` | 90 | Default days for blacklist expiry |
+
+### Audit logs
+
+Every important action (post created, warning issued, user deleted, etc.) is logged for audit.
+
+```
+GET /api/v1/admin/audit-logs                 # List logs (paginated)
+GET /api/v1/admin/audit-logs/{logId}        # Show a single log entry
+GET /api/v1/admin/audit-logs/actions        # Get list of all possible action types
+GET /api/v1/admin/audit-logs/export/{format} # Export logs (e.g., CSV)
+```
+
+### IP whitelist
+
+(For System Admin only) Manage which IP addresses are allowed to access the admin panel.
+
+```
+GET    /api/v1/admin/ip-whitelist                        # List all whitelisted IPs
+GET    /api/v1/admin/ip-whitelist/{ipId}                 # Show a specific entry
+GET    /api/v1/admin/ip-whitelist/check/{ip}             # Check if an IP is whitelisted
+POST   /api/v1/admin/ip-whitelist                        # Add an IP to the whitelist
+PUT    /api/v1/admin/ip-whitelist/{ipId}                 # Update an IP entry
+DELETE /api/v1/admin/ip-whitelist/{ipId}                 # Remove an IP from the whitelist
+POST   /api/v1/admin/ip-whitelist/{ipId}/activate        # Activate an IP entry
+POST   /api/v1/admin/ip-whitelist/{ipId}/deactivate      # Deactivate an IP entry
+```
+
+### Group management
+
+**View groups** (all admins):
+
+```
+GET /api/v1/admin/groups                    # List all groups
+GET /api/v1/admin/groups/{groupId}          # Show a group
+GET /api/v1/admin/groups/{groupId}/members  # List members
+PUT /api/v1/admin/groups/{groupId}/members  # Update members
+```
+
+**Manage groups** (System Admin only):
+
+```
+POST   /api/v1/admin/groups                         # Create a group
+PUT    /api/v1/admin/groups/{groupId}               # Update a group
+DELETE /api/v1/admin/groups/{groupId}               # Delete a group (soft delete)
+POST   /api/v1/admin/groups/{groupId}/admins        # Add a group admin
+DELETE /api/v1/admin/groups/{groupId}/admins/{userId} # Remove a group admin
+```
+
+**Auto-promotion:** When the first user with a "Member" role joins a **student-type** group, they are automatically promoted to Group Admin for that group. This is so every student group has at least one admin to manage it.
 
 ---
 
-### POST /api/v1/admin/blacklist-records/{recordId}/lift
+## How the Desktop Client Should Work (End-to-End Flow)
 
-**W7**: Lift a blacklist record. Sets `lifted_at` and `lifted_by`. If no other active blacklists remain for the user, their status reverts to `active`.
+Here's the typical flow a first-time user experiences through your desktop app:
 
-**Authentication**: Required (Bearer token) + Admin role
+### First Launch — No Account
 
-#### Request
+1. **App opens** to a login screen with "Don't have an account? Register" link.
+2. User fills in their name, email, password → taps **Register**.
+3. Your app calls `POST /api/v1/register`.
+4. Server returns a token and user data. **Save the token** to local storage / keychain.
+5. Navigate to the **Forum** screen (list of topics in their group).
 
-```http
-POST /api/v1/admin/blacklist-records/1/lift
-Authorization: Bearer admin-token-here
-```
+### Returning User
 
-#### Success Response (200 OK)
+1. **App opens** → check if a saved token exists.
+2. If yes, call `GET /api/v1/me` to verify the token is still valid.
+   - If 200 → navigate to Forum.
+   - If 401 → token expired/revoked. Clear saved token, show login screen.
+3. If no saved token → show login screen.
 
-```json
-{
-  "success": true,
-  "message": "Blacklist lifted successfully.",
-  "data": {
-    "blacklist_record": {
-      "id": 1,
-      "user_id": 3,
-      "reason": "Automatic blacklist: 3 warnings issued",
-      "expires_at": null,
-      "lifted_at": "2026-06-30T18:00:00.000000Z",
-      "lifted_by": 1,
-      "user": { "id": 3, "full_name": "Bob Wilson" },
-      "liftedBy": { "id": 1, "full_name": "System Admin" }
-    },
-    "remaining_active_blacklists": 0,
-    "user_status": "active"
-  }
-}
-```
+### Navigation Structure
 
-#### Error Responses
+Once logged in, the app should have these main sections (visibility depends on role):
 
-**409 Conflict - Already Lifted**
-```json
-{
-  "message": "This blacklist record has already been lifted."
-}
-```
+| Tab/Section | Member | Group Admin | System Admin | Lecturer |
+|-------------|--------|-------------|--------------|----------|
+| **Forum** (topics, posts, categories) | Yes | Yes | Yes | Yes |
+| **Groups** (browse groups) | Yes (own group) | Yes (admin'd groups) | Yes (all) | Yes (own group) |
+| **Profile** (edit name/email, change password) | Yes | Yes | Yes | Yes |
+| **Quizzes** (take quiz) | Yes | Yes | Yes | Yes |
+| **Notifications** | Yes | Yes | Yes | Yes |
+| **Admin: Users** | No | Yes (scoped) | Yes (all) | No |
+| **Admin: Warnings/Blacklist** | No | Yes (scoped) | Yes (all) | No |
+| **Admin: Categories** | No | Yes | Yes | Yes |
+| **Admin: Create Quizzes** | No | Yes | Yes | Yes |
+| **Admin: Grades/Reports** | No | No | Yes | Yes |
+| **Admin: System Config** | No | No | Yes | No |
+| **Admin: Audit Logs** | No | Yes | Yes | No |
+| **Admin: IP Whitelist** | No | No | Yes | No |
+| **Admin: Groups** | No | Yes (scoped) | Yes (all) | No |
+
+### Background Polling
+
+Your desktop app should poll these endpoints in the background:
+
+- `GET /api/v1/me` — keep the token alive and update user data. The server updates `last_active_at` when you hit this, which prevents automatic inactivity warnings.
+- `GET /api/v1/quizzes/{quiz}/status` — when a quiz is about to start, poll every few seconds so the "Start" button appears as soon as the quiz goes live.
+- `GET /api/v1/me/notifications` — check for new notifications periodically.
 
 ---
 
 ## Error Responses
 
-### Standard Error Format
-
-All error responses follow this format:
+All errors follow a consistent format:
 
 ```json
 {
@@ -2430,70 +1197,80 @@ All error responses follow this format:
 }
 ```
 
-### HTTP Status Codes
+The `errors` object is only present for validation errors (422). Other errors just have `message`.
 
-| Status Code | Meaning                    | Description                                    |
-|-------------|----------------------------|------------------------------------------------|
-| 200         | OK                         | Request successful                             |
-| 201         | Created                    | Resource created successfully (e.g., registration) |
-| 400         | Bad Request                | Invalid request (e.g., invalid token)          |
-| 401         | Unauthorized               | Missing or invalid authentication token        |
-| 403         | Forbidden                  | Account blacklisted or warned                  |
-| 404         | Not Found                  | Resource not found (e.g., token not found)     |
-| 422         | Unprocessable Entity       | Validation error                               |
-| 429         | Too Many Requests          | Rate limit exceeded                            |
-| 500         | Internal Server Error      | Server error                                   |
+### HTTP Status Codes You'll See
+
+| Code | Meaning | When it happens |
+|------|---------|-----------------|
+| **200** | OK | Request succeeded |
+| **201** | Created | Resource was created (register, new topic, new post, etc.) |
+| **400** | Bad Request | Invalid or expired token, wrong OTP |
+| **401** | Unauthorized | Missing, invalid, or expired authentication token |
+| **403** | Forbidden | Not allowed (wrong role, blacklisted, warned, group isolation, not the post author) |
+| **404** | Not Found | Resource doesn't exist (topic, user, token, etc.) |
+| **409** | Conflict | Duplicate (already exists, already submitted, already excluded) |
+| **422** | Validation Error | Missing field, wrong format, password too weak, etc. |
+| **429** | Too Many Requests | Rate limit exceeded (includes `Retry-After` header) |
+| **500** | Server Error | Something broke on the server |
+
+### Specific Error Responses Your App Should Handle
+
+**Login — Blacklisted:**
+```json
+{
+  "message": "Your account is blacklisted until Jul 15, 2026."
+}
+```
+Your app should show this message and NOT proceed to the forum. The user cannot log in until the blacklist expires or an admin lifts it.
+
+**Login — Warned (needs acknowledgement):**
+```json
+{
+  "message": "Your account is warned. Please acknowledge the warning before continuing.",
+  "requires_warning_acknowledgement": true,
+  "user": { ... }
+}
+```
+Your app should show the warning to the user and let them acknowledge it. Once acknowledged, they can log in normally.
+
+**Registration — Missing Role/Group:**
+```json
+{
+  "message": "Required role or group not found in database. Please contact administrator."
+}
+```
+This happens if the "Member" role or "General" group haven't been seeded in the database. The server admin needs to run the database seeds.
 
 ---
 
-## Rate Limiting
+## Rate Limits — How Fast You Can Send Requests
 
-### API-Wide Rate Limit
+The server limits how many requests you can send to prevent abuse. Your desktop client should respect these limits and show appropriate messages when hit.
 
-- **Limit**: 60 requests per minute
-- **Scope**: Per IP address
-- **Applies to**: All API endpoints
+| Endpoint | Limit | Scope |
+|----------|-------|-------|
+| **All API endpoints** | 60 requests per minute | Per IP address |
+| **Login** | 5 attempts per 30 seconds | Per email+IP AND per email (dual-key — prevents IP rotation bypass) |
+| **Registration** | 3 requests per 60 seconds | Per IP address |
+| **Forgot password** | 3 requests per 15 minutes | Per email address |
+| **Reset password** | 5 OTP attempts per 10 minutes | Per email address |
+| **Resend verification email** | 1 request per 60 seconds | Per authenticated user |
+| **Create topic** | 3 per 60 seconds | Per regular user (admins/lecturers bypass) |
+| **Create reply** | 5 per 60 seconds | Per regular user (admins/lecturers bypass) |
 
-**Response when exceeded (429)**:
-```json
-{
-  "message": "Too many requests. Please try again later."
-}
-```
-
-**Headers included**:
-```http
-Retry-After: 45
-X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 0
-```
-
-### Login-Specific Rate Limit
-
-- **Limit**: 5 attempts per 30 seconds
-- **Scope**: Per email + IP combination AND per email address (dual-key)
-- **Applies to**: `/api/v1/login` only
-- **Note**: Both an email+IP key and an email-only key are checked. This prevents attackers from bypassing the limit by rotating IP addresses.
-
-### Registration Rate Limit
-
-- **Limit**: 3 requests per 60 seconds
-- **Scope**: Per IP address
-- **Applies to**: `/api/v1/register` only
-
-### Email Verification Rate Limit
-
-- **Limit**: 1 request per 60 seconds
-- **Scope**: Per authenticated user
-- **Applies to**: `/api/v1/email/resend` only
+When you exceed a rate limit, the server responds with **429** and includes:
+- `Retry-After` header (seconds until you can try again)
+- `X-RateLimit-Limit` header (maximum requests allowed)
+- `X-RateLimit-Remaining` header (how many you have left)
 
 ---
 
 ## Security Headers
 
-All API responses include the following security headers:
+Every API response includes these security headers:
 
-```http
+```
 X-Content-Type-Options: nosniff
 X-Frame-Options: DENY
 X-XSS-Protection: 1; mode=block
@@ -2502,299 +1279,256 @@ Pragma: no-cache
 Expires: 0
 ```
 
-**When using HTTPS**:
-```http
+If you access the API over HTTPS, you'll also get:
+```
 Strict-Transport-Security: max-age=31536000; includeSubDomains
 ```
+
+These are set by the `ApiSecurityHeaders` middleware on every API route. Your desktop client doesn't need to do anything with them, but it's good to know they're there.
 
 ---
 
 ## CORS Configuration
 
-### Allowed Origins
+CORS is configured to work with desktop clients running locally. Allowed origins include `localhost` on any port.
 
+### Allowed Origins
 - `http://localhost`
 - `http://localhost:*` (any port)
 - `http://127.0.0.1`
 - `http://127.0.0.1:*` (any port)
 
-**For production**, update `config/cors.php` with your desktop client URLs.
-
 ### Allowed Methods
-
-- GET
-- POST
-- PUT
-- DELETE
-- OPTIONS
+`GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`
 
 ### Allowed Headers
+`Content-Type`, `Authorization`, `X-Requested-With`, `Accept`, `Origin`
 
-- Content-Type
-- Authorization
-- X-Requested-With
-- Accept
-- Origin
-
-### Credentials
-
-CORS is configured to support credentials (`Access-Control-Allow-Credentials: true`), allowing cookies and authentication headers.
+If your desktop app uses a custom protocol (e.g., `myapp://`) or a different origin, update `config/cors.php` on the server.
 
 ---
 
-## Example Usage (Desktop Client)
+## Activity Monitoring — Automatic Inactivity Handling
 
-### JavaScript/TypeScript Example
+The server runs a daily scheduled task that checks for inactive users:
 
-```typescript
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+**Command:** `php artisan monitor:activity`
 
-class ForumAPI {
-  private token: string | null = null;
+**What it does:**
+1. Finds users who haven't been active in X days (default: 30).
+2. Issues a warning to them (warning #1).
+3. Gives them Y days to respond (default: 7).
+4. If they don't respond, issues warning #2, then #3, then auto-blacklists them.
+5. The blacklist lasts Z days (default: 90).
 
-  async login(email: string, password: string) {
-    const response = await fetch(`${API_BASE_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
+These thresholds are configurable via the system config endpoints (see "System Configuration" above).
 
-    const data = await response.json();
-    
-    if (response.ok) {
-      this.token = data.token;
-      localStorage.setItem('api_token', data.token);
-    }
-    
-    return data;
-  }
-
-  async logout() {
-    if (!this.token) return;
-
-    await fetch(`${API_BASE_URL}/logout`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-      },
-    });
-
-    this.token = null;
-    localStorage.removeItem('api_token');
-  }
-
-  async getCurrentUser() {
-    const response = await fetch(`${API_BASE_URL}/me`, {
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-      },
-    });
-
-    return await response.json();
-  }
-
-  async updateProfile(fullName: string, email: string) {
-    const response = await fetch(`${API_BASE_URL}/profile`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ full_name: fullName, email }),
-    });
-
-    return await response.json();
-  }
-
-  async changePassword(currentPassword: string, newPassword: string, confirmation: string) {
-    const response = await fetch(`${API_BASE_URL}/password/change`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        current_password: currentPassword,
-        new_password: newPassword,
-        new_password_confirmation: confirmation,
-      }),
-    });
-
-    return await response.json();
-  }
-}
-```
-
-### cURL Examples
-
-**Register**:
-```bash
-curl -X POST http://localhost:8000/api/v1/register \
-  -H "Content-Type: application/json" \
-  -d '{"full_name":"John Doe","email":"john@example.com","password":"Password123","password_confirmation":"Password123"}'
-```
-
-**Login**:
-```bash
-curl -X POST http://localhost:8000/api/v1/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"MyPassword123"}'
-```
-
-**Get User**:
-```bash
-curl -X GET http://localhost:8000/api/v1/me \
-  -H "Authorization: Bearer your-token-here"
-```
-
-**Update Profile**:
-```bash
-curl -X POST http://localhost:8000/api/v1/profile \
-  -H "Authorization: Bearer your-token-here" \
-  -H "Content-Type: application/json" \
-  -d '{"full_name":"John Updated","email":"new@example.com"}'
-```
-
-**Change Password**:
-```bash
-curl -X POST http://localhost:8000/api/v1/password/change \
-  -H "Authorization: Bearer your-token-here" \
-  -H "Content-Type: application/json" \
-  -d '{"current_password":"Old123","new_password":"New456","new_password_confirmation":"New456"}'
-```
-
-**Forgot Password**:
-```bash
-curl -X POST http://localhost:8000/api/v1/password/forgot \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com"}'
-```
-
-**Reset Password**:
-```bash
-curl -X POST http://localhost:8000/api/v1/password/reset \
-  -H "Content-Type: application/json" \
-  -d '{"token":"reset-token","email":"user@example.com","password":"NewPass123","password_confirmation":"NewPass123"}'
-```
-
-**Verify Email**:
-```bash
-curl -X POST http://localhost:8000/api/v1/email/verify \
-  -H "Authorization: Bearer your-token-here" \
-  -H "Content-Type: application/json" \
-  -d '{"token":"verification-token","email":"user@example.com"}'
-```
-
-**Resend Verification**:
-```bash
-curl -X POST http://localhost:8000/api/v1/email/resend \
-  -H "Authorization: Bearer your-token-here"
-```
-
-**Delete Account**:
-```bash
-curl -X DELETE http://localhost:8000/api/v1/account \
-  -H "Authorization: Bearer your-token-here" \
-  -H "Content-Type: application/json" \
-  -d '{"password":"YourPassword123"}'
-```
-
-**List Tokens**:
-```bash
-curl -X GET http://localhost:8000/api/v1/tokens \
-  -H "Authorization: Bearer your-token-here"
-```
-
-**Refresh Token**:
-```bash
-curl -X POST http://localhost:8000/api/v1/token/refresh \
-  -H "Authorization: Bearer your-token-here"
-```
-
-**Revoke Token**:
-```bash
-curl -X DELETE http://localhost:8000/api/v1/tokens/123 \
-  -H "Authorization: Bearer your-token-here"
-```
-
-**Logout**:
-```bash
-curl -X POST http://localhost:8000/api/v1/logout \
-  -H "Authorization: Bearer your-token-here"
-```
+> **Note about `last_active_at`:** This timestamp is updated when the user calls `GET /api/v1/me` (or any authenticated endpoint that touches user data). Your desktop app should call `GET /api/v1/me` periodically to keep the user's "last active" timestamp current, preventing false inactivity warnings.
 
 ---
 
-## Activity Monitoring
+## Quick Reference — All Endpoints at a Glance
 
-The system automatically monitors user activity and issues warnings/blacklists based on inactivity.
+### Authentication & Profile
 
-### Configuration
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| POST | `/register` | No | Create account, get token |
+| POST | `/login` | No | Log in, get token |
+| POST | `/password/forgot` | No | Send 6-digit OTP to email |
+| POST | `/password/reset` | No | Reset password with OTP |
+| POST | `/logout` | Yes | Revoke current token |
+| POST | `/token/refresh` | Yes | Get new token, invalidate old one |
+| GET | `/tokens` | Yes | List all your active tokens |
+| DELETE | `/tokens/{id}` | Yes | Revoke a specific token |
+| GET | `/me` | Yes | Get your user info |
+| POST | `/profile` | Yes | Update name/email |
+| POST | `/password/change` | Yes | Change your password |
+| DELETE | `/account` | Yes | Delete your account permanently |
+| POST | `/email/verify` | Yes | Verify email with token |
+| POST | `/email/resend` | Yes | Resend verification email |
 
-Configure thresholds in the `system_config` table:
+### Forum — Topics & Posts
 
-| Config Key                  | Default | Description                              |
-|-----------------------------|---------|------------------------------------------|
-| inactivity_warning_days     | 30      | Days before warning is issued            |
-| warning_response_days       | 7       | Days to respond to warning               |
-| blacklist_duration_days     | 90      | Days for blacklist to expire             |
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/topics` | Yes | List topics in your group |
+| GET | `/topics/type/{type}` | Yes | Filter by discussion/question |
+| POST | `/topics` | Yes | Create a topic |
+| GET | `/topics/{id}` | Yes | Topic detail with posts |
+| PUT | `/topics/{id}` | Yes | Update topic (creator/admin) |
+| DELETE | `/topics/{id}` | Yes | Archive topic (creator/admin) |
+| GET | `/topics/{id}/posts` | Yes | List posts in a topic |
+| POST | `/topics/{id}/posts` | Yes | Post a reply |
+| PUT | `/posts/{id}` | Yes | Edit your post |
+| DELETE | `/posts/{id}` | Yes | Delete your post |
+| GET | `/topics/{id}/export/pdf` | Yes | Download topic as PDF |
+| POST | `/topics/{id}/share` | Yes | Generate shareable link |
+| POST | `/topics/{id}/toggle-answered` | Yes | Mark question as answered |
+| POST | `/topics/{id}/toggle-pinned` | Yes | Pin/unpin topic |
 
-### Automated Schedule
+### Forum — Post Visibility
 
-- **Command**: `php artisan monitor:activity`
-- **Schedule**: Daily at 2:00 AM UTC
-- **Dry Run**: `php artisan monitor:activity --dry-run`
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/posts/{id}/visibility` | Yes | List excluded users |
+| POST | `/posts/{id}/visibility/exclude` | Yes | Exclude a user from seeing your post |
+| DELETE | `/posts/{id}/visibility/{userId}` | Yes | Remove an exclusion |
 
----
+### Forum — Categories
 
-## Support & Troubleshooting
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/categories` | Yes | List categories in your group |
+| GET | `/categories/{id}/topics` | Yes | Topics under a category |
+| POST | `/admin/categories` | Admin | Create category |
+| PUT | `/admin/categories/{id}` | Admin | Update category |
+| DELETE | `/admin/categories/{id}` | Admin | Delete category |
 
-### Common Issues
+### Groups
 
-1. **401 Unauthenticated**
-   - Check if token is included in Authorization header
-   - Verify token format: `Bearer {token}`
-   - Token may have been revoked (user logged out)
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/groups` | Yes | List groups you can see |
+| GET | `/groups/{id}` | Yes | Show group details |
+| GET | `/groups/{id}/topics` | Yes | Topics in a group |
+| GET | `/groups/{id}/members` | Yes | Members of a group |
 
-2. **403 Forbidden**
-   - Account may be blacklisted (check expiry date)
-   - Account may be warned (needs acknowledgement via web interface)
+### Notifications
 
-3. **429 Too Many Requests**
-   - Wait for rate limit to reset (check Retry-After header)
-   - Reduce request frequency
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/me/notifications` | Yes | List your notifications |
+| POST | `/notifications/{id}/read` | Yes | Mark notification as read |
 
-4. **422 Validation Error**
-   - Check request body format
-   - Verify all required fields are present
-   - Ensure data types match requirements
+### Quizzes — Lecturer/Admin (CRUD)
 
-### Testing the API
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/quizzes` | Admin | List all quizzes |
+| POST | `/quizzes` | Admin | Create a quiz |
+| GET | `/quizzes/{id}` | Admin | Show quiz with questions |
+| PUT | `/quizzes/{id}` | Admin | Update quiz |
+| DELETE | `/quizzes/{id}` | Admin | Delete quiz |
+| POST | `/quizzes/{id}/publish` | Admin | Publish quiz |
+| GET | `/quizzes/{id}/report` | Admin | Class performance report |
+| GET | `/quizzes/{id}/questions` | Admin | List questions |
+| POST | `/quizzes/{id}/questions` | Admin | Add question |
+| PUT | `/quizzes/{id}/questions/{q}` | Admin | Update question |
+| DELETE | `/quizzes/{id}/questions/{q}` | Admin | Delete question |
+| PUT | `/quizzes/{id}/questions/reorder` | Admin | Reorder questions |
+| GET | `/questions/{q}/answers` | Admin | List answer options |
+| POST | `/questions/{q}/answers` | Admin | Add answer |
+| PUT | `/answers/{a}` | Admin | Update answer |
+| DELETE | `/answers/{a}` | Admin | Delete answer |
 
-Use the dry-run mode to test activity monitoring:
-```bash
-php artisan monitor:activity --dry-run
-```
+### Quizzes — Student (Take Quiz)
 
-Test the scheduler:
-```bash
-php artisan schedule:run
-```
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/quizzes/{id}/announcement` | Yes | Show pre-quiz info |
+| GET | `/quizzes/{id}/status` | Yes | Poll for live status |
+| POST | `/quizzes/{id}/attempt` | Yes | Start attempt |
+| GET | `/quizzes/{id}/attempt` | Yes | Resume attempt |
+| POST | `/quizzes/{id}/answer` | Yes | Save single answer |
+| POST | `/quizzes/{id}/answers/batch` | Yes | Save multiple answers |
+| POST | `/quizzes/{id}/submit` | Yes | Submit manually |
+| POST | `/quizzes/{id}/auto-submit` | Yes | Auto-submit on timer expiry |
 
----
+### Quizzes — Results & History
 
-## Version History
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/quizzes/{id}/result` | Yes | View your result |
+| GET | `/lecturer/quizzes/{id}/grades` | Admin | All grades for a quiz |
+| GET | `/lecturer/grades/{id}` | Admin | Single grade breakdown |
+| GET | `/lecturer/quizzes/{id}/grades/export` | Admin | Export grades as CSV |
+| GET | `/quizzes/upcoming` | Yes | Upcoming quizzes |
+| GET | `/quizzes/live` | Yes | Currently active quizzes |
+| GET | `/me/quiz-history` | Yes | Your past attempts |
+| GET | `/me/quiz-notifications` | Yes | Quiz notifications |
 
-| Version | Date       | Description                              |
-|---------|------------|------------------------------------------|
-| v1.2    | 2026-06-29 | Updated default registration role to Member, added dual-key rate limiter documentation |
-| v1.1    | 2026-06-26 | Added registration, email verification, password reset, token management, and account deletion endpoints |
-| v1      | 2026-06-26 | Initial API release                      |
+### Admin — User & Content Management
 
----
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/admin/users` | Admin | List users |
+| GET | `/admin/users/{id}` | Admin | Show user |
+| POST | `/admin/users` | Admin* | Create user |
+| PUT | `/admin/users/{id}` | Admin | Update user |
+| DELETE | `/admin/users/{id}` | Admin* | Delete user |
+| POST | `/admin/users/{id}/change-role` | Admin* | Change user role |
+| POST | `/admin/users/{id}/reset-password` | Admin | Reset password |
+| GET | `/admin/warnings` | Admin | List warnings |
+| GET | `/admin/warnings/{id}` | Admin | Show warning |
+| POST | `/admin/users/{id}/warnings` | Admin | Issue warning |
+| POST | `/admin/warnings/{id}/resolve` | Admin | Resolve warning |
+| GET | `/admin/blacklist-records` | Admin | List blacklist records |
+| POST | `/admin/users/{id}/blacklist` | Admin | Blacklist user |
+| POST | `/admin/blacklist-records/{id}/lift` | Admin | Lift blacklist |
+| GET | `/admin/moderation` | Admin | List reported content |
+| POST | `/admin/moderation/{post}/remove` | Admin | Remove post |
+| POST | `/admin/moderation/{post}/ignore` | Admin | Ignore report |
 
-## Contact
+\* System Admin only (enforced in controller, not middleware).
 
-For API support or questions, contact the development team.
+### Admin — Bulk Operations
+
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| POST | `/admin/bulk/change-roles` | Admin | Change roles for multiple users |
+| POST | `/admin/bulk/change-status` | Admin | Update account status |
+| POST | `/admin/bulk/assign-group` | Admin | Move users to a group |
+| POST | `/admin/bulk/blacklist` | Admin | Blacklist multiple users |
+| POST | `/admin/bulk/lift-blacklist` | Admin | Lift blacklists |
+| POST | `/admin/bulk/warn` | Admin | Issue warnings |
+| POST | `/admin/bulk/assign-group-admins` | Admin | Assign group admins |
+
+### Admin — Search
+
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| POST | `/admin/search/users` | Admin | Search users |
+| POST | `/admin/search/groups` | Admin | Search groups |
+| POST | `/admin/search/audit-logs` | Admin | Search audit logs |
+| POST | `/admin/search/warnings` | Admin | Search warnings |
+| GET | `/admin/search/options/{model}` | Admin | Filter options for a model |
+| GET | `/admin/search/suggestions/{type}` | Admin | Search suggestions |
+
+### Admin — Groups
+
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/admin/groups` | Admin | List groups |
+| GET | `/admin/groups/{id}` | Admin | Show group |
+| POST | `/admin/groups` | Admin* | Create group |
+| PUT | `/admin/groups/{id}` | Admin | Update group |
+| DELETE | `/admin/groups/{id}` | Admin* | Delete group |
+| GET | `/admin/groups/{id}/members` | Admin | List members |
+| PUT | `/admin/groups/{id}/members` | Admin | Update members |
+| POST | `/admin/groups/{id}/admins` | Admin* | Add group admin |
+| DELETE | `/admin/groups/{id}/admins/{userId}` | Admin* | Remove group admin |
+
+\* System Admin only.
+
+### Admin — System
+
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/admin/system-config` | Admin* | List system config |
+| GET | `/admin/system-config/{key}` | Admin* | Get config value |
+| PUT | `/admin/system-config` | Admin* | Update config |
+| GET | `/admin/audit-logs` | Admin | List audit logs |
+| GET | `/admin/audit-logs/{id}` | Admin | Show log entry |
+| GET | `/admin/audit-logs/actions` | Admin | List action types |
+| GET | `/admin/audit-logs/export/{format}` | Admin | Export logs |
+| GET | `/admin/ip-whitelist` | Admin* | List whitelisted IPs |
+| GET | `/admin/ip-whitelist/{id}` | Admin* | Show IP entry |
+| GET | `/admin/ip-whitelist/check/{ip}` | Admin* | Check IP |
+| POST | `/admin/ip-whitelist` | Admin* | Add IP |
+| PUT | `/admin/ip-whitelist/{id}` | Admin* | Update IP |
+| DELETE | `/admin/ip-whitelist/{id}` | Admin* | Remove IP |
+| POST | `/admin/ip-whitelist/{id}/activate` | Admin* | Activate IP |
+| POST | `/admin/ip-whitelist/{id}/deactivate` | Admin* | Deactivate IP |
+
+\* System Admin only.

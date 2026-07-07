@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\BlacklistRecord;
+use App\Models\User;
+use App\Models\Warning;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
-use App\Models\User;
-use App\Models\BlacklistRecord;
-use App\Models\Warning;
 
 class LoginController extends Controller
 {
@@ -29,9 +29,9 @@ class LoginController extends Controller
     {
         // #55: RATE LIMITING CHECK (before anything else)
         // Primary: per-IP + email key
-        $key = 'login-attempts:' . $request->input('email') . '|' . $request->ip();
+        $key = 'login-attempts:'.$request->input('email').'|'.$request->ip();
         // Secondary: email-only key (prevents IP rotation bypass)
-        $emailKey = 'login-attempts-email:' . $request->input('email');
+        $emailKey = 'login-attempts-email:'.$request->input('email');
         $maxAttempts = 5;
         $lockoutSeconds = 30;
 
@@ -43,7 +43,6 @@ class LoginController extends Controller
             ]);
         }
 
-
         // #52: VALIDATE EMAIL & PASSWORD FORMAT
         $validated = $request->validate([
             'email' => 'required|email',
@@ -54,7 +53,7 @@ class LoginController extends Controller
         $user = User::where('email', $request->input('email'))->first();
 
         // #52: CHECK IF USER EXISTS & PASSWORD MATCHES
-        if (!$user || !Hash::check($request->input('password'), $user->password)) {
+        if (! $user || ! Hash::check($request->input('password'), $user->password)) {
             // Increment failed attempts
             RateLimiter::hit($key, $lockoutSeconds);
             RateLimiter::hit($emailKey, $lockoutSeconds);
@@ -72,7 +71,7 @@ class LoginController extends Controller
                 ->first();
 
             if ($blacklistRecord) {
-                 RateLimiter::hit($key, $lockoutSeconds);
+                RateLimiter::hit($key, $lockoutSeconds);
                 $expiryDate = $blacklistRecord->expires_at->format('M d, Y');
                 throw ValidationException::withMessages([
                     'email' => "Your account is blacklisted until {$expiryDate}.",

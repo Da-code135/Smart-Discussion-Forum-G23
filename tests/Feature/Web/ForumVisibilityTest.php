@@ -2,18 +2,18 @@
 
 namespace Tests\Feature\Web;
 
-use Tests\TestCase;
-use Tests\CreatesTestUsers;
-use App\Models\User;
-use App\Models\Topic;
 use App\Models\Post;
 use App\Models\PostVisibility;
+use App\Models\Topic;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Tests\CreatesTestUsers;
+use Tests\TestCase;
 
 class ForumVisibilityTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -27,7 +27,7 @@ class ForumVisibilityTest extends TestCase
         $author = $this->createMember(['full_name' => 'Author', 'email' => 'author@example.com']);
         $excludedUser = $this->createMember(['full_name' => 'Excluded', 'email' => 'excluded@example.com']);
         $otherUser = $this->createMember(['full_name' => 'Other', 'email' => 'other@example.com']);
-        
+
         // Create a topic
         $topic = Topic::create([
             'group_id' => $this->defaultGroup->id,
@@ -66,24 +66,24 @@ class ForumVisibilityTest extends TestCase
         $this->actingAs($excludedUser);
         $topic->load(['posts' => function ($query) {
             $query->notRemoved()
-                  ->visibleToUser(Auth::id())
-                  ->orderBy('created_at', 'asc')
-                  ->with('user');
+                ->visibleToUser(Auth::id())
+                ->orderBy('created_at', 'asc')
+                ->with('user');
         }]);
-        
+
         // The excluded user should not see the post
         $postVisibleToExcludedUser = $topic->posts->contains($post->id);
         $this->assertFalse($postVisibleToExcludedUser, 'Excluded user should not see the post');
-        
+
         // Verify that other users can still see the post
         $this->actingAs($otherUser);
         $topic->load(['posts' => function ($query) {
             $query->notRemoved()
-                  ->visibleToUser(Auth::id())
-                  ->orderBy('created_at', 'asc')
-                  ->with('user');
+                ->visibleToUser(Auth::id())
+                ->orderBy('created_at', 'asc')
+                ->with('user');
         }]);
-        
+
         // Other users should still see the post
         $postVisibleToOtherUser = $topic->posts->contains($post->id);
         $this->assertTrue($postVisibleToOtherUser, 'Other users should still see the post');
@@ -95,7 +95,7 @@ class ForumVisibilityTest extends TestCase
         $author = $this->createMember(['full_name' => 'Author', 'email' => 'author@example.com']);
         $otherUser = $this->createMember(['full_name' => 'Other', 'email' => 'other@example.com']);
         $toBeExcludedUser = $this->createMember(['full_name' => 'ToBeExcluded', 'email' => 'tobeexcluded@example.com']);
-        
+
         // Create a topic
         $topic = Topic::create([
             'group_id' => $this->defaultGroup->id,
@@ -135,7 +135,7 @@ class ForumVisibilityTest extends TestCase
     {
         // Create users in the same group
         $author = $this->createMember(['full_name' => 'Author', 'email' => 'author@example.com']);
-        
+
         // Create a topic
         $topic = Topic::create([
             'group_id' => $this->defaultGroup->id,
@@ -171,7 +171,7 @@ class ForumVisibilityTest extends TestCase
         // Create users in the same group
         $author = $this->createMember(['full_name' => 'Author', 'email' => 'author@example.com']);
         $excludedUser = $this->createMember(['full_name' => 'Excluded', 'email' => 'excluded@example.com']);
-        
+
         // Create a topic
         $topic = Topic::create([
             'group_id' => $this->defaultGroup->id,
@@ -205,10 +205,10 @@ class ForumVisibilityTest extends TestCase
         // Both requests should succeed but only one record should be created
         $response1->assertRedirect();
         $response2->assertRedirect();
-        
+
         // Check that only one PostVisibility record exists
         $this->assertEquals(1, PostVisibility::where('post_id', $post->id)
-                                           ->where('excluded_user_id', $excludedUser->id)
-                                           ->count());
+            ->where('excluded_user_id', $excludedUser->id)
+            ->count());
     }
 }

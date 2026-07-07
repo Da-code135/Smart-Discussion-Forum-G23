@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class AuditLog extends Model
 {
@@ -61,14 +61,14 @@ class AuditLog extends Model
     /**
      * Scope to filter by target
      */
-    public function scopeForTarget($query, string $targetType, int $targetId = null)
+    public function scopeForTarget($query, string $targetType, ?int $targetId = null)
     {
         $query = $query->where('target_type', $targetType);
-        
+
         if ($targetId) {
             $query = $query->where('target_id', $targetId);
         }
-        
+
         return $query;
     }
 
@@ -80,11 +80,11 @@ class AuditLog extends Model
         if ($startDate) {
             $query->where('created_at', '>=', $startDate);
         }
-        
+
         if ($endDate) {
             $query->where('created_at', '<=', $endDate);
         }
-        
+
         return $query;
     }
 
@@ -98,7 +98,7 @@ class AuditLog extends Model
         }
 
         $userName = $this->user ? $this->user->full_name : 'System';
-        
+
         return "{$userName} performed {$this->action}";
     }
 

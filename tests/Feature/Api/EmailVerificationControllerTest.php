@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\User;
-use App\Models\Role;
-use App\Models\Group;
 use App\Models\EmailVerificationToken;
+use App\Models\Group;
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
@@ -16,12 +16,13 @@ class EmailVerificationControllerTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected string $token;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Seed roles and groups
         Role::create(['role_name' => 'Student', 'description' => 'Student role']);
         Group::create(['group_name' => 'Default Group', 'description' => 'Default group']);
@@ -50,7 +51,7 @@ class EmailVerificationControllerTest extends TestCase
         ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/email/verify', [
             'token' => 'valid-token-123',
             'email' => $this->user->email,
@@ -68,7 +69,7 @@ class EmailVerificationControllerTest extends TestCase
     public function test_verify_email_fails_with_invalid_token(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/email/verify', [
             'token' => 'invalid-token',
             'email' => $this->user->email,
@@ -94,7 +95,7 @@ class EmailVerificationControllerTest extends TestCase
         ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/email/verify', [
             'token' => 'expired-token',
             'email' => $this->user->email,
@@ -116,7 +117,7 @@ class EmailVerificationControllerTest extends TestCase
         ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/email/verify', [
             'token' => 'valid-token',
             'email' => 'wrong@example.com', // Wrong email
@@ -131,7 +132,7 @@ class EmailVerificationControllerTest extends TestCase
     public function test_verify_email_requires_token(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/email/verify', [
             'email' => $this->user->email,
         ]);
@@ -143,7 +144,7 @@ class EmailVerificationControllerTest extends TestCase
     public function test_verify_email_requires_email(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/email/verify', [
             'token' => 'some-token',
         ]);
@@ -165,7 +166,7 @@ class EmailVerificationControllerTest extends TestCase
     public function test_user_can_resend_verification_email(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/email/resend');
 
         $response->assertStatus(200)
@@ -185,7 +186,7 @@ class EmailVerificationControllerTest extends TestCase
         $this->user->update(['email_verified_at' => now()]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/email/resend');
 
         // Controller returns 400 when email is already verified
@@ -198,18 +199,18 @@ class EmailVerificationControllerTest extends TestCase
     public function test_resend_verification_is_rate_limited(): void
     {
         // Clear any existing rate limits (key must match controller's 'api-verify-email:' prefix)
-        RateLimiter::clear('api-verify-email:' . $this->user->email);
+        RateLimiter::clear('api-verify-email:'.$this->user->email);
 
         // First request should succeed
         $response1 = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/email/resend');
 
         $response1->assertStatus(200);
 
         // Second request within 1 minute should be rate limited
         $response2 = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/email/resend');
 
         $response2->assertStatus(429)
@@ -228,13 +229,13 @@ class EmailVerificationControllerTest extends TestCase
     public function test_resend_verification_creates_valid_token(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/email/resend');
 
         $response->assertStatus(200);
 
         $token = EmailVerificationToken::where('user_id', $this->user->id)->first();
-        
+
         $this->assertNotNull($token);
         $this->assertEquals($this->user->email, $token->email);
         $this->assertTrue($token->isValid());

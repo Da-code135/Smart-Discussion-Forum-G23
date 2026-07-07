@@ -4,13 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Report extends Model
 {
     protected $fillable = [
         'user_id',
         'reason',
-        'status'
+        'status',
     ];
 
     public function user(): BelongsTo
@@ -18,7 +19,7 @@ class Report extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function reportable(): \Illuminate\Database\Eloquent\Relations\MorphTo
+    public function reportable(): MorphTo
     {
         return $this->morphTo();
     }

@@ -2,19 +2,18 @@
 
 namespace Tests\Feature\Console;
 
+use App\Models\BlacklistRecord;
 use App\Models\SystemConfig;
 use App\Models\User;
 use App\Models\Warning;
-use App\Models\BlacklistRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Artisan;
 use Tests\CreatesTestUsers;
 use Tests\TestCase;
 
 class MonitorMemberActivityTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected function setUp(): void
     {

@@ -25,6 +25,15 @@
                 <span class="material-symbols-outlined">forum</span>
                 <span>Forum</span>
             </a>
+            @php
+                $quizzesRoute = ($user->isAdmin() || $user->role?->role_name === 'Lecturer')
+                    ? route('quizzes.index')
+                    : route('quizzes.my-quizzes');
+            @endphp
+            <a href="{{ $quizzesRoute }}" class="app-topbar-link {{ str_starts_with($activeNav, 'quiz') ? 'is-active' : '' }}">
+                <span class="material-symbols-outlined">quiz</span>
+                <span>Quizzes</span>
+            </a>
             <a href="{{ route('profile.edit') }}" class="app-topbar-link {{ $activeNav === 'profile' ? 'is-active' : '' }}">
                 <span class="material-symbols-outlined">person</span>
                 <span>Profile</span>

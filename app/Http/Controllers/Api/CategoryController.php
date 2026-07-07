@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Group;
 use App\Models\Topic;
 use App\Models\TopicCategory;
 use Illuminate\Http\Request;
@@ -20,20 +21,24 @@ class CategoryController extends Controller
     {
         $user = $request->user();
 
-        $categories = TopicCategory::forGroup($user->group_id)
-            ->orderBy('category_name')
-            ->get()
-            ->map(function ($cat) {
-                return [
-                    'id' => $cat->id,
-                    'group_id' => $cat->group_id,
-                    'category_name' => $cat->category_name,
-                    'keyword_hints' => $cat->keyword_hints,
-                    'posts_count' => $cat->posts()->count(),
-                    'created_at' => $cat->created_at,
-                    'updated_at' => $cat->updated_at,
-                ];
-            });
+        $query = TopicCategory::orderBy('category_name');
+
+        // System admins see all categories; others see only accessible groups
+        if (! $user->isSystemAdmin()) {
+            $query->whereIn('group_id', $user->accessibleGroupIds());
+        }
+
+        $categories = $query->get()->map(function ($cat) {
+            return [
+                'id' => $cat->id,
+                'group_id' => $cat->group_id,
+                'category_name' => $cat->category_name,
+                'keyword_hints' => $cat->keyword_hints,
+                'posts_count' => $cat->posts()->count(),
+                'created_at' => $cat->created_at,
+                'updated_at' => $cat->updated_at,
+            ];
+        });
 
         return response()->json([
             'data' => $categories,
@@ -52,16 +57,23 @@ class CategoryController extends Controller
     {
         $user = $request->user();
 
-        $category = TopicCategory::forGroup($user->group_id)
-            ->findOrFail($categoryId);
+        $accessibleGroupIds = $user->isSystemAdmin()
+            ? null
+            : $user->accessibleGroupIds();
+
+        $categoryQuery = TopicCategory::query();
+        if ($accessibleGroupIds !== null) {
+            $categoryQuery->whereIn('group_id', $accessibleGroupIds);
+        }
+        $category = $categoryQuery->findOrFail($categoryId);
 
         // Get distinct topic IDs from posts classified under this category
         $topicIds = $category->posts()
-            ->whereHas('topic', function ($q) use ($user) {
-                $q->forGroup($user->group_id);
-            })
-            ->whereHas('topic', function ($q) {
-                $q->active();
+            ->whereHas('topic', function ($q) use ($accessibleGroupIds) {
+                $q->where('status', 'active');
+                if ($accessibleGroupIds !== null) {
+                    $q->whereIn('group_id', $accessibleGroupIds);
+                }
             })
             ->pluck('topic_id')
             ->unique()
@@ -75,7 +87,6 @@ class CategoryController extends Controller
         }
 
         $topics = Topic::whereIn('id', $topicIds)
-            ->forGroup($user->group_id)
             ->active()
             ->with('creator')
             ->withCount('posts')
@@ -117,7 +128,7 @@ class CategoryController extends Controller
         }
 
         // Group admins can only create categories for groups they administer
-        if ($user->isGroupAdmin() && !$user->canAdminGroup(\App\Models\Group::findOrFail($validated['group_id']))) {
+        if ($user->isGroupAdmin() && ! $user->canAdminGroup(Group::findOrFail($validated['group_id']))) {
             return response()->json([
                 'message' => 'You can only create categories for groups you administer.',
             ], 403);
@@ -158,7 +169,7 @@ class CategoryController extends Controller
         $category = TopicCategory::findOrFail($categoryId);
 
         // Group admins can only update categories in groups they administer
-        if ($user->isGroupAdmin() && !$user->canAdminGroup($category->group)) {
+        if ($user->isGroupAdmin() && ! $user->canAdminGroup($category->group)) {
             return response()->json([
                 'message' => 'You can only update categories in groups you administer.',
             ], 403);
@@ -222,7 +233,7 @@ class CategoryController extends Controller
         $category = TopicCategory::findOrFail($categoryId);
 
         // Group admins can only delete categories in groups they administer
-        if ($user->isGroupAdmin() && !$user->canAdminGroup($category->group)) {
+        if ($user->isGroupAdmin() && ! $user->canAdminGroup($category->group)) {
             return response()->json([
                 'message' => 'You can only delete categories in groups you administer.',
             ], 403);

@@ -24,7 +24,7 @@ class WarningController extends Controller
     public function index(Request $request)
     {
         $currentUser = auth()->user();
-        
+
         // Base query
         $query = Warning::with(['user', 'createdBy']);
 
@@ -39,7 +39,7 @@ class WarningController extends Controller
             $search = $request->input('search');
             $query->whereHas('user', function ($q) use ($search) {
                 $q->where('full_name', 'like', "%$search%")
-                  ->orWhere('email', 'like', "%$search%");
+                    ->orWhere('email', 'like', "%$search%");
             });
         }
 
@@ -58,7 +58,7 @@ class WarningController extends Controller
     public function show(Warning $warning)
     {
         // Authorization check
-        if (!Gate::allows('view-warning', $warning)) {
+        if (! Gate::allows('view-warning', $warning)) {
             abort(403, 'You do not have permission to view this warning');
         }
 
@@ -73,7 +73,7 @@ class WarningController extends Controller
     public function store(Request $request)
     {
         // Authorization check - only admins can create warnings
-        if (!Gate::allows('create', Warning::class)) {
+        if (! Gate::allows('create', Warning::class)) {
             abort(403, 'Only administrators can issue warnings');
         }
 
@@ -88,7 +88,7 @@ class WarningController extends Controller
         $adminUser = auth()->user();
 
         // Verify admin can manage this user
-        if (!$adminUser->canAdminUser($targetUser)) {
+        if (! $adminUser->canAdminUser($targetUser)) {
             abort(403, 'You do not have permission to warn this user');
         }
 
@@ -100,7 +100,7 @@ class WarningController extends Controller
         );
 
         return redirect()->route('admin.warnings.show', $warning)
-                       ->with('success', 'Warning issued successfully');
+            ->with('success', 'Warning issued successfully');
     }
 
     /**
@@ -109,7 +109,7 @@ class WarningController extends Controller
     public function update(Request $request, Warning $warning)
     {
         // Authorization check
-        if (!Gate::allows('update', $warning)) {
+        if (! Gate::allows('update', $warning)) {
             abort(403, 'You do not have permission to update this warning');
         }
 
@@ -121,10 +121,10 @@ class WarningController extends Controller
 
         if ($success) {
             return redirect()->route('admin.warnings.show', $warning)
-                           ->with('success', 'Warning resolved successfully');
+                ->with('success', 'Warning resolved successfully');
         }
 
         return redirect()->route('admin.warnings.show', $warning)
-                       ->with('error', 'Failed to resolve warning');
+            ->with('error', 'Failed to resolve warning');
     }
 }

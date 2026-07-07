@@ -2,19 +2,18 @@
 
 namespace App\Services;
 
-use App\Models\User;
+use App\Models\BlacklistRecord;
 use App\Models\Group;
 use App\Models\Role;
-use App\Models\BlacklistRecord;
+use App\Models\User;
 use App\Models\Warning;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
 
 class BulkOperationService
 {
     protected AuditLogService $auditLogService;
+
     protected CacheService $cacheService;
 
     public function __construct(AuditLogService $auditLogService, CacheService $cacheService)
@@ -25,19 +24,14 @@ class BulkOperationService
 
     /**
      * Bulk change user roles
-     * 
-     * @param array $userIds
-     * @param int $newRoleId
-     * @param int|null $performedBy
-     * @return array
      */
     public function bulkChangeRoles(array $userIds, int $newRoleId, ?int $performedBy = null): array
     {
         $performedBy = $performedBy ?? Auth::id();
         $results = ['success' => [], 'failed' => [], 'skipped' => []];
-        
+
         $newRole = Role::find($newRoleId);
-        if (!$newRole) {
+        if (! $newRole) {
             return ['error' => 'Invalid role ID'];
         }
 
@@ -47,20 +41,21 @@ class BulkOperationService
 
         DB::transaction(function () use ($userIds, $newRoleId, $performedBy, $systemAdminRole, &$adminCount, &$results) {
             $users = User::whereIn('id', $userIds)->get();
-            
+
             foreach ($users as $user) {
                 try {
                     // Prevent downgrading last System Admin
                     if ($user->role_id === $systemAdminRole->id && $adminCount === 1 && $newRoleId !== $systemAdminRole->id) {
                         $results['skipped'][] = [
                             'user_id' => $user->id,
-                            'reason' => 'Cannot downgrade the last System Administrator'
+                            'reason' => 'Cannot downgrade the last System Administrator',
                         ];
+
                         continue;
                     }
 
                     $oldRoleId = $user->role_id;
-                    
+
                     // Update admin count
                     if ($user->role_id === $systemAdminRole->id && $newRoleId !== $systemAdminRole->id) {
                         $adminCount--;
@@ -69,15 +64,15 @@ class BulkOperationService
                     }
 
                     $user->update(['role_id' => $newRoleId]);
-                    
+
                     // Log the change
                     $this->auditLogService->logUserRoleChange($user, $oldRoleId, $newRoleId, $performedBy);
-                    
+
                     $results['success'][] = $user->id;
                 } catch (\Exception $e) {
                     $results['failed'][] = [
                         'user_id' => $user->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -91,29 +86,24 @@ class BulkOperationService
 
     /**
      * Bulk change user account status
-     * 
-     * @param array $userIds
-     * @param string $newStatus
-     * @param int|null $performedBy
-     * @return array
      */
     public function bulkChangeStatus(array $userIds, string $newStatus, ?int $performedBy = null): array
     {
         $performedBy = $performedBy ?? Auth::id();
         $results = ['success' => [], 'failed' => [], 'skipped' => []];
 
-        if (!in_array($newStatus, ['active', 'warned', 'blacklisted'])) {
+        if (! in_array($newStatus, ['active', 'warned', 'blacklisted'])) {
             return ['error' => 'Invalid status'];
         }
 
         DB::transaction(function () use ($userIds, $newStatus, $performedBy, &$results) {
             $users = User::whereIn('id', $userIds)->get();
-            
+
             foreach ($users as $user) {
                 try {
                     $oldStatus = $user->account_status;
                     $user->update(['account_status' => $newStatus]);
-                    
+
                     // Log the change
                     $this->auditLogService->log(
                         'bulk_status_change',
@@ -123,12 +113,12 @@ class BulkOperationService
                         "Bulk status change: {$oldStatus} → {$newStatus}",
                         $performedBy
                     );
-                    
+
                     $results['success'][] = $user->id;
                 } catch (\Exception $e) {
                     $results['failed'][] = [
                         'user_id' => $user->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -142,11 +132,6 @@ class BulkOperationService
 
     /**
      * Bulk assign users to groups
-     * 
-     * @param array $userIds
-     * @param int $groupId
-     * @param int|null $performedBy
-     * @return array
      */
     public function bulkAssignToGroup(array $userIds, int $groupId, ?int $performedBy = null): array
     {
@@ -154,21 +139,21 @@ class BulkOperationService
         $results = ['success' => [], 'failed' => [], 'skipped' => []];
 
         $group = Group::find($groupId);
-        if (!$group) {
+        if (! $group) {
             return ['error' => 'Invalid group ID'];
         }
 
         DB::transaction(function () use ($userIds, $group, $performedBy, &$results) {
             $users = User::whereIn('id', $userIds)->get();
-            
+
             foreach ($users as $user) {
                 try {
                     $oldGroupId = $user->group_id;
                     $user->update(['group_id' => $group->id]);
-                    
+
                     // Auto-promote first student in a student group to Group Admin
                     $group->autoPromoteFirstStudent($user, $performedBy);
-                    
+
                     // Log the change
                     $this->auditLogService->log(
                         'bulk_group_assignment',
@@ -178,12 +163,12 @@ class BulkOperationService
                         "Bulk group assignment: moved to group {$group->id}",
                         $performedBy
                     );
-                    
+
                     $results['success'][] = $user->id;
                 } catch (\Exception $e) {
                     $results['failed'][] = [
                         'user_id' => $user->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -198,12 +183,6 @@ class BulkOperationService
 
     /**
      * Bulk blacklist users
-     * 
-     * @param array $userIds
-     * @param string $reason
-     * @param int|null $durationDays
-     * @param int|null $performedBy
-     * @return array
      */
     public function bulkBlacklist(array $userIds, string $reason, ?int $durationDays = null, ?int $performedBy = null): array
     {
@@ -212,19 +191,20 @@ class BulkOperationService
 
         DB::transaction(function () use ($userIds, $reason, $durationDays, $performedBy, &$results) {
             $users = User::whereIn('id', $userIds)->get();
-            
+
             foreach ($users as $user) {
                 try {
                     // Check if already blacklisted
                     $existingBlacklist = BlacklistRecord::where('user_id', $user->id)
                         ->whereNull('lifted_at')
                         ->exists();
-                    
+
                     if ($existingBlacklist) {
                         $results['skipped'][] = [
                             'user_id' => $user->id,
-                            'reason' => 'User is already blacklisted'
+                            'reason' => 'User is already blacklisted',
                         ];
+
                         continue;
                     }
 
@@ -238,15 +218,15 @@ class BulkOperationService
 
                     // Update user status
                     $user->update(['account_status' => 'blacklisted']);
-                    
+
                     // Log the action
                     $this->auditLogService->logBlacklistCreated($user, $reason, $performedBy);
-                    
+
                     $results['success'][] = $user->id;
                 } catch (\Exception $e) {
                     $results['failed'][] = [
                         'user_id' => $user->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -260,10 +240,6 @@ class BulkOperationService
 
     /**
      * Bulk lift blacklists
-     * 
-     * @param array $userIds
-     * @param int|null $performedBy
-     * @return array
      */
     public function bulkLiftBlacklist(array $userIds, ?int $performedBy = null): array
     {
@@ -272,18 +248,19 @@ class BulkOperationService
 
         DB::transaction(function () use ($userIds, $performedBy, &$results) {
             $users = User::whereIn('id', $userIds)->get();
-            
+
             foreach ($users as $user) {
                 try {
                     $blacklistRecord = BlacklistRecord::where('user_id', $user->id)
                         ->whereNull('lifted_at')
                         ->first();
-                    
-                    if (!$blacklistRecord) {
+
+                    if (! $blacklistRecord) {
                         $results['skipped'][] = [
                             'user_id' => $user->id,
-                            'reason' => 'User is not blacklisted'
+                            'reason' => 'User is not blacklisted',
                         ];
+
                         continue;
                     }
 
@@ -293,15 +270,15 @@ class BulkOperationService
                     ]);
 
                     $user->update(['account_status' => 'active']);
-                    
+
                     // Log the action
                     $this->auditLogService->logBlacklistLifted($user, $performedBy);
-                    
+
                     $results['success'][] = $user->id;
                 } catch (\Exception $e) {
                     $results['failed'][] = [
                         'user_id' => $user->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -315,11 +292,6 @@ class BulkOperationService
 
     /**
      * Bulk assign group admins
-     * 
-     * @param array $userIds
-     * @param int $groupId
-     * @param int|null $performedBy
-     * @return array
      */
     public function bulkAssignGroupAdmins(array $userIds, int $groupId, ?int $performedBy = null): array
     {
@@ -327,7 +299,7 @@ class BulkOperationService
         $results = ['success' => [], 'failed' => [], 'skipped' => []];
 
         $group = Group::find($groupId);
-        if (!$group) {
+        if (! $group) {
             return ['error' => 'Invalid group ID'];
         }
 
@@ -337,20 +309,21 @@ class BulkOperationService
                     $q->where('role_name', 'Group Administrator');
                 })
                 ->get();
-            
+
             foreach ($users as $user) {
                 try {
                     // Check if already admin
                     if ($group->hasAdmin($user)) {
                         $results['skipped'][] = [
                             'user_id' => $user->id,
-                            'reason' => 'User is already an admin of this group'
+                            'reason' => 'User is already an admin of this group',
                         ];
+
                         continue;
                     }
 
                     $group->addAdmin($user, $performedBy);
-                    
+
                     // Log the action
                     $this->auditLogService->log(
                         'group_admin_assigned',
@@ -360,12 +333,12 @@ class BulkOperationService
                         "Assigned {$user->full_name} as group admin",
                         $performedBy
                     );
-                    
+
                     $results['success'][] = $user->id;
                 } catch (\Exception $e) {
                     $results['failed'][] = [
                         'user_id' => $user->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -379,12 +352,6 @@ class BulkOperationService
 
     /**
      * Bulk warn users
-     * 
-     * @param array $userIds
-     * @param string $reason
-     * @param int $responseDays
-     * @param int|null $performedBy
-     * @return array
      */
     public function bulkWarnUsers(array $userIds, string $reason, int $responseDays = 7, ?int $performedBy = null): array
     {
@@ -393,7 +360,7 @@ class BulkOperationService
 
         DB::transaction(function () use ($userIds, $reason, $responseDays, $performedBy, &$results) {
             $users = User::whereIn('id', $userIds)->get();
-            
+
             foreach ($users as $user) {
                 try {
                     // Get warning number
@@ -411,7 +378,7 @@ class BulkOperationService
 
                     // Update user status to warned
                     $user->update(['account_status' => 'warned']);
-                    
+
                     // Log the action
                     $this->auditLogService->log(
                         'user_warned',
@@ -421,12 +388,12 @@ class BulkOperationService
                         "Issued warning #{$warningNumber}: {$reason}",
                         $performedBy
                     );
-                    
+
                     $results['success'][] = $user->id;
                 } catch (\Exception $e) {
                     $results['failed'][] = [
                         'user_id' => $user->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }

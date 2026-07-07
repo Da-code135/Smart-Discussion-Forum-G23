@@ -2,17 +2,18 @@
 
 namespace Tests\Unit\Models;
 
+use App\Models\BlacklistRecord;
 use App\Models\Group;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Warning;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Tests\CreatesTestUsers;
 use Tests\TestCase;
 
 class UserModelTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -170,7 +171,7 @@ class UserModelTest extends TestCase
     {
         $user = $this->createStudent();
 
-        \App\Models\Warning::create([
+        Warning::create([
             'user_id' => $user->id,
             'warning_number' => 1,
             'reason' => 'Test',
@@ -186,7 +187,7 @@ class UserModelTest extends TestCase
     {
         $user = $this->createStudent(['account_status' => 'blacklisted']);
 
-        \App\Models\BlacklistRecord::create([
+        BlacklistRecord::create([
             'user_id' => $user->id,
             'reason' => 'Test',
             'expires_at' => now()->addDays(30),

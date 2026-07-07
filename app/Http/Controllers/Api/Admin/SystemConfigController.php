@@ -23,10 +23,10 @@ class SystemConfigController extends Controller
     public function index()
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can access system configuration'
+                'message' => 'Only System Administrators can access system configuration',
             ], 403);
         }
 
@@ -51,10 +51,10 @@ class SystemConfigController extends Controller
     public function update(Request $request)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can update system configuration'
+                'message' => 'Only System Administrators can update system configuration',
             ], 403);
         }
 
@@ -89,19 +89,19 @@ class SystemConfigController extends Controller
     public function show($key)
     {
         // Authorization check - System Admin only
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only System Administrators can access system configuration'
+                'message' => 'Only System Administrators can access system configuration',
             ], 403);
         }
 
         $config = SystemConfig::where('config_key', $key)->first();
 
-        if (!$config) {
+        if (! $config) {
             return response()->json([
                 'success' => false,
-                'message' => 'Configuration key not found'
+                'message' => 'Configuration key not found',
             ], 404);
         }
 

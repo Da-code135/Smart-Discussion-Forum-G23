@@ -2,18 +2,13 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\AuditLog;
-use App\Models\BlacklistRecord;
-use App\Models\SystemConfig;
-use App\Models\Warning;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Tests\CreatesTestUsers;
 use Tests\TestCase;
 
 class AdminAccessControlTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected function setUp(): void
     {

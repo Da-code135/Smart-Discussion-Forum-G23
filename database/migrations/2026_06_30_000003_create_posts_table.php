@@ -21,13 +21,13 @@ return new class extends Migration
 
             // Which topic this reply belongs to
             $table->foreignId('topic_id')
-                  ->constrained('topics')
-                  ->onDelete('cascade');
+                ->constrained('topics')
+                ->onDelete('cascade');
 
             // Who wrote this reply
             $table->foreignId('user_id')
-                  ->constrained('users')
-                  ->onDelete('cascade');
+                ->constrained('users')
+                ->onDelete('cascade');
 
             // The reply content — LONGTEXT supports long-form responses
             $table->longText('content');
@@ -38,9 +38,9 @@ return new class extends Migration
 
             // ML category assigned by ClassifyPostJob (nullable until classified)
             $table->foreignId('category_id')
-                  ->nullable()
-                  ->constrained('topic_categories')
-                  ->onDelete('set null');
+                ->nullable()
+                ->constrained('topic_categories')
+                ->onDelete('set null');
 
             $table->timestamps();
 

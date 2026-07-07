@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Group;
 use App\Models\TopicCategory;
+use Illuminate\Database\Seeder;
 
 class TopicCategorySeeder extends Seeder
 {
@@ -44,6 +44,7 @@ class TopicCategorySeeder extends Seeder
 
         if ($groups->isEmpty()) {
             $this->command->warn('No groups found. Run GroupSeeder first.');
+
             return;
         }
 

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\VerifyEmailMailable;
 use App\Models\EmailVerificationToken;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 class EmailVerificationController extends Controller
@@ -35,12 +37,12 @@ class EmailVerificationController extends Controller
 
         // #152: Validate token against email
         $verification = EmailVerificationToken::where('token', $token)
-                                               ->where('email', $email)
-                                               ->first();
+            ->where('email', $email)
+            ->first();
 
-        if (!$verification || !$verification->isValid()) {
+        if (! $verification || ! $verification->isValid()) {
             return redirect()->route('verify-email')
-                           ->with('error', 'Invalid or expired verification token');
+                ->with('error', 'Invalid or expired verification token');
         }
 
         // #152: Set email_verified_at = now()
@@ -48,7 +50,7 @@ class EmailVerificationController extends Controller
         $verification->delete();
 
         return redirect()->route('dashboard')
-                       ->with('success', 'Email verified successfully!');
+            ->with('success', 'Email verified successfully!');
     }
 
     // ============================================
@@ -57,25 +59,26 @@ class EmailVerificationController extends Controller
     public function resend(Request $request)
     {
         // Require authentication to prevent abuse (sending verification emails to arbitrary addresses)
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return redirect()->route('login')->with('error', 'Please log in to request a verification email');
         }
 
         $user = Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->back()->with('error', 'User not found');
         }
 
         // #153: Rate limit to 1 per minute per email
-        $key = 'verify-email:' . $user->email;
-        if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($key, 1)) {
-            $seconds = \Illuminate\Support\Facades\RateLimiter::availableIn($key);
+        $key = 'verify-email:'.$user->email;
+        if (RateLimiter::tooManyAttempts($key, 1)) {
+            $seconds = RateLimiter::availableIn($key);
+
             return redirect()->back()
-                           ->with('error', "Please wait {$seconds} seconds before requesting another verification email");
+                ->with('error', "Please wait {$seconds} seconds before requesting another verification email");
         }
 
-        \Illuminate\Support\Facades\RateLimiter::hit($key, 60); // 1 minute
+        RateLimiter::hit($key, 60); // 1 minute
 
         // #151: Generate token
         $token = Str::random(64);
@@ -87,9 +90,9 @@ class EmailVerificationController extends Controller
         ]);
 
         // #153: Send email via queue
-        Mail::queue(new \App\Mail\VerifyEmailMailable($user, $token));
+        Mail::queue(new VerifyEmailMailable($user, $token));
 
         return redirect()->back()
-                       ->with('success', 'Verification email sent. Check your inbox!');
+            ->with('success', 'Verification email sent. Check your inbox!');
     }
 }

@@ -63,7 +63,7 @@ class GroupController extends Controller
     public function create()
     {
         // Authorization check - only System Admins can create groups
-        if (!Gate::allows('create', Group::class)) {
+        if (! Gate::allows('create', Group::class)) {
             abort(403, 'Only System Administrators can create new groups');
         }
 
@@ -76,7 +76,7 @@ class GroupController extends Controller
     public function store(Request $request)
     {
         // Authorization check - only System Admins can create groups
-        if (!Gate::allows('create', Group::class)) {
+        if (! Gate::allows('create', Group::class)) {
             abort(403, 'Only System Administrators can create new groups');
         }
 
@@ -99,7 +99,7 @@ class GroupController extends Controller
         $this->auditLogService->logGroupCreated($group);
 
         return redirect()->route('admin.groups.index')
-                       ->with('success', 'Group created successfully');
+            ->with('success', 'Group created successfully');
     }
 
     // ============================================
@@ -108,7 +108,7 @@ class GroupController extends Controller
     public function edit(Group $group)
     {
         // Authorization check
-        if (!Gate::allows('update', $group)) {
+        if (! Gate::allows('update', $group)) {
             abort(403, 'You do not have permission to edit this group');
         }
 
@@ -123,13 +123,13 @@ class GroupController extends Controller
     public function update(Request $request, Group $group)
     {
         // Authorization check
-        if (!Gate::allows('update', $group)) {
+        if (! Gate::allows('update', $group)) {
             abort(403, 'You do not have permission to update this group');
         }
 
         // #146: Same validation as create
         $validated = $request->validate([
-            'group_name' => 'required|string|max:100|unique:groups,group_name,' . $group->id,
+            'group_name' => 'required|string|max:100|unique:groups,group_name,'.$group->id,
             'description' => 'nullable|string|max:500',
             'group_type' => 'required|in:sysadmin,lecturer,student',
         ]);
@@ -143,7 +143,7 @@ class GroupController extends Controller
         $this->auditLogService->logGroupUpdated($group, $oldValues);
 
         return redirect()->route('admin.groups.index')
-                       ->with('success', 'Group updated successfully');
+            ->with('success', 'Group updated successfully');
     }
 
     // ============================================
@@ -152,7 +152,7 @@ class GroupController extends Controller
     public function destroy(Group $group)
     {
         // Authorization check - only System Admins can delete groups
-        if (!Gate::allows('delete', $group)) {
+        if (! Gate::allows('delete', $group)) {
             abort(403, 'Only System Administrators can delete groups');
         }
 
@@ -176,7 +176,7 @@ class GroupController extends Controller
         $group->delete(); // Soft delete or hard delete based on your config
 
         return redirect()->route('admin.groups.index')
-                       ->with('success', 'Group deleted successfully');
+            ->with('success', 'Group deleted successfully');
     }
 
     // ============================================
@@ -185,7 +185,7 @@ class GroupController extends Controller
     public function showMembers(Group $group)
     {
         // Authorization check
-        if (!Gate::allows('manageMembers', $group)) {
+        if (! Gate::allows('manageMembers', $group)) {
             abort(403, 'You do not have permission to manage members of this group');
         }
 
@@ -219,7 +219,7 @@ class GroupController extends Controller
     public function updateMembers(Request $request, Group $group)
     {
         // Authorization check
-        if (!Gate::allows('manageMembers', $group)) {
+        if (! Gate::allows('manageMembers', $group)) {
             abort(403, 'You do not have permission to manage members of this group');
         }
 
@@ -261,7 +261,7 @@ class GroupController extends Controller
     public function bulkAssign(Request $request)
     {
         // Authorization check - only System Admins can bulk assign
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Only System Administrators can bulk assign users');
         }
 

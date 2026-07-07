@@ -57,7 +57,7 @@ class IpWhitelistController extends Controller
         $this->auditLogService->log(
             action: 'admin.ip.added',
             target: $ip,
-            description: auth()->user()->full_name . " added IP {$ip->ip_address} to whitelist"
+            description: auth()->user()->full_name." added IP {$ip->ip_address} to whitelist"
         );
 
         return redirect()->route('admin.ip-whitelist.index')
@@ -78,7 +78,7 @@ class IpWhitelistController extends Controller
     public function update(Request $request, AdminIpWhitelist $ipWhitelist)
     {
         $validated = $request->validate([
-            'ip_address' => 'required|ip|unique:admin_ip_whitelist,ip_address,' . $ipWhitelist->id,
+            'ip_address' => 'required|ip|unique:admin_ip_whitelist,ip_address,'.$ipWhitelist->id,
             'description' => 'nullable|string|max:255',
             'is_active' => 'boolean',
             'expires_at' => 'nullable|date',
@@ -105,7 +105,7 @@ class IpWhitelistController extends Controller
     public function destroy(AdminIpWhitelist $ipWhitelist)
     {
         $ipAddress = $ipWhitelist->ip_address;
-        
+
         $this->auditLogService->log(
             action: 'admin.ip.removed',
             target: $ipWhitelist,
@@ -128,7 +128,7 @@ class IpWhitelistController extends Controller
         $this->auditLogService->log(
             action: 'admin.ip.activated',
             target: $ipWhitelist,
-            description: auth()->user()->full_name . " activated IP {$ipWhitelist->ip_address}"
+            description: auth()->user()->full_name." activated IP {$ipWhitelist->ip_address}"
         );
 
         return redirect()->route('admin.ip-whitelist.index')
@@ -145,7 +145,7 @@ class IpWhitelistController extends Controller
         $this->auditLogService->log(
             action: 'admin.ip.deactivated',
             target: $ipWhitelist,
-            description: auth()->user()->full_name . " deactivated IP {$ipWhitelist->ip_address}"
+            description: auth()->user()->full_name." deactivated IP {$ipWhitelist->ip_address}"
         );
 
         return redirect()->route('admin.ip-whitelist.index')

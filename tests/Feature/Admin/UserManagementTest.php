@@ -12,7 +12,7 @@ use Tests\TestCase;
 
 class UserManagementTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected function setUp(): void
     {

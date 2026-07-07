@@ -13,11 +13,11 @@ class IsSystemAdmin
      */
     public function handle(Request $request, Closure $next)
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return redirect('/login')->with('error', 'Please login to continue');
         }
 
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Unauthorized. System Administrator access required.');
         }
 

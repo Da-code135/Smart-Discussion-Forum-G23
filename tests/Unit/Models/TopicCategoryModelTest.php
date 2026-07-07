@@ -2,19 +2,19 @@
 
 namespace Tests\Unit\Models;
 
-use Tests\TestCase;
-use Tests\CreatesTestUsers;
-use App\Models\TopicCategory;
 use App\Models\Group;
 use App\Models\Post;
-use App\Models\User;
 use App\Models\Topic;
+use App\Models\TopicCategory;
+use App\Models\User;
 use Database\Seeders\TopicCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\CreatesTestUsers;
+use Tests\TestCase;
 
 class TopicCategoryModelTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected User $author;
 
@@ -117,8 +117,8 @@ class TopicCategoryModelTest extends TestCase
         $expectedNames = ['Mathematics', 'Programming', 'Science', 'General'];
 
         $categories = TopicCategory::forGroup($this->defaultGroup->id)
-                                   ->pluck('category_name')
-                                   ->toArray();
+            ->pluck('category_name')
+            ->toArray();
 
         foreach ($expectedNames as $name) {
             $this->assertContains($name, $categories);

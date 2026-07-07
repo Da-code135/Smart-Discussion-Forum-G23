@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\User;
-use App\Models\Role;
 use App\Models\Group;
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -14,12 +14,13 @@ class AuthControllerTokenManagementTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected string $token;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Seed roles and groups
         Role::create(['role_name' => 'Student', 'description' => 'Student role']);
         Group::create(['group_name' => 'Default Group', 'description' => 'Default group']);
@@ -38,7 +39,7 @@ class AuthControllerTokenManagementTest extends TestCase
     public function test_user_can_refresh_token(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->postJson('/api/v1/token/refresh');
 
         $response->assertStatus(200)
@@ -52,7 +53,7 @@ class AuthControllerTokenManagementTest extends TestCase
 
         // Verify old token is deleted
         $this->assertEquals(1, $this->user->tokens()->count());
-        
+
         // Verify new token is different
         $newToken = $response->json('token');
         $this->assertNotEquals($this->token, $newToken);
@@ -73,7 +74,7 @@ class AuthControllerTokenManagementTest extends TestCase
         $this->user->createToken('token-3');
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->getJson('/api/v1/tokens');
 
         $response->assertStatus(200)
@@ -106,8 +107,8 @@ class AuthControllerTokenManagementTest extends TestCase
         $tokenId = $tokenToDelete->accessToken->id;
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
-        ])->deleteJson('/api/v1/tokens/' . $tokenId);
+            'Authorization' => 'Bearer '.$this->token,
+        ])->deleteJson('/api/v1/tokens/'.$tokenId);
 
         $response->assertStatus(200)
             ->assertJson([
@@ -121,7 +122,7 @@ class AuthControllerTokenManagementTest extends TestCase
     public function test_revoke_token_fails_with_invalid_token_id(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->deleteJson('/api/v1/tokens/99999');
 
         $response->assertStatus(404)
@@ -140,7 +141,7 @@ class AuthControllerTokenManagementTest extends TestCase
     public function test_user_can_delete_account(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->deleteJson('/api/v1/account', [
             'password' => 'Password123',
         ]);
@@ -157,7 +158,7 @@ class AuthControllerTokenManagementTest extends TestCase
     public function test_delete_account_fails_with_wrong_password(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->deleteJson('/api/v1/account', [
             'password' => 'WrongPassword123',
         ]);
@@ -174,7 +175,7 @@ class AuthControllerTokenManagementTest extends TestCase
     public function test_delete_account_fails_without_password(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->deleteJson('/api/v1/account');
 
         $response->assertStatus(422)
@@ -197,7 +198,7 @@ class AuthControllerTokenManagementTest extends TestCase
         $this->user->createToken('token-2');
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->deleteJson('/api/v1/account', [
             'password' => 'Password123',
         ]);
@@ -211,7 +212,7 @@ class AuthControllerTokenManagementTest extends TestCase
     public function test_token_expiration_is_set(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
         ])->getJson('/api/v1/tokens');
 
         $response->assertStatus(200);
@@ -219,7 +220,7 @@ class AuthControllerTokenManagementTest extends TestCase
         $tokens = $response->json('tokens');
         // At least check that the tokens array is not empty
         $this->assertNotEmpty($tokens);
-        
+
         // Check that tokens have the expected structure
         foreach ($tokens as $token) {
             $this->assertArrayHasKey('id', $token);

@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class AdminIpWhitelist extends Model
 {
@@ -37,7 +37,7 @@ class AdminIpWhitelist extends Model
      */
     public function isCurrentlyAllowed(): bool
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
 
@@ -71,7 +71,7 @@ class AdminIpWhitelist extends Model
     {
         return $query->where(function ($q) {
             $q->whereNull('expires_at')
-              ->orWhere('expires_at', '>', now());
+                ->orWhere('expires_at', '>', now());
         });
     }
 
@@ -98,9 +98,9 @@ class AdminIpWhitelist extends Model
      */
     public static function addIp(
         string $ip,
-        string $description = null,
+        ?string $description = null,
         $expiresAt = null,
-        int $createdBy = null
+        ?int $createdBy = null
     ): self {
         return self::create([
             'ip_address' => $ip,
@@ -140,7 +140,7 @@ class AdminIpWhitelist extends Model
      */
     public function getStatusLabelAttribute(): string
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return 'Inactive';
         }
 
@@ -156,7 +156,7 @@ class AdminIpWhitelist extends Model
      */
     public function getStatusColorAttribute(): string
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return 'gray';
         }
 

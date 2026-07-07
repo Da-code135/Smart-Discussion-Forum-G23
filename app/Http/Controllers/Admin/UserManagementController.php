@@ -3,15 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Role;
-use App\Models\Group;
 use App\Models\BlacklistRecord;
+use App\Models\Group;
+use App\Models\Role;
+use App\Models\User;
 use App\Models\Warning;
 use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rules\Password;
 
 class UserManagementController extends Controller
@@ -43,7 +42,7 @@ class UserManagementController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -59,7 +58,7 @@ class UserManagementController extends Controller
 
         // #88: EAGER LOAD ROLE (prevent N+1 query)
         $users = $query->with(['role', 'group'])
-                       ->paginate(15); // #88: Paginate 15 per page
+            ->paginate(15); // #88: Paginate 15 per page
 
         $roles = Role::all();
 
@@ -77,7 +76,7 @@ class UserManagementController extends Controller
     // ============================================
     public function create()
     {
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Only System Administrators can create new users');
         }
 
@@ -95,7 +94,7 @@ class UserManagementController extends Controller
     // ============================================
     public function store(Request $request)
     {
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Only System Administrators can create new users');
         }
 
@@ -135,7 +134,7 @@ class UserManagementController extends Controller
         $user = User::with(['role', 'group'])->findOrFail($userId);
 
         // Authorization: System Admin can view any user, Group Admin only their scoped users
-        if (!$currentUser->canAdminUser($user)) {
+        if (! $currentUser->canAdminUser($user)) {
             abort(403, 'You do not have permission to view this user');
         }
 
@@ -171,7 +170,7 @@ class UserManagementController extends Controller
         $user = User::findOrFail($userId);
 
         // Authorization: System Admin can edit any user, Group Admin only their scoped users
-        if (!$currentUser->canAdminUser($user)) {
+        if (! $currentUser->canAdminUser($user)) {
             abort(403, 'You do not have permission to edit this user');
         }
 
@@ -194,14 +193,14 @@ class UserManagementController extends Controller
         $user = User::findOrFail($userId);
 
         // Authorization: System Admin can edit any user, Group Admin only their scoped users
-        if (!$currentUser->canAdminUser($user)) {
+        if (! $currentUser->canAdminUser($user)) {
             abort(403, 'You do not have permission to edit this user');
         }
 
         // Build validation rules based on admin role
         $rules = [
             'full_name' => 'required|string|max:100',
-            'email' => 'required|email|max:100|unique:users,email,' . $user->id,
+            'email' => 'required|email|max:100|unique:users,email,'.$user->id,
             'group_id' => 'required|exists:groups,id',
         ];
 
@@ -279,14 +278,14 @@ class UserManagementController extends Controller
         $user = User::findOrFail($userId);
 
         // Authorization: System Admin can manage any user, Group Admin only their scoped users
-        if (!$currentUser->canAdminUser($user)) {
+        if (! $currentUser->canAdminUser($user)) {
             abort(403, 'You do not have permission to manage this user');
         }
 
         // Find active blacklist record
         $blacklistRecord = BlacklistRecord::where('user_id', $userId)
-                                          ->whereNull('lifted_at')
-                                          ->first();
+            ->whereNull('lifted_at')
+            ->first();
 
         if ($blacklistRecord) {
             // #90: Set lifted_at = now(), lifted_by = auth()->id()
@@ -311,12 +310,12 @@ class UserManagementController extends Controller
         $user = User::findOrFail($userId);
 
         // Authorization: System Admin can manage any user, Group Admin only their scoped users
-        if (!$currentUser->canAdminUser($user)) {
+        if (! $currentUser->canAdminUser($user)) {
             abort(403, 'You do not have permission to manage this user');
         }
 
         // Only System Admin can change roles
-        if (!$currentUser->isSystemAdmin()) {
+        if (! $currentUser->isSystemAdmin()) {
             abort(403, 'Only System Administrators can change user roles');
         }
 
@@ -341,7 +340,7 @@ class UserManagementController extends Controller
     // ============================================
     public function destroy($userId)
     {
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Only System Administrators can delete users');
         }
 
@@ -367,7 +366,7 @@ class UserManagementController extends Controller
     // ============================================
     public function showResetPassword($userId)
     {
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Only System Administrators can reset passwords');
         }
 
@@ -383,7 +382,7 @@ class UserManagementController extends Controller
     // ============================================
     public function resetPassword(Request $request, $userId)
     {
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Only System Administrators can reset passwords');
         }
 
@@ -408,7 +407,7 @@ class UserManagementController extends Controller
     // ============================================
     public function showBlacklist($userId)
     {
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Only System Administrators can blacklist users');
         }
 
@@ -424,7 +423,7 @@ class UserManagementController extends Controller
     // ============================================
     public function blacklist(Request $request, $userId)
     {
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Only System Administrators can blacklist users');
         }
 
@@ -437,8 +436,8 @@ class UserManagementController extends Controller
 
         // Calculate expires_at if duration provided, otherwise null (permanent)
         $expiresAt = null;
-        $validated['duration_days'] = (int)$validated['duration_days'];
-        if (!empty($validated['duration_days'])) {
+        $validated['duration_days'] = (int) $validated['duration_days'];
+        if (! empty($validated['duration_days'])) {
             $expiresAt = now()->addDays($validated['duration_days']);
         }
 
@@ -465,7 +464,7 @@ class UserManagementController extends Controller
     // ============================================
     public function resolveWarning($warningId)
     {
-        if (!auth()->user()->isSystemAdmin()) {
+        if (! auth()->user()->isSystemAdmin()) {
             abort(403, 'Only System Administrators can resolve warnings');
         }
 

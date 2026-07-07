@@ -2,17 +2,17 @@
 
 namespace Tests\Unit\Models;
 
-use Tests\TestCase;
-use Tests\CreatesTestUsers;
 use App\Models\Post;
-use App\Models\User;
-use App\Models\Topic;
 use App\Models\PostVisibility;
+use App\Models\Topic;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\CreatesTestUsers;
+use Tests\TestCase;
 
 class PostVisibilityTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -26,7 +26,7 @@ class PostVisibilityTest extends TestCase
         $author = $this->createMember(['full_name' => 'Author', 'email' => 'author@example.com']);
         $excludedUser = $this->createMember(['full_name' => 'Excluded', 'email' => 'excluded@example.com']);
         $normalUser = $this->createMember(['full_name' => 'Normal', 'email' => 'normal@example.com']);
-        
+
         // Create a topic
         $topic = Topic::create([
             'group_id' => $this->defaultGroup->id,
@@ -63,7 +63,7 @@ class PostVisibilityTest extends TestCase
     {
         // Create users
         $author = $this->createMember(['full_name' => 'Author', 'email' => 'author@example.com']);
-        
+
         // Create a topic
         $topic = Topic::create([
             'group_id' => $this->defaultGroup->id,
@@ -101,7 +101,7 @@ class PostVisibilityTest extends TestCase
         // Create users
         $author = $this->createMember(['full_name' => 'Author', 'email' => 'author@example.com']);
         $excludedUser = $this->createMember(['full_name' => 'Excluded', 'email' => 'excluded@example.com']);
-        
+
         // Create a topic
         $topic = Topic::create([
             'group_id' => $this->defaultGroup->id,

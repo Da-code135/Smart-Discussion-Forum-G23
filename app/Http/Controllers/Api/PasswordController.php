@@ -7,6 +7,7 @@ use App\Mail\PasswordResetOtpMailable;
 use App\Models\ApiPasswordResetOtp;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -37,8 +38,7 @@ class PasswordController extends Controller
      *     code is only ever held in memory and sent once in the email.
      *   - OTP expires in 10 minutes.
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function forgot(Request $request)
     {
@@ -49,7 +49,7 @@ class PasswordController extends Controller
         $email = $validated['email'];
 
         // Rate-limit OTP requests: 3 per 15 minutes per email address
-        $requestKey = 'api-otp-request:' . $email;
+        $requestKey = 'api-otp-request:'.$email;
 
         if (RateLimiter::tooManyAttempts($requestKey, 3)) {
             $seconds = RateLimiter::availableIn($requestKey);
@@ -71,8 +71,8 @@ class PasswordController extends Controller
 
         // Store hashed — never persist the plaintext code
         ApiPasswordResetOtp::create([
-            'email'      => $email,
-            'otp'        => Hash::make($plainOtp),
+            'email' => $email,
+            'otp' => Hash::make($plainOtp),
             'expires_at' => now()->addMinutes(10),
         ]);
 
@@ -110,15 +110,14 @@ class PasswordController extends Controller
      *     Prevents brute-forcing the 6-digit space (1 000 000 possibilities
      *     reduced to at most 5 guesses per window).
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function reset(Request $request)
     {
         $validated = $request->validate([
-            'email'                 => 'required|email|exists:users,email',
-            'otp'                   => 'required|string|size:6',
-            'password'              => [
+            'email' => 'required|email|exists:users,email',
+            'otp' => 'required|string|size:6',
+            'password' => [
                 'required',
                 'confirmed',
                 PasswordRule::min(8)->mixedCase()->numbers(),
@@ -128,7 +127,7 @@ class PasswordController extends Controller
         $email = $validated['email'];
 
         // Rate-limit reset attempts to prevent brute-forcing the OTP
-        $guessKey = 'api-otp-guess:' . $email;
+        $guessKey = 'api-otp-guess:'.$email;
 
         if (RateLimiter::tooManyAttempts($guessKey, 5)) {
             $seconds = RateLimiter::availableIn($guessKey);
@@ -145,7 +144,7 @@ class PasswordController extends Controller
             ->first();
 
         // Wrong OTP or no OTP was ever requested — count as a failed attempt
-        if (!$record || !Hash::check($validated['otp'], $record->otp)) {
+        if (! $record || ! Hash::check($validated['otp'], $record->otp)) {
             RateLimiter::hit($guessKey, 600); // 10 minutes
 
             return response()->json([
@@ -154,7 +153,7 @@ class PasswordController extends Controller
         }
 
         // Correct code — now check it has not expired
-        if (!$record->isValid()) {
+        if (! $record->isValid()) {
             return response()->json([
                 'message' => 'This reset code has expired. Please request a new one.',
             ], 400);
@@ -187,14 +186,13 @@ class PasswordController extends Controller
      * Change password for an already-authenticated user.
      * Protected by auth:sanctum middleware.
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function change(Request $request)
     {
         $validated = $request->validate([
             'current_password' => 'required',
-            'new_password'     => [
+            'new_password' => [
                 'required',
                 'different:current_password',
                 'confirmed',
@@ -204,7 +202,7 @@ class PasswordController extends Controller
 
         $user = $request->user();
 
-        if (!Hash::check($validated['current_password'], $user->password)) {
+        if (! Hash::check($validated['current_password'], $user->password)) {
             return response()->json([
                 'message' => 'Current password is incorrect.',
             ], 403);

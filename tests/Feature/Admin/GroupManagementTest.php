@@ -9,7 +9,7 @@ use Tests\TestCase;
 
 class GroupManagementTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected function setUp(): void
     {

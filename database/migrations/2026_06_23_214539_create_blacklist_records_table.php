@@ -12,14 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('blacklist_records', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('user_id')->constrained('users');
-        $table->text('reason');
-        $table->timestamp('blacklisted_at')->useCurrent();
-        $table->timestamp('expires_at')->nullable();
-        $table->timestamp('lifted_at')->nullable();
-        $table->foreignId('lifted_by')->nullable()->constrained('users');
-    });
+            $table->id();
+            $table->foreignId('user_id')->constrained('users');
+            $table->text('reason');
+            $table->timestamp('blacklisted_at')->useCurrent();
+            $table->timestamp('expires_at')->nullable();
+            $table->timestamp('lifted_at')->nullable();
+            $table->foreignId('lifted_by')->nullable()->constrained('users');
+        });
     }
 
     /**

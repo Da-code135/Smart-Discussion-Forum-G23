@@ -18,10 +18,10 @@ return new class extends Migration
             $table->foreignId('assigned_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamp('assigned_at')->useCurrent();
             $table->timestamps();
-            
+
             // Prevent duplicate assignments
             $table->unique(['user_id', 'group_id']);
-            
+
             // Indexes for performance
             $table->index('user_id');
             $table->index('group_id');

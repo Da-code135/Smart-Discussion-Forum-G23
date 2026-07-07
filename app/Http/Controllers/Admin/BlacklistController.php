@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\BlacklistRecord;
+use App\Models\User;
 use App\Services\WarningService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -24,7 +24,7 @@ class BlacklistController extends Controller
     public function index(Request $request)
     {
         $currentUser = auth()->user();
-        
+
         // Base query
         $query = BlacklistRecord::with(['user', 'liftedBy']);
 
@@ -39,7 +39,7 @@ class BlacklistController extends Controller
             $search = $request->input('search');
             $query->whereHas('user', function ($q) use ($search) {
                 $q->where('full_name', 'like', "%$search%")
-                  ->orWhere('email', 'like', "%$search%");
+                    ->orWhere('email', 'like', "%$search%");
             });
         }
 
@@ -58,7 +58,7 @@ class BlacklistController extends Controller
     public function store(Request $request)
     {
         // Authorization check - only admins can blacklist users
-        if (!Gate::allows('create', BlacklistRecord::class)) {
+        if (! Gate::allows('create', BlacklistRecord::class)) {
             abort(403, 'Only administrators can blacklist users');
         }
 
@@ -73,7 +73,7 @@ class BlacklistController extends Controller
         $adminUser = auth()->user();
 
         // Verify admin can manage this user
-        if (!$adminUser->canAdminUser($targetUser)) {
+        if (! $adminUser->canAdminUser($targetUser)) {
             abort(403, 'You do not have permission to blacklist this user');
         }
 
@@ -91,7 +91,7 @@ class BlacklistController extends Controller
         ]);
 
         return redirect()->route('admin.blacklist.show', $blacklistRecord)
-                       ->with('success', 'User blacklisted successfully');
+            ->with('success', 'User blacklisted successfully');
     }
 
     /**
@@ -100,7 +100,7 @@ class BlacklistController extends Controller
     public function show(BlacklistRecord $blacklistRecord)
     {
         // Authorization check
-        if (!Gate::allows('view-blacklist', $blacklistRecord)) {
+        if (! Gate::allows('view-blacklist', $blacklistRecord)) {
             abort(403, 'You do not have permission to view this blacklist record');
         }
 
@@ -115,7 +115,7 @@ class BlacklistController extends Controller
     public function update(Request $request, BlacklistRecord $blacklistRecord)
     {
         // Authorization check
-        if (!Gate::allows('update', $blacklistRecord)) {
+        if (! Gate::allows('update', $blacklistRecord)) {
             abort(403, 'You do not have permission to update this blacklist record');
         }
 
@@ -127,10 +127,10 @@ class BlacklistController extends Controller
 
         if ($success) {
             return redirect()->route('admin.blacklist.show', $blacklistRecord)
-                           ->with('success', 'Blacklist lifted successfully');
+                ->with('success', 'Blacklist lifted successfully');
         }
 
         return redirect()->route('admin.blacklist.show', $blacklistRecord)
-                       ->with('error', 'Failed to lift blacklist');
+            ->with('error', 'Failed to lift blacklist');
     }
 }

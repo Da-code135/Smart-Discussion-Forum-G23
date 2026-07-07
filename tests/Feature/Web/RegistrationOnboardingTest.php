@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Web;
 
-use App\Models\OnboardingAgreement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -11,7 +10,7 @@ use Tests\TestCase;
 
 class RegistrationOnboardingTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected function setUp(): void
     {

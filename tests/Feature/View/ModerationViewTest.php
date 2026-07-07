@@ -12,7 +12,7 @@ use Tests\TestCase;
 
 class ModerationViewTest extends TestCase
 {
-    use RefreshDatabase, CreatesTestUsers;
+    use CreatesTestUsers, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -36,13 +36,13 @@ class ModerationViewTest extends TestCase
             'topic_id' => $topic->id,
             'user_id' => $user->id,
             'is_reported' => true,
-            'content' => 'This is a reported post content'
+            'content' => 'This is a reported post content',
         ]);
         $post2 = Post::factory()->create([
             'topic_id' => $topic->id,
             'user_id' => $user->id,
             'is_reported' => true,
-            'content' => 'Another reported post content'
+            'content' => 'Another reported post content',
         ]);
 
         // Request the moderation page
@@ -51,14 +51,14 @@ class ModerationViewTest extends TestCase
         // Assert the view renders correctly and contains the reported posts
         $response->assertStatus(200);
         $response->assertViewIs('admin.moderation-index');
-        
+
         // Check that the reported posts are passed to the view
         $response->assertViewHas('reportedPosts', function ($reportedPosts) use ($post1, $post2) {
-            return $reportedPosts->count() >= 2 && 
-                   $reportedPosts->contains($post1) && 
+            return $reportedPosts->count() >= 2 &&
+                   $reportedPosts->contains($post1) &&
                    $reportedPosts->contains($post2);
         });
-        
+
         // Check that the view contains content from the posts
         $response->assertSee($post1->user->full_name);
         $response->assertSee($post2->user->full_name);
@@ -82,12 +82,12 @@ class ModerationViewTest extends TestCase
         // Assert the view renders correctly and shows empty state
         $response->assertStatus(200);
         $response->assertViewIs('admin.moderation-index');
-        
+
         // Check that an empty collection is passed
         $response->assertViewHas('reportedPosts', function ($reportedPosts) {
             return $reportedPosts->count() === 0;
         });
-        
+
         // Check that the "No reported posts" message appears
         $response->assertSee('No reported posts.');
     }
@@ -107,7 +107,7 @@ class ModerationViewTest extends TestCase
         $post = Post::factory()->create([
             'topic_id' => $topic->id,
             'user_id' => $user->id,
-            'is_reported' => true
+            'is_reported' => true,
         ]);
 
         // Request the moderation page
@@ -115,13 +115,13 @@ class ModerationViewTest extends TestCase
 
         // Assert the response contains the required action buttons and forms
         $response->assertStatus(200);
-        
+
         // Check that the remove post form exists with correct action
         $response->assertSee(route('admin.moderation.remove', $post), false);
-        
+
         // Check that the ignore report form exists with correct action
         $response->assertSee(route('admin.moderation.ignore', $post), false);
-        
+
         // Check that the required button texts are present
         $response->assertSee('Remove Post');
         $response->assertSee('Ignore Report');

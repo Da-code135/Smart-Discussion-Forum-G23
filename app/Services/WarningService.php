@@ -2,20 +2,19 @@
 
 namespace App\Services;
 
+use App\Models\BlacklistRecord;
 use App\Models\User;
 use App\Models\Warning;
-use App\Models\BlacklistRecord;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class WarningService
 {
     /**
      * Issue a new warning to a user
      *
-     * @param User $user The user to warn
-     * @param User $admin The admin issuing the warning
-     * @param string $reason The reason for the warning
+     * @param  User  $user  The user to warn
+     * @param  User  $admin  The admin issuing the warning
+     * @param  string  $reason  The reason for the warning
      * @return Warning The created warning
      */
     public function issueWarning(User $user, User $admin, string $reason): Warning
@@ -60,8 +59,8 @@ class WarningService
     /**
      * Automatically blacklist a user after 3 warnings
      *
-     * @param User $user The user to blacklist
-     * @param User $admin The admin who triggered the blacklist
+     * @param  User  $user  The user to blacklist
+     * @param  User  $admin  The admin who triggered the blacklist
      * @return BlacklistRecord The created blacklist record
      */
     protected function autoBlacklist(User $user, User $admin): BlacklistRecord
@@ -85,8 +84,8 @@ class WarningService
     /**
      * Resolve a warning
      *
-     * @param Warning $warning The warning to resolve
-     * @param User $admin The admin resolving the warning
+     * @param  Warning  $warning  The warning to resolve
+     * @param  User  $admin  The admin resolving the warning
      * @return bool True if successful
      */
     public function resolveWarning(Warning $warning, User $admin): bool
@@ -104,7 +103,7 @@ class WarningService
                 ->exists();
 
             // If no more active warnings, update user's account status
-            if (!$hasActiveWarnings) {
+            if (! $hasActiveWarnings) {
                 $warning->user->update([
                     'account_status' => 'active',
                     'is_warned' => false,
@@ -118,8 +117,8 @@ class WarningService
     /**
      * Lift a blacklist record
      *
-     * @param BlacklistRecord $blacklistRecord The blacklist record to lift
-     * @param User $admin The admin lifting the blacklist
+     * @param  BlacklistRecord  $blacklistRecord  The blacklist record to lift
+     * @param  User  $admin  The admin lifting the blacklist
      * @return bool True if successful
      */
     public function liftBlacklist(BlacklistRecord $blacklistRecord, User $admin): bool

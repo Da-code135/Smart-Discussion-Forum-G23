@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\VerifyEmailMailable;
 use App\Models\EmailVerificationToken;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
-use App\Mail\VerifyEmailMailable;
 
 class EmailVerificationController extends Controller
 {
@@ -18,8 +19,7 @@ class EmailVerificationController extends Controller
      * POST /api/v1/email/verify
      * Protected by auth:sanctum middleware
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function verify(Request $request)
     {
@@ -32,7 +32,7 @@ class EmailVerificationController extends Controller
             ->where('email', $validated['email'])
             ->first();
 
-        if (!$verification || !$verification->isValid()) {
+        if (! $verification || ! $verification->isValid()) {
             return response()->json([
                 'message' => 'Invalid or expired verification token',
             ], 400);
@@ -52,8 +52,7 @@ class EmailVerificationController extends Controller
      * POST /api/v1/email/resend
      * Protected by auth:sanctum middleware
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function resend(Request $request)
     {
@@ -66,11 +65,12 @@ class EmailVerificationController extends Controller
         }
 
         // Rate limit: 1 per minute
-        $key = 'api-verify-email:' . $user->email;
+        $key = 'api-verify-email:'.$user->email;
         if (RateLimiter::tooManyAttempts($key, 1)) {
             $seconds = RateLimiter::availableIn($key);
+
             return response()->json([
-                'message' => 'Please wait ' . $seconds . ' seconds before requesting another verification email',
+                'message' => 'Please wait '.$seconds.' seconds before requesting another verification email',
             ], 429);
         }
 

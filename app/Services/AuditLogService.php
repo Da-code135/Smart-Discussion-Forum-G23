@@ -3,21 +3,20 @@
 namespace App\Services;
 
 use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\Request;
 
 class AuditLogService
 {
     /**
      * Log an administrative action
      *
-     * @param string $action The action being logged
-     * @param mixed $target The target model (optional)
-     * @param array $oldValues Old values before change (optional)
-     * @param array $newValues New values after change (optional)
-     * @param string $description Human-readable description (optional)
-     * @param int|null $userId User who performed action (defaults to current user)
-     * @return AuditLog
+     * @param  string  $action  The action being logged
+     * @param  mixed  $target  The target model (optional)
+     * @param  array  $oldValues  Old values before change (optional)
+     * @param  array  $newValues  New values after change (optional)
+     * @param  string  $description  Human-readable description (optional)
+     * @param  int|null  $userId  User who performed action (defaults to current user)
      */
     public function log(
         string $action,
@@ -26,8 +25,7 @@ class AuditLogService
         array $newValues = [],
         string $description = '',
         ?int $userId = null
-    ): AuditLog
-    {
+    ): AuditLog {
         $request = request();
 
         return AuditLog::create([
@@ -35,8 +33,8 @@ class AuditLogService
             'action' => $action,
             'target_type' => $target ? get_class($target) : null,
             'target_id' => $target?->id,
-            'old_values' => !empty($oldValues) ? $oldValues : null,
-            'new_values' => !empty($newValues) ? $newValues : null,
+            'old_values' => ! empty($oldValues) ? $oldValues : null,
+            'new_values' => ! empty($newValues) ? $newValues : null,
             'ip_address' => $request?->ip(),
             'user_agent' => $request?->userAgent(),
             'description' => $description ?: $this->generateDescription($action, $target),
@@ -213,6 +211,7 @@ class AuditLogService
     public function logWarningResolved($warning): AuditLog
     {
         $user = $warning->user;
+
         return $this->log(
             action: 'warning.resolved',
             target: $user,
@@ -305,7 +304,7 @@ class AuditLogService
         return $this->log(
             action: 'system.config.updated',
             newValues: $changes,
-            description: Auth::user()?->full_name . ' updated system configuration: ' . implode(', ', array_keys($changes))
+            description: Auth::user()?->full_name.' updated system configuration: '.implode(', ', array_keys($changes))
         );
     }
 
@@ -330,24 +329,29 @@ class AuditLogService
     {
         $query = AuditLog::with('user')->latest();
 
-        if (!empty($filters['action'])) {
+        if (! empty($filters['action'])) {
             $query->where('action', $filters['action']);
         }
 
-        if (!empty($filters['user_id'])) {
+        if (! empty($filters['user_id'])) {
             $query->where('user_id', $filters['user_id']);
         }
 
-        if (!empty($filters['target_type'])) {
+        if (! empty($filters['target_type'])) {
             $query->where('target_type', $filters['target_type']);
         }
 
-        if (!empty($filters['start_date'])) {
+        if (! empty($filters['start_date'])) {
             $query->where('created_at', '>=', $filters['start_date']);
         }
 
-        if (!empty($filters['end_date'])) {
+        if (! empty($filters['end_date'])) {
             $query->where('created_at', '<=', $filters['end_date']);
+        }
+
+        // Group isolation: filter by user IDs belonging to specific groups
+        if (! empty($filters['group_ids'])) {
+            $query->whereIn('user_id', User::whereIn('group_id', $filters['group_ids'])->pluck('id'));
         }
 
         return $query->paginate($perPage);
@@ -360,16 +364,21 @@ class AuditLogService
     {
         $query = AuditLog::with('user');
 
-        if (!empty($filters['action'])) {
+        if (! empty($filters['action'])) {
             $query->where('action', $filters['action']);
         }
 
-        if (!empty($filters['start_date'])) {
+        if (! empty($filters['start_date'])) {
             $query->where('created_at', '>=', $filters['start_date']);
         }
 
-        if (!empty($filters['end_date'])) {
+        if (! empty($filters['end_date'])) {
             $query->where('created_at', '<=', $filters['end_date']);
+        }
+
+        // Group isolation: filter by user IDs belonging to specific groups
+        if (! empty($filters['group_ids'])) {
+            $query->whereIn('user_id', User::whereIn('group_id', $filters['group_ids'])->pluck('id'));
         }
 
         return $query->latest()->get()->map(function ($log) {
