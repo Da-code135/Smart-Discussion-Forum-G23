@@ -89,6 +89,36 @@
                                 <span class="material-symbols-outlined">group_work</span>
                                 <span>Group management</span>
                             </a>
+                            <a href="{{ route('admin.moderation.index') }}" class="user-menu__link">
+                                <span class="material-symbols-outlined">shield</span>
+                                <span>Moderation</span>
+                            </a>
+                            <a href="{{ route('admin.warnings.index') }}" class="user-menu__link">
+                                <span class="material-symbols-outlined">warning</span>
+                                <span>Warnings</span>
+                            </a>
+                            <a href="{{ route('admin.blacklist.index') }}" class="user-menu__link">
+                                <span class="material-symbols-outlined">block</span>
+                                <span>Blacklist</span>
+                            </a>
+                            @if ($user->isSystemAdmin())
+                                <a href="{{ route('admin.audit-logs.index') }}" class="user-menu__link">
+                                    <span class="material-symbols-outlined">receipt_long</span>
+                                    <span>Audit logs</span>
+                                </a>
+                                <a href="{{ route('admin.ip-whitelist.index') }}" class="user-menu__link">
+                                    <span class="material-symbols-outlined">security</span>
+                                    <span>IP whitelist</span>
+                                </a>
+                                <a href="{{ route('admin.system-config.index') }}" class="user-menu__link">
+                                    <span class="material-symbols-outlined">settings_applications</span>
+                                    <span>System config</span>
+                                </a>
+                                <a href="{{ route('admin.group-statistics.index') }}" class="user-menu__link">
+                                    <span class="material-symbols-outlined">insights</span>
+                                    <span>Group statistics</span>
+                                </a>
+                            @endif
                             <a href="{{ route('admin.statistics.index') }}" class="user-menu__link">
                                 <span class="material-symbols-outlined">bar_chart</span>
                                 <span>Statistics</span>
