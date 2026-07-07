@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Mail\VerifyEmailMailable;
-use App\Models\EmailVerificationToken;
+use App\Utilities\ProfileUpdateUtility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        protected ProfileUpdateUtility $profileUtility
+    ) {}
+
     // #66: Show profile editor
     public function edit()
     {
@@ -36,30 +36,16 @@ class ProfileController extends Controller
             ],
         ]);
 
-        $emailChanged = $validated['email'] !== $user->email;
+        $result = $this->profileUtility->updateProfile(
+            $user,
+            $validated['full_name'],
+            $validated['email']
+        );
 
-        if ($emailChanged) {
-            // Generate new verification token
-            $token = Str::random(64);
-            EmailVerificationToken::create([
-                'user_id' => $user->id,
-                'token' => $token,
-                'email' => $validated['email'],
-                'expires_at' => now()->addHours(24),
-            ]);
-
-            // Send verification email
-            Mail::queue(new VerifyEmailMailable($user, $token));
-
-            // #156: Flash message about verification
+        // Flash message about verification if email changed
+        if ($result['email_changed']) {
             session()->flash('warning', 'Please verify your new email address. Check your inbox for a verification link.');
         }
-
-        $user->update([
-            'full_name' => $validated['full_name'],
-            'email' => $validated['email'],
-            'email_verified_at' => $emailChanged ? null : $user->email_verified_at,
-        ]);
 
         return redirect()->route('profile.edit')->with('success', 'Profile updated successfully!');
     }
@@ -81,15 +67,10 @@ class ProfileController extends Controller
 
         $user = Auth::user();
 
-        // Delete old picture if exists
-        if ($user->profile_picture) {
-            Storage::disk('public')->delete($user->profile_picture);
-        }
-
-        // Store new picture
-        $path = $request->file('profile_picture')->store('avatars', 'public');
-
-        $user->update(['profile_picture' => $path]);
+        $this->profileUtility->uploadProfilePicture(
+            $user,
+            $request->file('profile_picture')
+        );
 
         return redirect()->route('profile.picture')->with('success', 'Profile picture updated!');
     }

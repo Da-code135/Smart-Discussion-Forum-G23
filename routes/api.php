@@ -26,9 +26,12 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\QuestionController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\QuizNotificationController;
+use App\Http\Controllers\Api\RecommendationController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\StudentQuizController;
 use App\Http\Controllers\Api\TopicController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\WarningAcknowledgementController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -125,6 +128,12 @@ Route::prefix($API_VERSION)->group(function () {
              * Update user profile (full_name, email)
              */
             Route::post('/profile', [ProfileController::class, 'update']);
+
+            /**
+             * POST /api/v1/profile/picture
+             * Upload profile picture (jpeg/png, max 2MB)
+             */
+            Route::post('/profile/picture', [ProfileController::class, 'uploadPicture']);
 
             /**
              * POST /api/v1/password/change
@@ -264,6 +273,55 @@ Route::prefix($API_VERSION)->group(function () {
                 NotificationController::class,
                 'destroy',
             ]); // N5: Delete a notification
+
+            // ============================================
+            // RECOMMENDATIONS API (User-facing, authentication required)
+            // ============================================
+
+            /**
+             * GET /api/v1/recommendations
+             * Get personalized topic recommendations for the authenticated user.
+             * Optional query param: ?limit=10 (max 50)
+             */
+            Route::get('/recommendations', [RecommendationController::class, 'index']);
+
+            // ============================================
+            // WARNING ACKNOWLEDGEMENT API (User-facing)
+            // ============================================
+
+            /**
+             * GET /api/v1/warnings/unacknowledged
+             * Check if the authenticated user has unacknowledged warnings.
+             */
+            Route::get('/warnings/unacknowledged', [
+                WarningAcknowledgementController::class,
+                'unacknowledged',
+            ]);
+
+            /**
+             * POST /api/v1/warnings/acknowledge
+             * Acknowledge the first unacknowledged warning.
+             */
+            Route::post('/warnings/acknowledge', [
+                WarningAcknowledgementController::class,
+                'acknowledge',
+            ]);
+
+            // ============================================
+            // REPORTS API (User-facing, content reporting)
+            // ============================================
+
+            /**
+             * POST /api/v1/reports
+             * Report a topic, post, or reply.
+             */
+            Route::post('/reports', [ReportController::class, 'store']);
+
+            /**
+             * GET /api/v1/me/reports
+             * List reports submitted by the authenticated user.
+             */
+            Route::get('/me/reports', [ReportController::class, 'index']);
 
             // Topic Toggles (N3-N4)
             Route::post('/topics/{topicId}/toggle-answered', [
@@ -608,6 +666,16 @@ Route::prefix($API_VERSION)->group(function () {
                     Route::get('/dashboard', [DashboardController::class, 'index']);
                     Route::get('/group-statistics', [GroupStatisticsController::class, 'index']);
                     Route::get('/group-statistics/{group}', [GroupStatisticsController::class, 'show']);
+
+                    // Statistics Management (Recalculate live data)
+                    /**
+                     * POST /api/v1/admin/statistics/{group}/recalculate
+                     * Recalculate and persist group statistics from live data.
+                     */
+                    Route::post('/statistics/{group}/recalculate', [
+                        GroupStatisticsController::class,
+                        'recalculate',
+                    ]);
                 });
         });
     });

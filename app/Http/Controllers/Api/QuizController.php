@@ -235,6 +235,9 @@ class QuizController extends Controller
 
     /**
      * Generate report for the specified quiz.
+     *
+     * Authorization: Only the quiz lecturer or an admin can view the report.
+     * This matches the web controller's showPerformanceReport() authorization.
      */
     public function report(Request $request, Quiz $quiz)
     {
@@ -243,6 +246,15 @@ class QuizController extends Controller
         // Group isolation: only users with access can view the quiz report
         if (! $user->canAccessGroup($quiz->group_id)) {
             return response()->json(['success' => false, 'message' => 'You do not have access to this quiz report.'], 403);
+        }
+
+        // Authorization: Only the quiz lecturer or an admin can view the report
+        // This matches the web controller's showPerformanceReport() logic
+        if ($user->id !== $quiz->lecturer_id && ! $user->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Not authorized to view this report.',
+            ], 403);
         }
 
         $quiz->load('grades.student:id,full_name,email');

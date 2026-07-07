@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Warning;
+use App\Utilities\WarningAcknowledgementUtility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class WarningAcknowledgementController extends Controller
 {
+    public function __construct(
+        protected WarningAcknowledgementUtility $utility
+    ) {}
+
     // #80: Show warning page
     public function show()
     {
@@ -25,14 +29,10 @@ class WarningAcknowledgementController extends Controller
         $user = Auth::user();
 
         // Find the first unacknowledged warning for this user
-        $warning = Warning::where('user_id', $user->id)
-            ->where('is_acknowledged', false)
-            ->first();
+        $warning = $this->utility->getUnacknowledgedWarning($user);
 
         if ($warning) {
-            $warning->update([
-                'is_acknowledged' => true,
-            ]);
+            $this->utility->acknowledge($warning, $user);
         }
 
         return redirect()->route('dashboard')
