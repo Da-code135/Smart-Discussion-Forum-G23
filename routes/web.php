@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\BlacklistController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\GroupStatisticsController;
+use App\Http\Controllers\Admin\StatisticsController;
 use App\Http\Controllers\Admin\IpWhitelistController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SystemConfigController;
@@ -593,6 +594,16 @@ Route::prefix('admin')
                 'deactivate',
             ])->name('admin.ip-whitelist.deactivate');
         });
+
+        // Statistics Dashboard (Analytics module — Tasks 1 & 2)
+        Route::get('/statistics', [
+            StatisticsController::class,
+            'index',
+        ])->name('admin.statistics.index');
+        Route::post('/statistics/{group}/recalculate', [
+            StatisticsController::class,
+            'recalculate',
+        ])->name('admin.statistics.recalculate');
 
         // Group Management - All admins can view their groups, but actions are controlled by policies
         Route::get('/groups', [
