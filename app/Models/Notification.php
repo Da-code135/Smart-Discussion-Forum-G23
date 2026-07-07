@@ -13,7 +13,10 @@ class Notification extends Model
 
     protected $fillable = [
         'user_id',
+        'group_id',
         'type',
+        'title',
+        'message',
         'data',
         'read_at',
     ];
@@ -32,10 +35,34 @@ class Notification extends Model
     }
 
     /**
+     * The group this notification belongs to (nullable for system-wide).
+     */
+    public function group()
+    {
+        return $this->belongsTo(Group::class);
+    }
+
+    /**
      * Scope: only unread notifications.
      */
     public function scopeUnread($query)
     {
         return $query->whereNull('read_at');
+    }
+
+    /**
+     * Check if the notification has been read.
+     */
+    public function isRead(): bool
+    {
+        return $this->read_at !== null;
+    }
+
+    /**
+     * Mark the notification as read.
+     */
+    public function markAsRead(): void
+    {
+        $this->update(['read_at' => now()]);
     }
 }

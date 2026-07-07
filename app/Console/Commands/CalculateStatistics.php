@@ -7,6 +7,7 @@ use App\Models\Post;
 use App\Models\Statistics;
 use App\Models\Topic;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Console\Command;
 
 class CalculateStatistics extends Command
@@ -81,11 +82,33 @@ class CalculateStatistics extends Command
         // 6. Count inactive members (haven't posted in 30+ days)
         // Note: Assuming users table has last_active_at field
         $inactiveMembers = User::where('group_id', $group->id)
-            ->where('last_active_at', '<', now()->subDays(30))
-            ->orWhereNull('last_active_at')  // Never posted
+            ->where(function ($q) {
+                $q->where('last_active_at', '<', now()->subDays(30))
+                    ->orWhereNull('last_active_at');  // Never posted
+            })
             ->count();
 
-        // 7. Update or create the statistics row
+        // 7. Send inactivity warnings to users who haven't posted in 30+ days
+        $inactiveUsers = User::where('group_id', $group->id)
+            ->where(function ($q) {
+                $q->where('last_active_at', '<', now()->subDays(30))
+                    ->orWhereNull('last_active_at');
+            })
+            ->get();
+
+        foreach ($inactiveUsers as $user) {
+            $daysInactive = $user->last_active_at
+                ? now()->diffInDays($user->last_active_at)
+                : 'many';
+
+            app(NotificationService::class)->sendInactivityWarning($user, $daysInactive);
+        }
+
+        if ($inactiveUsers->isNotEmpty()) {
+            $this->info('Sent inactivity warnings to '.$inactiveUsers->count().' user(s) in: '.$group->group_name);
+        }
+
+        // 8. Update or create the statistics row
         Statistics::updateOrCreate(
             ['group_id' => $group->id],
             [
