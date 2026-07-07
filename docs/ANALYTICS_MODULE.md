@@ -1,77 +1,203 @@
 # Smart Discussion Forum — Analytics, ML & Administration Module
 
-> Complete system documentation with full code explanations. Use this to understand every file, every method, and every line that was written.
+> A senior engineer's guide to every file, every method, and every design decision.
+> Written to help you understand not just *what* the code does, but *why* it was written that way,
+> *what alternatives were considered*, and *how things can go wrong*.
 
 ---
 
 ## Table of Contents
 
-1. [Module Overview](#1-module-overview)
-2. [Machine Learning & How This Module Implements It](#2-machine-learning--how-this-module-implements-it)
-3. [Person 1: Database Setup & Statistics Dashboard](#3-person-1-database-setup--statistics-dashboard)
-4. [Person 2: Backend Stats Logic & Topic Classification](#4-person-2-backend-stats-logic--topic-classification)
-5. [Person 3: Recommendations Logic & UI](#5-person-3-recommendations-logic--ui)
-6. [Person 4: Notifications Center & Sending Logic](#6-person-4-notifications-center--sending-logic)
-7. [Person 5: Admin Config Panel & Testing](#7-person-5-admin-config-panel--testing)
-8. [How Everything Connects](#8-how-everything-connects)
+1. [Before We Start — The Big Picture](#1-before-we-start--the-big-picture)
+2. [Machine Learning & What We Actually Built](#2-machine-learning--what-we-actually-built)
+3. [Person 1: Database Foundation & Statistics Dashboard](#3-person-1-database-foundation--statistics-dashboard)
+4. [Person 2: Automatic Stats & Topic Classification](#4-person-2-automatic-stats--topic-classification)
+5. [Person 3: Recommendations Engine & UI](#5-person-3-recommendations-engine--ui)
+6. [Person 4: Notifications System](#6-person-4-notifications-system)
+7. [Person 5: Admin Configuration & Testing](#7-person-5-admin-configuration--testing)
+8. [The Complete Data Flow](#8-the-complete-data-flow)
 
 ---
 
-## 1. Module Overview
+## 1. Before We Start — The Big Picture
 
-The Analytics, ML & Administration module adds five interconnected subsystems to the Smart Discussion Forum:
-
-1. **Statistics Dashboard** — admins see engagement metrics per group
-2. **Topic Classification** — topics are auto-tagged into categories
-3. **Recommendations** — users see personalized topic suggestions
-4. **Notifications** — system sends inactivity warnings and alerts
-5. **Admin Config** — configurable thresholds for all of the above
-
-**The dependency chain:**
+Think of this module as five layers that sit on top of the existing forum:
 
 ```
-Groups → Statistics → Admins see engagement
-Topics → Classification → Topics get categories
-Categories → Recommendations → Users see relevant content
-Activity → Notifications → Users stay informed
-Config → Monitoring → Admins stay in control
+┌─────────────────────────────────────────────────────┐
+│  Layer 5: Admin Config (Person 5)                   │
+│  "How many days before a warning? Before blacklist?" │
+├─────────────────────────────────────────────────────┤
+│  Layer 4: Notifications (Person 4)                   │
+│  "Hey, you've been inactive — come back!"            │
+├─────────────────────────────────────────────────────┤
+│  Layer 3: Recommendations (Person 3)                │
+│  "You liked Python topics — here's a Django thread" │
+├─────────────────────────────────────────────────────┤
+│  Layer 2: Classification + Stats (Person 2)         │
+│  "This topic is about APIs" + "42 members active"   │
+├─────────────────────────────────────────────────────┤
+│  Layer 1: Database Tables (Person 1)                │
+│  statistics, recommendation_log, category_id...      │
+└─────────────────────────────────────────────────────┘
 ```
 
----
-
-## 2. Machine Learning & How This Module Implements It
-
-### 2.1 What Is Machine Learning?
-
-Machine Learning (ML) means a computer learns patterns from data. Example: show a computer 10,000 labeled photos of cats and dogs, and it learns to recognize cats and dogs in photos it has never seen before. The more data it sees, the better it gets.
-
-### 2.2 What This Module Actually Does
-
-**This module does NOT use real machine learning.** It uses **rule-based keyword matching** — a simple, predictable approach that works well for an MVP. Here is the algorithm:
-
-1. Each category has a hardcoded list of keywords (e.g., "Django" → django, python, framework, views, models, templates)
-2. Take the topic's title and description, make everything lowercase
-3. Count how many keywords from each category appear in that text
-4. Pick the category with the highest count
-5. If no keywords matched, assign "General"
-
-This is **pattern matching**, not ML. No training, no probabilities, no statistical model.
-
-### 2.3 The TopicCategory Table (Designed for Future ML)
-
-The `topic_categories` table already exists with a `keyword_hints` column. In a future version, you could swap `keyword_hints` for an ML model ID and call a trained model instead of counting keywords — without changing the database schema.
+Each layer depends on the ones below it. Person 1 built the foundation. Person 5 tweaks the knobs on top.
 
 ---
 
-## 3. Person 1: Database Setup & Statistics Dashboard
+## 2. Machine Learning & What We Actually Built
 
-### 3.1 Migration Files (Database Tables)
+Let me be completely honest with you: **this module does not use machine learning.**
 
-All database changes live in `database/migrations/`. Five migrations were added for this module:
+I know the project brief says "ML Module." But what we built is **rule-based keyword matching**. Here's why that distinction matters and why it's the right call for an MVP.
 
-#### `statistics` table — pre-computed engagement snapshot per group
+### 2.1 What Real ML Looks Like
+
+Real machine learning works like this:
+
+1. You collect thousands of example topics that humans have already labeled (e.g., "What is an API endpoint?" → "APIs", "How to write Django models" → "Django")
+2. You train a statistical model that learns patterns — not just keywords, but word order, synonyms, sentence structure, context
+3. The model can generalize: it knows that "RESTful service" is related to "APIs" even if "api" never appears in the text
+
+This requires: a training dataset, a data scientist to tune parameters, server infrastructure to run the model, and ongoing maintenance to keep it accurate.
+
+### 2.2 What We Built Instead (And Why It's Fine)
 
 ```php
+// app/Services/TopicClassificationService.php
+
+private $categoryKeywords = [
+    'Django'     => ['django', 'python', 'framework', 'views', 'models', 'templates'],
+    'APIs'       => ['api', 'rest', 'endpoint', 'http', 'json', 'request'],
+    'Database'   => ['database', 'sql', 'query', 'table', 'column', 'join', 'relational'],
+    'JavaScript' => ['javascript', 'js', 'react', 'vue', 'node', 'npm'],
+    'CSS'        => ['css', 'styling', 'bootstrap', 'tailwind', 'design', 'layout'],
+    'General'    => [],  // Empty array = fallback when nothing else matches
+];
+```
+
+**What this is:** A lookup table. Each category has a list of trigger words. When a topic is created, we count how many of those words appear in the title and description. The category with the most matches wins.
+
+**Why this is the right call for an MVP:**
+
+1. **Zero training data needed** — We don't have 10,000 pre-classified topics. Without data, you cannot train an ML model.
+2. **Predictable and debuggable** — If a topic gets classified wrong, you can see exactly why: "Oh, 'framework' triggered Django but this was about Vue.js." You add 'vue' to JavaScript keywords and move on.
+3. **No dependencies** — No Python process, no TensorFlow model files, no GPU servers. Runs in PHP, in the same request.
+4. **Fast to implement** — This service was written in an afternoon. A real ML pipeline would take weeks.
+
+**The trade-off:** Our system cannot generalize. A topic titled "Understanding Request-Response Cycles" won't be classified as APIs because it doesn't contain the literal word "api." Real ML would catch this. For an MVP, that's acceptable — you improve the keyword lists as users report misclassifications.
+
+### 2.3 How the Algorithm Actually Works (Line by Line)
+
+```php
+public function classifyTopic(Topic $topic)
+{
+    // STEP 1: Combine title + description into one searchable string
+    $text = strtolower($topic->title . ' ' . $topic->description);
+```
+
+**Why `strtolower`?** Because our keywords are all lowercase (`'django'`, `'api'`, `'rest'`). If the user writes "Django" or "DJANGO" or "dJango", we need to match it. Converting everything to lowercase first makes the matching case-insensitive. This is a simple trick — a real NLP system would use stemming or lemmatization, but for keyword counting, `strtolower` is sufficient.
+
+```php
+    // STEP 2: Score every category
+    $scores = [];
+    foreach ($this->categoryKeywords as $categoryName => $keywords) {
+        $score = 0;
+        foreach ($keywords as $keyword) {
+            // substr_count counts EVERY occurrence, even inside other words
+            // "django" appears in "django-rest-framework" → counted
+            $score += substr_count($text, $keyword);
+        }
+        $scores[$categoryName] = $score;
+    }
+```
+
+**Why `substr_count` instead of `str_contains`?** `str_contains` returns true/false — it tells you "yes, the word exists" but not how many times. A topic that mentions "Django" five times is probably more about Django than one that mentions it once. `substr_count` gives us a weighted score.
+
+**Gotcha to watch for:** `substr_count` counts substrings, not words. The keyword "rest" would match inside "restaurant" or "forest." If this becomes a problem, you'd need word-boundary matching with regex (`\brest\b`). For now, the categories we chose don't have this problem — "api" won't accidentally match inside another word.
+
+```php
+    // STEP 3: Find the winner
+    arsort($scores);  // Sort descending by score
+    $bestCategory = array_key_first($scores);  // Get key of first element
+```
+
+**What `arsort` does:** The `a` stands for "associative" — it maintains the key-value association. After sorting:
+```
+Before: ['Django' => 4, 'APIs' => 3, 'Database' => 0, 'JavaScript' => 0, 'CSS' => 0]
+After:  ['Django' => 4, 'APIs' => 3, 'CSS' => 0, 'Database' => 0, 'JavaScript' => 0]
+```
+`array_key_first` returns `'Django'` — the first key after sorting, which is the highest scored.
+
+```php
+    // STEP 4: If nothing matched, use General
+    if ($scores[$bestCategory] === 0) {
+        $bestCategory = 'General';
+    }
+```
+
+**Why this check is necessary:** If the topic says "What time is lunch?", none of our keywords match. All scores are 0. `arsort` would put... well, all of them at 0, and `array_key_first` would return whichever key PHP stores first internally (probably 'Django' since it was defined first). We don't want an unrelated topic misclassified as Django. By checking if the best score is 0, we force it to 'General' instead.
+
+```php
+    // STEP 5: Find or create the category in the database
+    $category = TopicCategory::firstOrCreate(
+        [
+            'group_id' => $topic->group_id,
+            'category_name' => $bestCategory,
+        ],
+        [
+            'keyword_hints' => implode(',', $this->categoryKeywords[$bestCategory]),
+        ]
+    );
+
+    // STEP 6: Update the topic
+    $topic->update(['category_id' => $category->id]);
+
+    return $category;
+}
+```
+
+**`firstOrCreate` explained:** Laravel looks for a row matching both conditions (`group_id = X AND category_name = 'Django'`). If found, it returns that row. If not found, it CREATES a new row using the second array as additional data. This means categories are auto-created the first time they're matched — you don't need to manually add "Django" to the database before it can be used.
+
+**Important detail:** The unique constraint `unique(['group_id', 'category_name'])` on the table prevents duplicate categories. If two topics in the same group both get classified as "Django", `firstOrCreate` returns the same category row — it doesn't create a second one.
+
+### 2.4 When Classification Happens
+
+```php
+// app/Models/Topic.php
+
+protected static function booted()
+{
+    static::created(function ($topic) {
+        app(TopicClassificationService::class)->classifyTopic($topic);
+    });
+}
+```
+
+**The `booted()` method** is Laravel's way of registering model lifecycle hooks. Think of it like setting up a motion sensor: it doesn't do anything on its own, but when motion happens (a topic is created), it triggers.
+
+**Why `static::created` (past tense) and not `static::creating` (present tense)?** The difference is timing:
+- `creating` fires BEFORE the topic is saved to the database. At this point, the topic has no ID yet.
+- `created` fires AFTER the topic is saved. The topic has an ID, all fields are persisted, and we can safely update it.
+
+If we used `creating`, the topic wouldn't exist yet when we try to `$topic->update(['category_id' => ...])`. That's why we use `created`.
+
+**`app(TopicClassificationService::class)`** is Laravel's service container. It creates a new instance of `TopicClassificationService` and returns it. If the service had constructor dependencies (like a database repository), the container would automatically inject them. This is called "automatic resolution" — you don't need to manually instantiate classes.
+
+---
+
+## 3. Person 1: Database Foundation & Statistics Dashboard
+
+### 3.1 The Migration Files — Designing the Schema
+
+A migration is Laravel's way of version-controlling database changes. Think of it like Git for your database schema. Every migration file has an `up()` method (apply the change) and a `down()` method (reverse it).
+
+#### The `statistics` Table
+
+```php
+// database/migrations/2026_07_07_000001_create_statistics_table.php
+
 Schema::create('statistics', function (Blueprint $table) {
     $table->id();
     $table->foreignId('group_id')->constrained('groups')->onDelete('cascade');
@@ -83,26 +209,38 @@ Schema::create('statistics', function (Blueprint $table) {
     $table->integer('inactive_members_30days')->default(0);
     $table->timestamp('last_calculated_at')->nullable();
     $table->timestamps();
-    $table->unique('group_id');  // One row per group — no duplicates
+    $table->unique('group_id');
 });
 ```
 
-**What each column stores:**
+**Why a separate `statistics` table instead of computing on the fly?**
 
-| Column | Data | Example |
-|---|---|---|
-| `group_id` | Which group this row is for | 3 = "BSSE Year 2" |
-| `total_members` | How many users belong to this group | 45 |
-| `active_members_this_week` | Users who posted or were active in the last 7 days | 12 |
-| `total_topics` | Total discussion topics ever created in this group | 87 |
-| `total_posts` | Total replies ever created in this group | 412 |
-| `unanswered_questions` | Topics of type 'question' with 0 replies | 5 |
-| `inactive_members_30days` | Users who haven't posted in 30+ days | 8 |
-| `last_calculated_at` | When this snapshot was last recomputed | 2026-07-10 02:00:00 |
+This is the classic "cache vs. compute" trade-off. You have two options:
 
-**`unique('group_id')`** means there can never be two statistics rows for the same group. This is important because we always use `updateOrCreate` — it finds the existing row for a group and updates it, or creates a new one if one doesn't exist.
+**Option A — Compute on the fly (no statistics table):**
+```php
+$totalMembers = User::where('group_id', $groupId)->count();
+$activeMembers = User::where('group_id', $groupId)
+    ->where('last_active_at', '>=', now()->subWeek())->count();
+// ... 4 more queries every page load
+```
+- **Pro:** Always up to date. No extra table to maintain.
+- **Con:** Every admin dashboard load runs 6 database queries. With 100 admins refreshing constantly, that's 600 queries per minute.
 
-#### `recommendation_log` table — prevents recommending the same topic twice
+**Option B — Pre-compute and cache (what we did):**
+We run those 6 queries once per day (at 2 AM), store the results in a `statistics` row, and the dashboard just reads that row.
+- **Pro:** Dashboard loads instantly with 1 query instead of 6. Scales to any number of admins.
+- **Con:** Data is up to 24 hours old. Admin has to click "Recalculate" for live data.
+
+**Why we chose Option B:** The stats dashboard is for *trends*, not real-time monitoring. Whether a group has 42 or 43 active members this week doesn't change any decision. But the performance difference between 1 query and 6 queries per page load is significant.
+
+**Why `default(0)` on every column?** When a new group is created, there's no statistics row for it yet. The first time the dashboard loads, `firstOrCreate` creates a row with all zeros. Without defaults, that row would have NULL values, and the dashboard would display blank cards instead of "0."
+
+**Why `unique('group_id')`?** This ensures there can never be two statistics rows for the same group. Without this constraint, a bug in the code could accidentally create duplicate rows, and the dashboard would show two cards for the same group. The `unique` constraint at the database level is a safety net — even if the code has a bug, the database won't allow duplicates.
+
+**Why `onDelete('cascade')`?** If a group is deleted, we want its statistics row to be deleted automatically. Otherwise, we'd have orphaned rows referring to a group that no longer exists, and the dashboard would try to display a card for a deleted group.
+
+#### The `recommendation_log` Table
 
 ```php
 Schema::create('recommendation_log', function (Blueprint $table) {
@@ -118,9 +256,15 @@ Schema::create('recommendation_log', function (Blueprint $table) {
 });
 ```
 
-Every time we recommend a topic to a user, we log it here. The `unique(['user_id', 'topic_id'])` constraint means the same topic can never be recommended to the same user twice — enforced at the database level.
+**Why do we need this table?**
 
-#### `category_id` added to `topics` table
+The recommendation engine needs to know: "Have we already shown topic X to user Y?" Without this table, every page load would recommend the same topics over and over. Users would see the same suggestions for weeks.
+
+**The `unique(['user_id', 'topic_id'])` constraint** prevents duplicate recommendations at the database level. Even if the code has a race condition (two requests trying to recommend the same topic simultaneously), only one `INSERT` succeeds. The second one hits the unique constraint and throws an error. We use `updateOrCreate` instead of `create` to handle this gracefully — it tries to insert, and if the row already exists, it updates the `recommended_at` timestamp instead.
+
+**The `index('user_id')`** is a performance optimization. Every recommendation query starts with `WHERE user_id = ?`. Without an index, the database has to scan every row in the table to find that user's records. With an index, it jumps directly to the relevant rows. For a table that grows by thousands of rows over time, this is essential.
+
+#### Adding `category_id` to Topics
 
 ```php
 Schema::table('topics', function (Blueprint $table) {
@@ -132,50 +276,47 @@ Schema::table('topics', function (Blueprint $table) {
 });
 ```
 
-This lets every topic optionally belong to a category. When a category is deleted, `set null` means the topic's `category_id` becomes null (the topic is not deleted).
+**Why `onDelete('set null')` instead of `onDelete('cascade')`?** If you delete a category (e.g., "CSS" is no longer needed), should all 50 topics classified as "CSS" also be deleted? Of course not. The topics are still valid — they just lose their category label. `set null` tells the database: "When the category is deleted, set `category_id` to NULL on all topics that reference it."
 
-#### `title`, `message`, `group_id` added to the existing `notifications` table
-
-```php
-Schema::table('notifications', function (Blueprint $table) {
-    $table->string('title')->nullable()->after('type');
-    $table->text('message')->nullable()->after('title');
-    $table->foreignId('group_id')->nullable()->constrained('groups')->after('message');
-});
-```
-
-The original `notifications` table only had `type` and a JSON `data` column. Adding `title`, `message`, and `group_id` lets us create notifications with plain text fields that are easier to query and display.
+This is a critical design decision: **data should never be destroyed just because a label changes.** The topics table is the primary data; `category_id` is just metadata.
 
 ---
 
-### 3.2 Statistics Model — `app/Models/Statistics.php`
+### 3.2 The Model Layer — The Eloquent Connection
 
 ```php
+// app/Models/Statistics.php
+
 class Statistics extends Model
 {
-    protected $table = 'statistics';  // Explicit table name
-
+    protected $table = 'statistics';
     protected $fillable = [
-        'group_id',
-        'total_members', 'active_members_this_week',
-        'total_topics', 'total_posts',
-        'unanswered_questions', 'inactive_members_30days',
-        'last_calculated_at',
+        'group_id', 'total_members', 'active_members_this_week',
+        'total_topics', 'total_posts', 'unanswered_questions',
+        'inactive_members_30days', 'last_calculated_at',
     ];
 
     protected $casts = [
-        'last_calculated_at' => 'datetime',  // Automatically converts to Carbon
+        'last_calculated_at' => 'datetime',
     ];
+```
 
-    public function group(): BelongsTo
-    {
-        return $this->belongsTo(Group::class);
-    }
+**`$casts`** is one of Laravel's most useful features. By telling Laravel that `last_calculated_at` is a `datetime`, every time you access this property, it's automatically converted to a Carbon instance. This means you can write:
 
+```php
+$stats->last_calculated_at->diffForHumans();  // "3 hours ago"
+$stats->last_calculated_at->format('Y-m-d');  // "2026-07-10"
+$stats->last_calculated_at->isToday();         // true/false
+$stats->last_calculated_at->addDays(7);        // Carbon arithmetic
+```
+
+Without the cast, `last_calculated_at` would be a plain string ("2026-07-10 02:00:00"), and calling `->diffForHumans()` on a string would crash with a "method not found" error.
+
+```php
     public function activePercentage(): int
     {
         if ($this->total_members === 0) {
-            return 0;  // Avoid division by zero
+            return 0;  // <-- Guard against division by zero
         }
         return (int) round(($this->active_members_this_week / $this->total_members) * 100);
     }
@@ -183,147 +324,201 @@ class Statistics extends Model
     public function averagePostsPerTopic(): int
     {
         if ($this->total_topics === 0) {
-            return 0;  // Avoid division by zero
+            return 0;  // <-- Guard against division by zero
         }
         return (int) round($this->total_posts / $this->total_topics);
     }
 }
 ```
 
-**Key points:**
-- `$fillable` controls which columns can be set via mass-assignment (e.g., `Statistics::create([...])`)
-- `$casts` tells Laravel to treat `last_calculated_at` as a Carbon date object automatically, so you can call `$stats->last_calculated_at->diffForHumans()` in the view
-- `activePercentage()` and `averagePostsPerTopic()` are helper methods that the view calls directly. Both guard against division by zero.
+**Why helper methods on the model instead of in the view?**
+
+You could write `{{ round(($stats->active_members_this_week / $stats->total_members) * 100) }}%` directly in the Blade template. But:
+1. It's ugly and hard to read
+2. You'd need the division-by-zero guard in every template that uses it
+3. If the formula changes (e.g., you decide to round to 1 decimal place), you'd have to update every template
+
+Putting the logic on the model means: one place to maintain, and every view gets the correct value automatically.
+
+**The division-by-zero guard:** If a group has 0 members (brand new group, statistics not yet calculated), `$active_members_this_week / $this->total_members` becomes `0 / 0`, which PHP handles as `NAN` (Not a Number). Using `intval(NAN)` gives 0 on some PHP versions but produces unexpected results on others. The explicit check `if ($this->total_members === 0) { return 0; }` is defensive programming — it handles the edge case explicitly instead of relying on PHP's behavior.
 
 ---
 
-### 3.3 StatisticsUtility — `app/Utilities/StatisticsUtility.php`
-
-This is the shared logic layer. Both the web controller and any future API controller call the same utility, so behavior is identical everywhere.
-
-#### `recalculate(int $groupId)` method
+### 3.3 The Utility Layer — Shared Business Logic
 
 ```php
-public function recalculate(int $groupId): Statistics
+// app/Utilities/StatisticsUtility.php
+
+class StatisticsUtility
 {
-    // 1. Total members in the group
-    $totalMembers = User::where('group_id', $groupId)->count();
+    public function recalculate(int $groupId): Statistics
+    {
+        // 1. Total members
+        $totalMembers = User::where('group_id', $groupId)->count();
 
-    // 2. Active members this week (last_active_at within the last 7 days)
-    $activeMembersThisWeek = User::where('group_id', $groupId)
-        ->where('last_active_at', '>=', now()->subWeek())
-        ->count();
-
-    // 3. Total topics in this group
-    $totalTopics = Topic::where('group_id', $groupId)->count();
-
-    // 4. Total posts (replies) in this group
-    $totalPosts = Topic::where('group_id', $groupId)
-        ->withCount('posts')
-        ->get()
-        ->sum('posts_count');
-
-    // 5. Unanswered questions — topics of type 'question' with zero replies
-    $unansweredQuestions = Topic::where('group_id', $groupId)
-        ->where('post_type', 'question')
-        ->whereDoesntHave('posts')
-        ->count();
-
-    // 6. Inactive members (30+ days since last_active_at)
-    $inactiveMembers30days = User::where('group_id', $groupId)
-        ->whereNotNull('last_active_at')
-        ->where('last_active_at', '<', now()->subDays(30))
-        ->count();
-
-    // Persist the snapshot
-    Statistics::updateOrCreate(
-        ['group_id' => $groupId],          // Find by group_id
-        [                                     // Update or create with these values
-            'total_members' => $totalMembers,
-            'active_members_this_week' => $activeMembersThisWeek,
-            'total_topics' => $totalTopics,
-            'total_posts' => $totalPosts,
-            'unanswered_questions' => $unansweredQuestions,
-            'inactive_members_30days' => $inactiveMembers30days,
-            'last_calculated_at' => now(),
-        ]
-    );
-
-    return Statistics::where('group_id', $groupId)->first();
-}
+        // 2. Active this week (last_active_at within last 7 days)
+        $activeMembersThisWeek = User::where('group_id', $groupId)
+            ->where('last_active_at', '>=', now()->subWeek())
+            ->count();
 ```
 
-**How the counting works, step by step:**
+**`now()->subWeek()`** is a Carbon helper. It returns a datetime representing exactly 7 days ago from the current moment. Carbon is Laravel's date library — think of it as PHP's DateTime on steroids. You can write:
+- `now()->subDays(30)` — 30 days ago
+- `now()->addHours(2)` — 2 hours from now
+- `now()->startOfMonth()` — midnight on the 1st of this month
 
-- **Total members**: Simple `count()` on the `users` table filtered by `group_id`. If the group has 45 users, this returns 45.
-- **Active this week**: Filter users by `last_active_at >= 7 days ago`. If a user was active yesterday, they are counted. If their last activity was 10 days ago, they are not.
-- **Total posts**: Gets all topic IDs for the group, then uses `withCount('posts')` to get the post count per topic, then `sum()` to add them all up. `withCount` runs a single subquery — it does not load every post into memory.
-- **Total topics**: Simple `count()` — every topic with this `group_id`.
-- **Unanswered questions**: Three conditions: (a) `post_type = 'question'`, (b) `whereDoesntHave('posts')` — means the topic has zero replies in the `posts` relationship, (c) `group_id` matches.
-- **Inactive members**: Uses `whereNotNull('last_active_at')` to only check users who have ever been active, then `where('last_active_at', '<', now()->subDays(30))` to find users whose last activity was 30+ days ago.
-- **`updateOrCreate`**: The first array `['group_id' => $groupId]` is the lookup key. If a row with this `group_id` exists, it is updated. If not, a new row is created. This is why the `unique('group_id')` migration constraint is important.
-
-#### `getStatsForUser(User $user)` method
+When used in an Eloquent query, `now()->subWeek()` is converted to a SQL-compatible datetime string inside the `WHERE` clause.
 
 ```php
-public function getStatsForUser(User $user): array
-{
-    // Role-based group access
-    if ($user->isSystemAdmin()) {
-        $groups = Group::all();                          // System admin: all groups
-    } elseif ($user->isGroupAdmin()) {
-        $adminGroupIds = $user->administeredGroups()->pluck('groups.id');
-        $groups = Group::whereIn('id', $adminGroupIds)->get();  // Only their groups
-    } else {
-        $groups = $user->group_id
-            ? Group::where('id', $user->group_id)->get()
-            : collect();  // Regular user: only their own group
-    }
+        // 3. Total topics
+        $totalTopics = Topic::where('group_id', $groupId)->count();
 
-    return $groups->map(function (Group $group) {
-        $stats = Statistics::firstOrCreate(
-            ['group_id' => $group->id],
-            [                                           // Default zero values
-                'total_members' => 0,
-                'active_members_this_week' => 0,
-                'total_topics' => 0,
-                'total_posts' => 0,
-                'unanswered_questions' => 0,
-                'inactive_members_30days' => 0,
+        // 4. Total posts (replies) — more complex because posts don't directly have group_id
+        $totalPosts = Topic::where('group_id', $groupId)
+            ->withCount('posts')
+            ->get()
+            ->sum('posts_count');
+```
+
+**Why is total posts more complex than total topics?** Look at the database schema:
+- `topics` has `group_id` — so counting topics by group is a simple `WHERE group_id = X`
+- `posts` does NOT have `group_id` — posts belong to topics, and topics belong to groups. To count posts in a group, you first need to find all topics in that group, then count all posts in those topics.
+
+The `withCount('posts')` trick: This adds a subquery to the SELECT clause. Laravel generates:
+```sql
+SELECT *, (SELECT COUNT(*) FROM posts WHERE posts.topic_id = topics.id) AS posts_count
+FROM topics WHERE group_id = ?
+```
+Then `->get()->sum('posts_count')` adds up all those counts in PHP memory.
+
+```php
+        // 5. Unanswered questions
+        $unansweredQuestions = Topic::where('group_id', $groupId)
+            ->where('post_type', 'question')
+            ->whereDoesntHave('posts')
+            ->count();
+```
+
+**`whereDoesntHave('posts')`** is Eloquent's way of saying: "only include topics that have zero related posts." Laravel generates a `NOT EXISTS` subquery:
+```sql
+SELECT COUNT(*) FROM topics
+WHERE group_id = ?
+  AND post_type = 'question'
+  AND NOT EXISTS (SELECT 1 FROM posts WHERE posts.topic_id = topics.id)
+```
+
+This is the most efficient way to check for "has no children" in SQL. An alternative like `withCount('posts')->having('posts_count', 0)` would load all topic rows into memory and count them in PHP — much slower for large datasets.
+
+```php
+        // 6. Inactive members (30+ days since last activity)
+        $inactiveMembers30days = User::where('group_id', $groupId)
+            ->whereNotNull('last_active_at')  // Only users who have EVER been active
+            ->where('last_active_at', '<', now()->subDays(30))
+            ->count();
+
+        // Save everything
+        Statistics::updateOrCreate(
+            ['group_id' => $groupId],
+            [
+                'total_members' => $totalMembers,
+                'active_members_this_week' => $activeMembersThisWeek,
+                'total_topics' => $totalTopics,
+                'total_posts' => $totalPosts,
+                'unanswered_questions' => $unansweredQuestions,
+                'inactive_members_30days' => $inactiveMembers30days,
+                'last_calculated_at' => now(),
             ]
         );
-        return ['group' => $group, 'stats' => $stats];
-    })->toArray();
+
+        return Statistics::where('group_id', $groupId)->first();
+    }
+```
+
+**`updateOrCreate` is the star of this method.** It does two things:
+1. Find a statistics row where `group_id = X`
+2. If found → update the row with the new values
+3. If not found → create a new row with `group_id = X` and the new values
+
+This is called an **upsert** (UPDATE + INSERT). It means you can call `recalculate()` 100 times, and you'll always have exactly one row per group — never duplicates, never errors.
+
+```php
+    public function getStatsForUser(User $user): array
+    {
+        if ($user->isSystemAdmin()) {
+            $groups = Group::all();
+        } elseif ($user->isGroupAdmin()) {
+            $adminGroupIds = $user->administeredGroups()->pluck('groups.id');
+            $groups = Group::whereIn('id', $adminGroupIds)->get();
+        } else {
+            $groups = $user->group_id
+                ? Group::where('id', $user->group_id)->get()
+                : collect();
+        }
+
+        return $groups->map(function (Group $group) {
+            $stats = Statistics::firstOrCreate(
+                ['group_id' => $group->id],
+                ['total_members' => 0, 'active_members_this_week' => 0,
+                 'total_topics' => 0, 'total_posts' => 0,
+                 'unanswered_questions' => 0, 'inactive_members_30days' => 0]
+            );
+            return ['group' => $group, 'stats' => $stats];
+        })->toArray();
+    }
 }
 ```
 
-**Key logic:** `firstOrCreate` either returns the existing statistics row for a group, or creates a new row with all zeros. This means the dashboard never shows an error for groups that haven't been calculated yet.
+**The role-based access control pattern here is important.** Notice the three branches:
+1. **System Admin** → sees ALL groups
+2. **Group Admin** → sees only groups they administer (queried from the `group_admins` pivot table)
+3. **Regular user** → sees only their own group (or none if they have no group)
+
+This isn't just about hiding data — it's about showing relevant data. A Group Admin for "BSSE Year 1" shouldn't see statistics for "BSSE Year 2." It would be confusing and potentially a privacy concern.
+
+**Why `firstOrCreate` instead of just returning existing rows?** Because a brand-new group might never have had its statistics calculated yet. Without `firstOrCreate`, the new group simply wouldn't appear on the dashboard at all — it would be invisible. With `firstOrCreate`, the group appears with all zeros, and the admin can click "Recalculate" to populate real numbers.
 
 ---
 
-### 3.4 StatisticsController — `app/Http/Controllers/Admin/StatisticsController.php`
+### 3.4 The Controller Layer — Handling HTTP
 
 ```php
+// app/Http/Controllers/Admin/StatisticsController.php
+
 class StatisticsController extends Controller
 {
     public function __construct(
-        protected StatisticsUtility $statisticsUtility   // Dependency injection
+        protected StatisticsUtility $statisticsUtility
     ) {}
+```
 
+**Constructor promotion (PHP 8+):** The `protected StatisticsUtility $statisticsUtility` parameter simultaneously declares a class property AND assigns the injected value to it. Before PHP 8, you'd write:
+
+```php
+private StatisticsUtility $statisticsUtility;
+
+public function __construct(StatisticsUtility $statisticsUtility)
+{
+    $this->statisticsUtility = $statisticsUtility;
+}
+```
+
+Constructor promotion saves the boilerplate. Laravel's container automatically resolves `StatisticsUtility` — you never call `new StatisticsUtility()` yourself.
+
+```php
     public function index(): View
     {
-        // Get stats for the currently logged-in user
         $groupStats = $this->statisticsUtility->getStatsForUser(Auth::user());
-
         return view('admin.statistics.index', compact('groupStats'));
     }
 
     public function recalculate(int $groupId): RedirectResponse
     {
         $user = Auth::user();
-        $group = Group::findOrFail($groupId);   // Returns 404 if group doesn't exist
+        $group = Group::findOrFail($groupId);
 
-        // Extra authorisation check (beyond the admin middleware)
+        // Why this extra check? Because the route is behind 'admin' middleware,
+        // but a Group Admin shouldn't be able to recalculate stats for a group
+        // they don't administer.
         if (! $user->canAccessGroup($groupId)) {
             abort(403, 'You do not have access to statistics for this group.');
         }
@@ -337,135 +532,113 @@ class StatisticsController extends Controller
 }
 ```
 
-**How dependency injection works here:** Laravel's container automatically creates a `StatisticsUtility` instance and passes it to the constructor. The `protected StatisticsUtility $statisticsUtility` property is then available in both methods.
+**Defense in depth:** The route is protected by two layers:
+1. **Route middleware:** The admin prefix has `middleware('admin')` in the routes file, so only admins can reach this controller at all.
+2. **Controller-level check:** Even though the user is an admin, `canAccessGroup` verifies they can access THIS specific group.
 
-**Why `findOrFail`?** If someone passes a non-existent group ID (e.g., `/admin/statistics/999/recalculate`), `findOrFail` throws a ModelNotFoundException which Laravel converts to a 404 response. No extra error-handling code needed.
+This is the principle of **defense in depth** — don't rely on a single security boundary. If someone accidentally removes the middleware from the route file, the controller-level check still prevents unauthorized access.
 
-**The `canAccessGroup` check:** Even though the route is behind the `admin` middleware (so only admins can reach it), a Group Admin should only recalculate stats for groups they administer, not every group. This check prevents privilege escalation.
-
----
-
-### 3.5 Statistics View — `resources/views/admin/statistics/index.blade.php`
-
-```blade
-@extends('layouts.app')
-
-@section('title', 'Statistics Dashboard')
-
-@section('content')
-<div class="page-stack">
-    <header class="page-header">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-                <h1>Platform Statistics</h1>
-                <p>Engagement metrics for all groups you administer</p>
-            </div>
-        </div>
-    </header>
-
-    @forelse ($groupStats as $item)
-        @php
-            $group = $item['group'];
-            $stats = $item['stats'];
-            $lastUpdated = $stats->last_calculated_at
-                ? $stats->last_calculated_at->diffForHumans()
-                : 'Not yet calculated';
-        @endphp
-
-        <section class="card" style="margin-bottom: 1.5rem;">
-            {{-- Group header with Recalculate button --}}
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-                <div>
-                    <h2 style="margin: 0;">{{ $group->group_name }}</h2>
-                    <p style="margin: 0.25rem 0 0; font-size: 0.875rem; color: var(--text-muted);">
-                        Last updated: {{ $lastUpdated }}
-                    </p>
-                </div>
-                <form method="POST" action="{{ route('admin.statistics.recalculate', $group->id) }}" style="display: inline;">
-                    @csrf
-                    <button type="submit" class="btn btn-secondary btn-sm">
-                        <span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: middle;">refresh</span>
-                        Recalculate
-                    </button>
-                </form>
-            </div>
-
-            {{-- 6 metric cards in a responsive grid --}}
-            <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
-                <div class="dashboard-card">
-                    <h3>Total Members</h3>
-                    <div class="number">{{ $stats->total_members }}</div>
-                </div>
-                <div class="dashboard-card">
-                    <h3>Active This Week</h3>
-                    <div class="number" style="color: #4caf50;">
-                        {{ $stats->active_members_this_week }}
-                        <span style="font-size: 0.875rem; font-weight: 400; color: var(--text-muted);">
-                            ({{ $stats->activePercentage() }}%)
-                        </span>
-                    </div>
-                </div>
-                <div class="dashboard-card">
-                    <h3>Total Topics</h3>
-                    <div class="number" style="color: #2196f3;">{{ $stats->total_topics }}</div>
-                </div>
-                <div class="dashboard-card">
-                    <h3>Total Posts</h3>
-                    <div class="number" style="color: #ff9800;">
-                        {{ $stats->total_posts }}
-                        <span style="font-size: 0.875rem;">
-                            ({{ $stats->averagePostsPerTopic() }} avg/topic)
-                        </span>
-                    </div>
-                </div>
-                <div class="dashboard-card">
-                    <h3>Unanswered Questions</h3>
-                    <div class="number" style="color: #f44336;">{{ $stats->unanswered_questions }}</div>
-                </div>
-                <div class="dashboard-card">
-                    <h3>Inactive 30+ Days</h3>
-                    <div class="number" style="color: #9c27b0;">{{ $stats->inactive_members_30days }}</div>
-                </div>
-            </div>
-        </section>
-    @empty
-        {{-- Empty state when no groups are available --}}
-        <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
-            <span class="material-symbols-outlined" style="font-size: 3rem; color: var(--text-muted);">bar_chart</span>
-            <h2>No groups available</h2>
-            <p style="color: var(--text-muted);">You don't administer any groups yet.</p>
-        </div>
-    @endforelse
-</div>
-@endsection
+**`findOrFail` vs `find`:** `Group::find($groupId)` returns null if the group doesn't exist. `Group::findOrFail($groupId)` throws a `ModelNotFoundException`, which Laravel converts to a 404 response. Using `findOrFail` means you don't need to write:
+```php
+$group = Group::find($groupId);
+if (!$group) {
+    abort(404);
+}
 ```
 
-**Template logic explained:**
-- `@forelse` is a Blade loop that also handles the empty case — if `$groupStats` is empty, the `@empty` block renders instead
-- `$stats->last_calculated_at->diffForHumans()` converts the timestamp to a human-friendly string like "2 hours ago" or "3 days ago". The `? :` ternary checks if it's null and shows "Not yet calculated" instead of crashing
-- The form uses `@csrf` to include Laravel's CSRF token (prevents cross-site request forgery attacks). The route is `admin.statistics.recalculate` which maps to `POST /admin/statistics/{group}/recalculate`
-- `$stats->activePercentage()` calls the model helper method we defined earlier
-- The `@empty` block shows an empty state with an icon and a message instead of a blank page
+---
+
+### 3.5 The View Layer — Displaying Data to Admins
+
+```blade
+{{-- resources/views/admin/statistics/index.blade.php --}}
+
+@forelse ($groupStats as $item)
+    @php
+        $group = $item['group'];
+        $stats = $item['stats'];
+        $lastUpdated = $stats->last_calculated_at
+            ? $stats->last_calculated_at->diffForHumans()
+            : 'Not yet calculated';
+    @endphp
+
+    <section class="card" style="margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <div>
+                <h2 style="margin: 0;">{{ $group->group_name }}</h2>
+                <p style="margin: 0.25rem 0 0; font-size: 0.875rem; color: var(--text-muted);">
+                    Last updated: {{ $lastUpdated }}
+                </p>
+            </div>
+            <form method="POST" action="{{ route('admin.statistics.recalculate', $group->id) }}" style="display: inline;">
+                @csrf
+                <button type="submit" class="btn btn-secondary btn-sm">
+                    <span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: middle;">refresh</span>
+                    Recalculate
+                </button>
+            </form>
+        </div>
+
+        <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+            <div class="dashboard-card">
+                <h3>Total Members</h3>
+                <div class="number">{{ $stats->total_members }}</div>
+            </div>
+            {{-- ... 5 more metric cards ... --}}
+        </div>
+    </section>
+@empty
+    {{-- If $groupStats is empty (user has no groups) --}}
+    <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
+        <span class="material-symbols-outlined" style="font-size: 3rem; color: var(--text-muted);">bar_chart</span>
+        <h2>No groups available</h2>
+        <p style="color: var(--text-muted);">You don't administer any groups yet.</p>
+    </div>
+@endforelse
+```
+
+**`@forelse` vs `@foreach`:** The difference is the `@empty` block. `@forelse` says: "try to loop through this collection, and if it's empty, show this fallback content instead." Without `@forelse`, you'd need:
+```blade
+@if ($groupStats->isEmpty())
+    {{-- empty state --}}
+@else
+    @foreach ($groupStats as $item)
+        {{-- normal content --}}
+    @endforeach
+@endif
+```
+`@forelse` is cleaner and expresses the intent more directly.
+
+**The `@csrf` directive** generates a hidden input field with a CSRF token:
+```html
+<input type="hidden" name="_token" value="abc123...">
+```
+Laravel checks this token on every POST request. If the token is missing or invalid, the request is rejected. This prevents **Cross-Site Request Forgery** — an attack where a malicious site tricks a user's browser into making unwanted requests to another site.
 
 ---
 
-## 4. Person 2: Backend Stats Logic & Topic Classification
+## 4. Person 2: Automatic Stats & Topic Classification
 
-### 4.1 CalculateStatistics Command — `app/Console/Commands/CalculateStatistics.php`
-
-This is an Artisan command that can be run manually or by the scheduler. It recalculates statistics from live data and sends inactivity warnings.
+### 4.1 The CalculateStatistics Command — Automation Through Scheduler
 
 ```php
+// app/Console/Commands/CalculateStatistics.php
+
 class CalculateStatistics extends Command
 {
-    // The signature defines the command name and optional argument
     protected $signature = 'app:calculate-statistics {groupId?}';
     protected $description = 'Calculate statistics for one or all groups';
+```
 
+**The `$signature` format:** `app:calculate-statistics` is the command name. `{groupId?}` is an optional argument (the `?` makes it optional). The user runs it as:
+```bash
+php artisan app:calculate-statistics     # All groups
+php artisan app:calculate-statistics 5   # Only group ID 5
+```
+
+```php
     public function handle()
     {
-        // If a groupId is provided, only recalculate that group
-        // Otherwise, recalculate ALL groups
         if ($groupId = $this->argument('groupId')) {
             $groups = Group::where('id', $groupId)->get();
         } else {
@@ -480,322 +653,293 @@ class CalculateStatistics extends Command
     }
 ```
 
-**`{groupId?}`** — the `?` makes it optional. So both of these work:
-```
-php artisan app:calculate-statistics        # All groups
-php artisan app:calculate-statistics 3      # Only group ID 3
-```
+**`$this->info()`** outputs green text to the console. Other console output methods:
+- `$this->line()` — plain text (no color)
+- `$this->warn()` — yellow text (warnings)
+- `$this->error()` — red text (errors)
+- `$this->newLine()` — blank line
 
-**`$this->info()`** outputs green text to the console. Also available: `$this->warn()` (yellow), `$this->error()` (red), `$this->line()` (plain).
-
-#### The `calculateForGroup()` method — where the actual counting happens
+#### Inside `calculateForGroup()` — Where the Counting Happens
 
 ```php
-private function calculateForGroup(Group $group)
-{
-    // 1. Count total members
-    $totalMembers = User::where('group_id', $group->id)->count();
+    private function calculateForGroup(Group $group)
+    {
+        // 1. Total members: straightforward count
+        $totalMembers = User::where('group_id', $group->id)->count();
 
-    // 2. Active this week — distinct users who posted in the last 7 days
-    $activeMembersThisWeek = Post::whereIn('topic_id',
-            Topic::where('group_id', $group->id)->pluck('id')
-        )
-        ->where('created_at', '>=', now()->subWeek())
-        ->distinct('user_id')
-        ->count();
+        // 2. Active this week: distinct users who posted in the last 7 days
+        $activeMembersThisWeek = Post::whereIn('topic_id',
+                Topic::where('group_id', $group->id)->pluck('id')
+            )
+            ->where('created_at', '>=', now()->subWeek())
+            ->distinct('user_id')
+            ->count();
 
-    // 3. Total posts
-    $totalPosts = Post::whereIn('topic_id',
-            Topic::where('group_id', $group->id)->pluck('id')
-        )
-        ->count();
+        // 3. Total posts
+        $totalPosts = Post::whereIn('topic_id',
+                Topic::where('group_id', $group->id)->pluck('id')
+            )->count();
+```
 
-    // 4. Total topics
-    $totalTopics = Topic::where('group_id', $group->id)->count();
+**Note a key difference from `StatisticsUtility::recalculate()`:**
 
-    // 5. Unanswered questions (questions with 0 replies)
-    $unansweredQuestions = Topic::where('group_id', $group->id)
-        ->where('post_type', 'question')
-        ->withCount('posts')
-        ->get()
-        ->filter(function ($topic) {
-            return $topic->posts_count == 0;
-        })
-        ->count();
+- `StatisticsUtility` counts active members using `User::where('last_active_at', '>=', now()->subWeek())` — it checks the user's last activity timestamp
+- `CalculateStatistics` uses `Post::distinct('user_id')->where('created_at', '>=', now()->subWeek())` — it counts distinct users who actually posted in the last week
 
-    // 6. Inactive members (haven't posted in 30+ days)
-    $inactiveMembers = User::where('group_id', $group->id)
-        ->where(function ($q) {
-            $q->where('last_active_at', '<', now()->subDays(30))
-              ->orWhereNull('last_active_at');
-        })
-        ->count();
+These can give different results! A user who visited the forum and read topics (updating `last_active_at`) but didn't post anything would be counted by `StatisticsUtility` but NOT by `CalculateStatistics`. Which is correct? It depends on what you mean by "active." The command uses a stricter definition (actually contributing content vs. just browsing).
 
-    // 7. Send inactivity warnings
-    $inactiveUsers = User::where('group_id', $group->id)
-        ->where(function ($q) {
-            $q->where('last_active_at', '<', now()->subDays(30))
-              ->orWhereNull('last_active_at');
-        })
-        ->get();
+```php
+        // 4. Total topics
+        $totalTopics = Topic::where('group_id', $group->id)->count();
 
-    foreach ($inactiveUsers as $user) {
-        $daysInactive = $user->last_active_at
-            ? now()->diffInDays($user->last_active_at)
-            : 'many';
-        app(NotificationService::class)->sendInactivityWarning($user, $daysInactive);
+        // 5. Unanswered questions
+        $unansweredQuestions = Topic::where('group_id', $group->id)
+            ->where('post_type', 'question')
+            ->withCount('posts')
+            ->get()
+            ->filter(function ($topic) {
+                return $topic->posts_count == 0;
+            })
+            ->count();
+```
+
+**Why `filter()` instead of `whereDoesntHave`?** This is actually less efficient than the approach in `StatisticsUtility`. `whereDoesntHave('posts')` runs as a SQL `NOT EXISTS` subquery, filtering at the database level. This approach loads ALL question topics into memory (with their post counts), then loops through them in PHP to count the zero-reply ones.
+
+For a group with 500 question topics, both approaches work fine. For a group with 50,000 topics, the `whereDoesntHave` approach would be significantly faster.
+
+```php
+        // 6. Inactive members
+        $inactiveMembers = User::where('group_id', $group->id)
+            ->where(function ($q) {
+                $q->where('last_active_at', '<', now()->subDays(30))
+                  ->orWhereNull('last_active_at');  // Never even logged in
+            })
+            ->count();
+```
+
+**The `orWhereNull('last_active_at')` is a design decision.** New users who registered but never logged in have `last_active_at = NULL`. Should they be counted as "inactive 30+ days"? They haven't been active 30+ days — they've never been active at all. This code counts them as inactive, which makes sense for the purpose of sending engagement nudges.
+
+```php
+        // 7. Send inactivity warnings
+        $inactiveUsers = User::where('group_id', $group->id)
+            ->where(function ($q) {
+                $q->where('last_active_at', '<', now()->subDays(30))
+                  ->orWhereNull('last_active_at');
+            })
+            ->get();
+
+        foreach ($inactiveUsers as $user) {
+            $daysInactive = $user->last_active_at
+                ? now()->diffInDays($user->last_active_at)
+                : 'many';
+
+            app(NotificationService::class)->sendInactivityWarning($user, $daysInactive);
+        }
+```
+
+**Person 2 is reaching into Person 4's territory here.** The `CalculateStatistics` command calls `NotificationService::sendInactivityWarning()`. This is fine — services are meant to be composed. The notification service is a utility that anyone can call.
+
+```php
+        // 8. Save the snapshot
+        Statistics::updateOrCreate(
+            ['group_id' => $group->id],
+            [
+                'total_members' => $totalMembers,
+                'active_members_this_week' => $activeMembersThisWeek,
+                'total_posts' => $totalPosts,
+                'total_topics' => $totalTopics,
+                'unanswered_questions' => $unansweredQuestions,
+                'inactive_members_30days' => $inactiveMembers,
+                'last_calculated_at' => now(),
+            ]
+        );
+
+        $this->info("Calculated stats for: {$group->group_name}");
     }
-
-    // 8. Save the snapshot
-    Statistics::updateOrCreate(
-        ['group_id' => $group->id],
-        [
-            'total_members' => $totalMembers,
-            'active_members_this_week' => $activeMembersThisWeek,
-            'total_posts' => $totalPosts,
-            'total_topics' => $totalTopics,
-            'unanswered_questions' => $unansweredQuestions,
-            'inactive_members_30days' => $inactiveMembers,
-            'last_calculated_at' => now(),
-        ]
-    );
-
-    $this->info("Calculated stats for: {$group->group_name}");
 }
 ```
 
-**Notable differences from StatisticsUtility's `recalculate()`:**
-
-| Aspect | StatisticsUtility | CalculateStatistics command |
-|---|---|---|
-| Active members | Uses `last_active_at` on users table | Uses distinct `user_id` on posts table |
-| Inactive members | Only counts users with `last_active_at` not null | Also counts users with null `last_active_at` (never posted) |
-| Side effects | None — just stores stats | Also sends notifications |
-| Context | Called from web controller | Called from scheduler |
-
-Both approaches are valid. The command is more aggressive about detecting inactive users because it also sends warnings.
-
-**`app(NotificationService::class)`** — this is Laravel's `app()` helper that resolves a class from the container. It creates a new `NotificationService` instance (with any dependencies injected automatically) and calls `sendInactivityWarning()` on it.
-
-### 4.2 Scheduled Task — `routes/console.php`
+### 4.2 The Scheduler — Making It Automatic
 
 ```php
+// routes/console.php
+
 Schedule::command('app:calculate-statistics')->dailyAt('02:00');
 ```
 
-This line is added to `routes/console.php` which Laravel reads when the scheduler runs. The scheduler checks every minute (via the server's cron job) whether any scheduled commands are due. At 2:00 AM, this command triggers.
+**How Laravel's scheduler works:**
 
-**Existing scheduled commands in the same file:**
+1. You set up ONE cron job on your server that runs every minute:
+   ```
+   * * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1
+   ```
+2. Every minute, Laravel checks `routes/console.php` to see if any scheduled command is due.
+3. At 2:00 AM, `app:calculate-statistics` is due → Laravel runs it.
 
-```php
-Schedule::command('monitor:activity')->daily()->at('02:00');
-Schedule::command('quiz:send-reminders')->everyMinute();
-Schedule::command('quiz:activate')->everyMinute();
-```
-
-All three run independently. `monitor:activity` handles the Warning 1→Warning 2→Blacklist escalation. `calculate-statistics` computes the numbers for the dashboard. They don't interfere with each other.
+**Why 2:00 AM?** This is a convention. 2-4 AM is typically the lowest traffic period for web applications. Running heavy calculations during peak usage would slow down the application for users.
 
 ---
 
-### 4.3 TopicClassificationService — `app/Services/TopicClassificationService.php`
-
-This is the "ML" engine. It uses keyword matching to automatically tag topics into categories.
-
-#### Keyword definitions
+### 4.3 The ClassifyTopics Command — Catching Up Old Topics
 
 ```php
-private $categoryKeywords = [
-    'Django' => ['django', 'python', 'framework', 'views', 'models', 'templates'],
-    'APIs' => ['api', 'rest', 'endpoint', 'http', 'json', 'request'],
-    'Database' => ['database', 'sql', 'query', 'table', 'column', 'join', 'relational'],
-    'JavaScript' => ['javascript', 'js', 'react', 'vue', 'node', 'npm'],
-    'CSS' => ['css', 'styling', 'bootstrap', 'tailwind', 'design', 'layout'],
-    'General' => [],   // Fallback — no keywords means it only matches when nothing else does
-];
-```
+// app/Console/Commands/ClassifyTopics.php
 
-**Why hardcoded?** For the MVP, this keeps things simple. In production, these would be stored in the `topic_categories` table's `keyword_hints` column so admins can add/edit categories without touching code.
-
-#### `classifyTopic(Topic $topic)` — the core classification algorithm
-
-```php
-public function classifyTopic(Topic $topic)
+class ClassifyTopics extends Command
 {
-    // Step 1: Combine title + description into one lowercase string
-    $text = strtolower($topic->title . ' ' . $topic->description);
+    protected $signature = 'app:classify-topics {groupId}';
+    protected $description = 'Classify topics in a group';
 
-    // Step 2: Score every category by counting keyword matches
-    $scores = [];
-    foreach ($this->categoryKeywords as $categoryName => $keywords) {
-        $score = 0;
-        foreach ($keywords as $keyword) {
-            // substr_count counts how many times $keyword appears in $text
-            $score += substr_count($text, $keyword);
+    public function handle()
+    {
+        $groupId = $this->argument('groupId');
+
+        if ($groupId) {
+            $count = app(TopicClassificationService::class)->classifyGroupTopics($groupId);
+            $this->info("Classified {$count} topics in group {$groupId}.");
+        } else {
+            $this->error('Please provide a group ID');
         }
-        $scores[$categoryName] = $score;
     }
-
-    // Step 3: Find the category with the highest score
-    arsort($scores);          // Sort descending by score (highest first)
-    $bestCategory = array_key_first($scores);  // Get the key of the first element
-
-    // Step 4: If no keywords matched at all, assign "General"
-    if ($scores[$bestCategory] === 0) {
-        $bestCategory = 'General';
-    }
-
-    // Step 5: Find or create the category in the database
-    $category = TopicCategory::firstOrCreate(
-        [
-            'group_id' => $topic->group_id,
-            'category_name' => $bestCategory,
-        ],
-        [
-            'keyword_hints' => implode(',', $this->categoryKeywords[$bestCategory]),
-        ]
-    );
-
-    // Step 6: Update the topic with the category_id
-    $topic->update(['category_id' => $category->id]);
-
-    return $category;
 }
 ```
 
-**Step-by-step example:**
+This command is meant to be run once after deploying the module, to classify all existing topics that were created before the auto-classification system existed:
 
-A topic is created with title *"How to build a REST API with Django REST Framework"* and description *"I need help with Django views and serializers"*.
-
-The algorithm:
-1. Lowercases everything: `"how to build a rest api with django rest framework i need help with django views and serializers"`
-2. Scores each category:
-   - **Django**: "django" appears 2 times, "framework" appears 1 time, "views" 1 time → score = 4
-   - **APIs**: "api" appears 1 time, "rest" appears 2 times → score = 3
-   - **Database**: "sql" = 0, "query" = 0 → score = 0
-   - **JavaScript**: 0
-   - **CSS**: 0
-3. `arsort($scores)` gives: `['Django' => 4, 'APIs' => 3, 'Database' => 0, 'JavaScript' => 0, 'CSS' => 0]`
-4. `array_key_first($scores)` returns `'Django'` (score 4, highest)
-5. `firstOrCreate` looks for a TopicCategory with `group_id = $topic->group_id` and `category_name = 'Django'`. If it doesn't exist, it creates one with `keyword_hints = 'django,python,framework,views,models,templates'`
-6. `$topic->update(['category_id' => $category->id])` saves the category to the topic
-
-#### `classifyGroupTopics($groupId)` — bulk classify existing topics
-
-```php
-public function classifyGroupTopics($groupId)
-{
-    // Only get topics that don't already have a category
-    $topics = Topic::where('group_id', $groupId)
-        ->whereNull('category_id')
-        ->get();
-
-    foreach ($topics as $topic) {
-        $this->classifyTopic($topic);
-    }
-
-    return count($topics);  // Return how many were classified
-}
+```bash
+php artisan app:classify-topics 1   # Classify all unclassified topics in group 1
+php artisan app:classify-topics 2   # Group 2
 ```
 
-**Why `whereNull('category_id')`?** This prevents re-classifying topics that already have a category. On the first run after installing the module, all old topics will have null `category_id`, so they all get classified. On subsequent runs, only newly created topics (which may have been created while the scheduler was off) get classified.
+After this initial run, new topics are classified automatically by the `booted()` hook on the Topic model.
 
 ---
 
-### 4.4 Auto-Classification on Topic Creation — `app/Models/Topic.php`
+## 5. Person 3: Recommendations Engine & UI
+
+### 5.1 How the Recommendation Engine Works (The Algorithm)
+
+The recommendation engine is the most algorithmically interesting piece of this module.
 
 ```php
-class Topic extends Model
-{
-    use HasFactory;
+// app/Services/RecommendationService.php
 
-    protected $fillable = [
-        'group_id', 'created_by', 'title', 'description',
-        'status', 'post_type', 'is_answered', 'is_pinned',
-        'category_id',    // <-- Added for classification
-    ];
-
-    // The booted() method registers model event hooks
-    protected static function booted()
-    {
-        // "created" fires after a new topic is saved to the database
-        static::created(function ($topic) {
-            // Automatically classify this topic using the keyword engine
-            app(TopicClassificationService::class)->classifyTopic($topic);
-        });
-    }
-
-    // Relationship to the category
-    public function category()
-    {
-        return $this->belongsTo(TopicCategory::class, 'category_id');
-    }
-
-    // ... other relationships and scopes ...
-}
-```
-
-**How `booted()` works:**
-
-Every Eloquent model has lifecycle events: `retrieved`, `creating`, `created`, `updating`, `updated`, `saving`, `saved`, `deleting`, `deleted`. The `created` event fires right after a new record is inserted into the database.
-
-The closure `function ($topic) { ... }` receives the newly created Topic instance. At this point, the topic has an ID and all its fields are saved. `app(TopicClassificationService::class)` resolves the service from Laravel's container, and `classifyTopic($topic)` runs the keyword matching and updates the topic's `category_id`.
-
-**Important:** `booted()` is called on every request to the application, but the closure only runs when a topic is actually created — not on every page load.
-
----
-
-## 5. Person 3: Recommendations Logic & UI
-
-### 5.1 RecommendationService — `app/Services/RecommendationService.php`
-
-This service generates personalized topic suggestions. Let's walk through it line by line.
-
-#### `generateRecommendations(User $user, int $limit = 5)`
-
-```php
 public function generateRecommendations(User $user, int $limit = 5)
 {
-    // Step 1: Find categories the user has engaged with
-    // We look at the topics the user has posted in, and collect their category IDs
+    // ─── Step 1: What does this user like? ───────────────────────
+    // Look at every topic the user has posted in, collect their category IDs
     $userEngagedCategoryIds = Topic::whereIn('id', function ($q) use ($user) {
         $q->select('topic_id')
             ->from('posts')
             ->where('user_id', $user->id);
     })
-        ->whereNotNull('category_id')
+        ->whereNotNull('category_id')   // Skip unclassified topics
         ->pluck('category_id')
         ->unique()
         ->toArray();
+```
 
-    // Step 2: If user hasn't engaged with anything, return popular topics
+**What this query does, in SQL:**
+
+```sql
+SELECT DISTINCT category_id FROM topics
+WHERE id IN (
+    SELECT topic_id FROM posts WHERE user_id = 5
+)
+AND category_id IS NOT NULL
+```
+
+**Translation:** "Find all the categories of topics that user 5 has posted in. Don't include uncategorized topics."
+
+```php
+    // ─── Step 2: New user with no history? Show popular topics ─────
     if (empty($userEngagedCategoryIds)) {
         return $this->getPopularTopics($user, $limit);
     }
+```
 
-    // Step 3: Find topics in those categories that the user hasn't seen
+**Why this exists:** A brand-new user who hasn't posted anything yet has no engagement history. Without this fallback, they'd get an empty recommendations section. Showing popular topics gives them something to start with.
+
+```php
+    // ─── Step 3: Find topics they'll like ───────────────────────
     $recommendations = Topic::whereIn('category_id', $userEngagedCategoryIds)
         ->where('status', 'active')
         ->when($user->group_id !== null, fn ($q) => $q->where('group_id', $user->group_id))
+```
+
+**`->when(condition, closure)`** is a conditional query builder. If the condition is true, the closure is applied. This lets you build conditional WHERE clauses without breaking the chain:
+```php
+// Without `when`:
+$query = Topic::whereIn('category_id', $ids)->where('status', 'active');
+if ($user->group_id !== null) {
+    $query->where('group_id', $user->group_id);
+}
+
+// With `when`:
+$query = Topic::whereIn('category_id', $ids)
+    ->where('status', 'active')
+    ->when($user->group_id !== null, fn ($q) => $q->where('group_id', $user->group_id));
+```
+
+For a system admin who might not have a group_id, the `when` prevents adding a `WHERE group_id = NULL` clause that would return zero results.
+
+```php
         ->whereNotIn('id', function ($q) use ($user) {
-            // Exclude topics the user has already posted in
-            $q->select('topic_id')
-                ->from('posts')
-                ->where('user_id', $user->id);
+            // Remove topics user already participated in
+            $q->select('topic_id')->from('posts')->where('user_id', $user->id);
         })
         ->whereNotIn('id', function ($q) use ($user) {
-            // Exclude topics already recommended before
-            $q->select('topic_id')
-                ->from('recommendation_log')
-                ->where('user_id', $user->id);
+            // Remove topics already recommended before
+            $q->select('topic_id')->from('recommendation_log')->where('user_id', $user->id);
         })
-        ->with('creator')
-        ->with('category')
-        ->withCount('posts')
+```
+
+**Two `whereNotIn` subqueries, two different exclusions:**
+
+1. **Already posted in** — If the user already replied to "How to use Django ORM," why recommend it? They've already seen it.
+2. **Already recommended** — If we recommended "Django REST Framework tutorial" last week and the user didn't click it, recommending it again would be annoying. The `recommendation_log` table prevents this.
+
+**The generated SQL looks like:**
+```sql
+SELECT * FROM topics
+WHERE category_id IN (1, 3)
+  AND status = 'active'
+  AND group_id = 2
+  AND id NOT IN (SELECT topic_id FROM posts WHERE user_id = 5)
+  AND id NOT IN (SELECT topic_id FROM recommendation_log WHERE user_id = 5)
+ORDER BY created_at DESC
+LIMIT 5
+```
+
+```php
+        ->with('creator')     // Eager-load the topic creator
+        ->with('category')    // Eager-load the category name
+        ->withCount('posts')  // Add posts_count subquery
         ->orderBy('created_at', 'desc')
         ->limit($limit)
         ->get();
+```
 
-    // Step 4: Log every recommendation so they aren't repeated
+**Why eager-load (`with`)?** Without `with`, accessing `$topic->creator->name` in the view would trigger a NEW SQL query for each topic (the N+1 problem). With `with`, Laravel executes one query to get all 5 topics, then one query to get all 5 creators — 2 queries total instead of 6.
+
+**Without eager loading:**
+```
+Query 1: SELECT * FROM topics WHERE ... LIMIT 5
+Query 2: SELECT * FROM users WHERE id = ?  (for topic 1's creator)
+Query 3: SELECT * FROM users WHERE id = ?  (for topic 2's creator)
+...
+```
+
+**With eager loading:**
+```
+Query 1: SELECT * FROM topics WHERE ... LIMIT 5
+Query 2: SELECT * FROM users WHERE id IN (?, ?, ?, ?, ?)  ← one query for all 5 creators
+```
+
+This is a massive performance difference at scale.
+
+```php
+    // ─── Step 4: Log the recommendations so they're never repeated ──
     foreach ($recommendations as $topic) {
         RecommendationLog::updateOrCreate(
             ['user_id' => $user->id, 'topic_id' => $topic->id],
@@ -811,32 +955,11 @@ public function generateRecommendations(User $user, int $limit = 5)
 }
 ```
 
-**Detailed breakdown of the subquery chain:**
+**`updateOrCreate` is critical here.** Consider what happens if the user refreshes the page while the recommendations are being generated:
+- Without `updateOrCreate`: Two `INSERT` queries try to insert the same `(user_id, topic_id)` pair. The second one hits the unique constraint and throws a database error. The user sees a 500 error page.
+- With `updateOrCreate`: The second query finds the existing row and updates `recommended_at` to the current time. No error.
 
-The first subquery in Step 1 is a nested query:
-```sql
--- Outer: Find topics that match these IDs
-SELECT category_id FROM topics WHERE id IN (
-    -- Inner: Find all topic IDs the user has posted in
-    SELECT topic_id FROM posts WHERE user_id = 5
-)
-```
-Laravel's query builder builds this as a single SQL query using the closure in `whereIn`.
-
-The `whereNotIn` closures in Step 3 generate:
-```sql
-SELECT * FROM topics WHERE category_id IN (1, 3, 5)
-  AND status = 'active'
-  AND group_id = 2
-  AND id NOT IN (SELECT topic_id FROM posts WHERE user_id = 5)           -- not posted
-  AND id NOT IN (SELECT topic_id FROM recommendation_log WHERE user_id = 5)  -- not recommended
-  ORDER BY created_at DESC
-  LIMIT 5
-```
-
-This is pure SQL — no machine learning model involved. The "intelligence" comes from the logic: "find topics in categories the user already likes, exclude ones they've seen, recommend the newest first."
-
-#### `getPopularTopics(User $user, int $limit = 5)` — fallback for new users
+#### The Fallback: Popular Topics
 
 ```php
 private function getPopularTopics(User $user, int $limit = 5)
@@ -846,8 +969,7 @@ private function getPopularTopics(User $user, int $limit = 5)
         ->with('category')
         ->withCount('posts');
 
-    // System admins see popular topics across all groups
-    // Regular users see only their own group
+    // Regular users only see popular topics in their own group
     if ($user->group_id !== null) {
         $query->forGroup($user->group_id);
     }
@@ -858,32 +980,35 @@ private function getPopularTopics(User $user, int $limit = 5)
 }
 ```
 
-**When is this used?** When a new user registers and hasn't posted in any topics yet, `$userEngagedCategoryIds` will be empty (no posts = no categories). Instead of showing nothing, we show the most active topics in their group, sorted by reply count.
-
-**`$query->forGroup(...)`** calls the `scopeForGroup` scope defined in the `Topic` model, which adds `WHERE group_id = ?`. This is Eloquent's local scope system.
+**"Popular" = most replies.** A topic with 50 replies is clearly generating discussion and is more likely to interest a new user than a topic with 0 replies.
 
 ---
 
-### 5.2 DashboardController — `app/Http/Controllers/DashboardController.php`
+### 5.2 The Dashboard Controller
 
 ```php
+// app/Http/Controllers/DashboardController.php
+
 class DashboardController extends Controller
 {
     public function show()
     {
         $user = Auth::user();
-        $recommendedTopics = collect();   // Default: empty collection
+        $recommendedTopics = collect();
         $recentTopics = collect();
 
-        // System admins see all topics; others need a group
         if ($user->isSystemAdmin() || $user->group_id) {
             $topicQuery = Topic::where('status', 'active');
+```
 
+**`collect()`** creates an empty Laravel Collection. By initializing `$recommendedTopics` and `$recentTopics` as empty collections, we ensure that the view always receives these variables — even for users who don't belong to any group.
+
+```php
             if (! $user->isSystemAdmin()) {
                 $topicQuery->whereIn('group_id', $user->accessibleGroupIds());
             }
 
-            // Get 5 most recent topics
+            // 5 most recent topics
             $recentTopics = (clone $topicQuery)
                 ->with('creator')->withCount('posts')
                 ->latest()->take(5)->get()
@@ -894,8 +1019,19 @@ class DashboardController extends Controller
                     'reply_count' => $topic->posts_count,
                     'created_at' => $topic->created_at,
                 ]);
+```
 
-            // Get 3 personalized recommendations
+**Why `clone $topicQuery`?** Without `clone`, calling `->latest()->take(5)` would modify the original `$topicQuery` object. When we later use the query for recommendations, it would still have the `latest()->take(5)` constraints attached. `clone` creates a separate copy of the query builder object, so modifications to one don't affect the other.
+
+**`optional($topic->creator)->full_name ?? 'Deleted User'`** — This handles a real edge case. What if the topic's creator account was deleted? `$topic->creator` would return null, and calling `->full_name` on null would throw:
+```
+Error: Call to a member function full_name on null
+```
+
+`optional()` returns null gracefully if the object is null. The `??` (null coalescing operator) substitutes 'Deleted User' if the result is null.
+
+```php
+            // 3 personalized recommendations
             $recommendations = app(RecommendationService::class)
                 ->generateRecommendations($user, 3);
 
@@ -912,180 +1048,150 @@ class DashboardController extends Controller
     }
 ```
 
-**Why `clone $topicQuery`?** Because `->get()` would consume the query builder. By cloning, we create a separate copy so the second query starts from the same base conditions without the `.latest()->take(5)` that was applied to the first.
-
-**`optional($topic->creator)->full_name ?? 'Deleted User'`** — if the topic's creator was deleted, `$topic->creator` would be null, and calling `->full_name` on null would throw an error. `optional()` returns null instead, and the `??` operator substitutes 'Deleted User'.
-
 ---
 
-## 6. Person 4: Notifications Center & Sending Logic
+## 6. Person 4: Notifications System
 
-### 6.1 NotificationService — `app/Services/NotificationService.php`
-
-A centralized service for creating notifications from anywhere in the application.
-
-#### `sendToUser()` — the foundational method all others use
+### 6.1 The NotificationService — A Central Hub for All Notifications
 
 ```php
-public function sendToUser(User $user, string $title, string $message,
-                           string $type = 'info', array $extraData = []): Notification
-{
-    // Merge any extra data into the title+message for the JSON field
-    $data = array_merge([
-        'title' => $title,
-        'message' => $message,
-    ], $extraData);
+// app/Services/NotificationService.php
 
-    // Create the notification with both structured columns AND JSON data
-    return Notification::create([
-        'user_id' => $user->id,
-        'group_id' => $user->group_id,
-        'type' => $type,
-        'title' => $title,
-        'message' => $message,
-        'data' => $data,   // Populated for backward compatibility
-    ]);
-}
+class NotificationService
+{
+    public function sendToUser(User $user, string $title, string $message,
+                               string $type = 'info', array $extraData = []): Notification
+    {
+        $data = array_merge([
+            'title' => $title,
+            'message' => $message,
+        ], $extraData);
+
+        return Notification::create([
+            'user_id' => $user->id,
+            'group_id' => $user->group_id,
+            'type' => $type,
+            'title' => $title,
+            'message' => $message,
+            'data' => $data,  // ← Populate the JSON field for backward compatibility
+        ]);
+    }
 ```
 
-**Why both `title`/`message` columns AND `data` JSON?** The original notifications table only had a `data` JSON column. Old code that reads notifications (like the quiz notification center view) reads from `$notification->data['title']`. New code reads from `$notification->title`. By populating both, we keep everything working.
+**Why populate BOTH the flat columns (`title`, `message`) AND the JSON `data` field?**
 
-#### Convenience methods
+This is a backward-compatibility bridge. The notifications table originally had only `type` (string) and `data` (JSON). Old code (like the quiz notification center) reads from `$notification->data['title']`. New code reads from `$notification->title`.
 
-```php
-// Send to every user in a group at once
-public function sendToGroup(Group $group, string $title, string $message,
-                            string $type = 'info', array $extraData = []): void
-{
-    $userIds = User::where('group_id', $group->id)->pluck('id')->toArray();
-    $this->sendToUsers($userIds, $title, $message, $type, $extraData);
-}
+By populating both, we can migrate gradually:
+1. Old code that reads `$notification->data['title']` → still works
+2. New code that reads `$notification->title` → works too
+3. Eventually, when all old code is updated, we can stop populating `data`
 
-// Specific notification types with pre-written messages
-public function sendInactivityWarning(User $user, int|string $daysInactive): void
-{
-    $this->sendToUser($user,
-        'Inactivity Warning',
-        "You haven't posted in {$daysInactive} days. Please re-engage with your group!",
-        'warning',
-    );
-}
-
-public function sendQuizAnnouncement(User $user, string $quizTitle,
-                                     Carbon $startTime, array $quizData = []): void
-{
-    $this->sendToUser($user,
-        'Quiz Announcement',
-        "A new quiz '{$quizTitle}' is scheduled for {$startTime->format('M d, Y \\a\\t g:ia')}",
-        'alert',
-        $quizData,
-    );
-}
-
-// Count unread notifications (used by the navbar badge)
-public function getUnreadCount(User $user): int
-{
-    return Notification::where('user_id', $user->id)
-        ->whereNull('read_at')
-        ->count();
-}
-
-// Mark everything as read (used by "Mark all as read" button)
-public function markAllAsRead(User $user): void
-{
-    Notification::where('user_id', $user->id)
-        ->whereNull('read_at')
-        ->update(['read_at' => now()]);
-}
-```
-
-**`sendToGroup`** does a single query to get all user IDs in the group, then loops through each and calls `sendToUser`. For a group with 50 users, this creates 50 notification records in a single request.
-
-**`getUnreadCount`** is called every time the navbar renders. The `whereNull('read_at')` filter means: "count notifications where read_at IS NULL" — not yet read.
-
----
-
-### 6.2 NotificationController — `app/Http/Controllers/NotificationController.php`
-
-The web controller for the user-facing notification center.
+This is called the **Strangler Fig pattern** — gradually replace a component without breaking the system.
 
 ```php
-class NotificationController extends Controller
-{
-    // Show paginated notifications (unread first, then by recent)
-    public function index()
+    public function sendInactivityWarning(User $user, int|string $daysInactive): void
     {
-        $notifications = Notification::where('user_id', Auth::id())
-            ->orderByRaw('read_at IS NULL DESC')  // Unread first
-            ->orderByDesc('created_at')            // Then newest first
-            ->paginate(20);
-
-        return view('notifications.index', compact('notifications'));
+        $this->sendToUser(
+            $user,
+            'Inactivity Warning',
+            "You haven't posted in {$daysInactive} days. Please re-engage with your group!",
+            'warning',
+        );
     }
 
-    // Mark a single notification as read
-    public function read(int $id)
+    public function getUnreadCount(User $user): int
     {
-        $notification = Notification::findOrFail($id);
-
-        // Ownership check — you can only read your own notifications
-        if ($notification->user_id !== Auth::id()) {
-            abort(403, 'You are not authorized to update this notification.');
-        }
-
-        $notification->markAsRead();   // Calls the model helper we created
-
-        return redirect()->back()->with('success', 'Notification marked as read.');
+        return Notification::where('user_id', $user->id)
+            ->whereNull('read_at')  // Unread = read_at IS NULL
+            ->count();
     }
 
-    // Mark ALL notifications as read at once
-    public function readAll()
+    public function markAllAsRead(User $user): void
     {
-        Notification::where('user_id', Auth::id())
+        Notification::where('user_id', $user->id)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
-
-        return redirect()->back()->with('success', 'All notifications marked as read.');
-    }
-
-    // Delete a notification
-    public function delete(int $id)
-    {
-        $notification = Notification::findOrFail($id);
-
-        // Ownership check
-        if ($notification->user_id !== Auth::id()) {
-            abort(403, 'You are not authorized to delete this notification.');
-        }
-
-        $notification->delete();
-
-        return redirect()->back()->with('success', 'Notification deleted.');
     }
 }
 ```
 
-**`orderByRaw('read_at IS NULL DESC')`** — This is a clever SQL trick. `read_at IS NULL` evaluates to 1 (true) for unread notifications and 0 (false) for read ones. Sorting DESC puts 1s before 0s, so unread notifications always appear first, regardless of their creation date. Then `orderByDesc('created_at')` sorts within each group (newest unread first, newest read first).
+**`whereNull('read_at')`** leverages the fact that `read_at` is nullable. When a notification is created, `read_at` defaults to NULL (unread). When the user reads it, we set `read_at` to the current timestamp. So `WHERE read_at IS NULL` means "give me all unread notifications."
 
-**`$notification->markAsRead()`** calls the method we defined in the Notification model:
+**This is a common pattern** — simpler than having a separate `is_read` boolean column. With a boolean, you'd need to decide whether to default to 0 or 1. With a nullable timestamp, NULL = unread, any timestamp = read. Bonus: you know *when* it was read, not just *that* it was read.
+
+### 6.2 The NotificationController — User-Facing Operations
+
 ```php
-public function markAsRead(): void
+// app/Http/Controllers/NotificationController.php
+
+public function index()
 {
-    $this->update(['read_at' => now()]);
+    $notifications = Notification::where('user_id', Auth::id())
+        ->orderByRaw('read_at IS NULL DESC')  // Unread first
+        ->orderByDesc('created_at')            // Then newest first
+        ->paginate(20);
+
+    return view('notifications.index', compact('notifications'));
 }
 ```
 
----
+**`orderByRaw('read_at IS NULL DESC')`** — This is a clever SQL trick worth understanding:
 
-### 6.3 Navbar Badge — `resources/views/components/navbar.blade.php`
+```sql
+SELECT *, (read_at IS NULL) AS is_unread FROM notifications
+WHERE user_id = 5
+ORDER BY is_unread DESC, created_at DESC
+```
+
+`read_at IS NULL` evaluates to:
+- 1 (true) when `read_at` IS NULL → unread
+- 0 (false) when `read_at` has a value → read
+
+Sorting DESC puts 1s before 0s, so unread notifications always appear first. Within unread, they're sorted by `created_at DESC` (newest first). Within read, same sort.
+
+```php
+public function read(int $id)
+{
+    $notification = Notification::findOrFail($id);
+
+    // Ownership check — critical for privacy
+    if ($notification->user_id !== Auth::id()) {
+        abort(403, 'You are not authorized to update this notification.');
+    }
+
+    $notification->markAsRead();
+
+    return redirect()->back()->with('success', 'Notification marked as read.');
+}
+```
+
+**Why the ownership check?** Without it, user A could guess or brute-force notification IDs and mark user B's notifications as read. User B would miss important warnings. The check `$notification->user_id !== Auth::id()` ensures users can only modify their own notifications.
+
+```php
+public function readAll()
+{
+    // Single query marks everything at once — no loop needed
+    Notification::where('user_id', Auth::id())
+        ->whereNull('read_at')
+        ->update(['read_at' => now()]);
+
+    return redirect()->back()->with('success', 'All notifications marked as read.');
+}
+```
+
+**Why a single `update()` query instead of looping?** Consider a user with 500 notifications. Looping would execute 501 queries (1 SELECT + 500 UPDATEs). The single `update()` executes 1 UPDATE query with a WHERE clause.
+
+### 6.3 The Navbar Badge
 
 ```blade
+{{-- resources/views/components/navbar.blade.php --}}
+
 <a href="{{ route('notifications') }}" class="app-topbar-icon-btn"
    aria-label="Notifications" style="position: relative;">
     <span class="material-symbols-outlined">notifications</span>
 
     @php
-        // Count unread notifications for the badge
         $unreadNotifCount = Auth::user()->notifications()->whereNull('read_at')->count();
     @endphp
 
@@ -1094,25 +1200,25 @@ public function markAsRead(): void
                      background: #f44336; color: white; border-radius: 50%;
                      width: 20px; height: 20px; display: flex;
                      align-items: center; justify-content: center; font-size: 0.75rem;">
-            {{ min($unreadNotifCount, 99) }}    {{-- Cap at 99+ --}}
+            {{ min($unreadNotifCount, 99) }}
         </span>
     @endif
 </a>
 ```
 
-**How the badge works:**
-- `Auth::user()->notifications()` accesses the user's notifications relationship (defined in the User model)
-- `whereNull('read_at')` filters to only unread
-- `count()` executes a `SELECT COUNT(*)` query — very fast, does not load the actual notifications
-- If the count > 0, a red circle with the number appears. `min($unreadNotifCount, 99)` caps it at 99 so you don't see "152" overflowing the badge
+**`min($unreadNotifCount, 99)`** — If a user has 150 unread notifications, showing "150" would overflow the badge. Capping at 99+ keeps the badge clean.
 
 ---
 
-## 7. Person 5: Admin Config Panel & Testing
+## 7. Person 5: Admin Configuration & Testing
 
-### 7.1 SystemConfig Model — `app/Models/SystemConfig.php`
+### 7.1 What Already Existed Before Person 5
+
+The admin config system was already in place.
 
 ```php
+// app/Models/SystemConfig.php
+
 class SystemConfig extends Model
 {
     protected $fillable = ['config_key', 'config_value'];
@@ -1121,426 +1227,268 @@ class SystemConfig extends Model
     {
         $cacheKey = "system_config.{$key}";
 
-        // Cache::remember stores the value for 3600 seconds (1 hour)
-        // The closure only runs on a cache miss
         return Cache::remember($cacheKey, 3600, function () use ($key, $default) {
             $config = self::where('config_key', $key)->first();
             return $config ? $config->config_value : $default;
         });
     }
-
-    public static function clearCache(string $key): void
-    {
-        Cache::forget("system_config.{$key}");
-    }
-
-    public static function clearAllCaches(): void
-    {
-        Cache::forget('system_configs.all');
-        $configs = self::all();
-        foreach ($configs as $config) {
-            Cache::forget("system_config.{$config->config_key}");
-        }
-    }
-}
 ```
 
-**Why caching?** Every page load could potentially read config values. Without caching, each request would run a database query. With `Cache::remember`, after the first read, the value sits in memory (or Redis/file cache) for 1 hour. This reduces database load significantly.
+**`Cache::remember($cacheKey, 3600, $closure)`** — The most important detail here:
+1. Check if `system_config.max_login_attempts` exists in the cache
+2. If YES → return the cached value immediately (no database query)
+3. If NO → run the closure (query the database), store the result in the cache for 3600 seconds (1 hour), and return it
 
-**The `$default` parameter:** If a config key doesn't exist in the database, `getValue` returns null. But the caller can provide a fallback: `SystemConfig::getValue('nonexistent_key', 'fallback_value')` returns `'fallback_value'`.
+This means the first request after a config change takes ~50ms (database query). The next 3599 requests for the same key take ~1ms (cache hit).
 
-**When does the cache clear?** The `SystemConfigController::update()` method calls `clearAllCaches()` after saving, so the next read fetches fresh data from the database.
-
----
-
-### 7.2 SystemConfigController — `app/Http/Controllers/Admin/SystemConfigController.php`
+The existing `SystemConfigController`:
 
 ```php
-class SystemConfigController extends Controller
+public function update(Request $request)
 {
-    protected AuditLogService $auditLogService;
+    // ... auth check ...
 
-    public function __construct(AuditLogService $auditLogService)
-    {
-        $this->auditLogService = $auditLogService;
+    $validated = $request->validate([
+        'max_login_attempts'      => 'required|integer|min:1',
+        'lockout_minutes'         => 'required|integer|min:1',
+        'inactivity_warning_days' => 'required|integer|min:1',
+        'warning_response_days'   => 'required|integer|min:1',
+        'blacklist_duration_days' => 'required|integer|min:1',
+    ]);
+
+    foreach ($validated as $key => $value) {
+        SystemConfig::updateOrCreate(
+            ['config_key' => $key],
+            ['config_value' => $value]
+        );
     }
 
-    public function index()
-    {
-        // Double-check authorization (route also has system-admin middleware)
-        if (! auth()->user()->isSystemAdmin()) {
-            abort(403, 'Only System Administrators can access system configuration');
-        }
+    SystemConfig::clearAllCaches();
+    $this->auditLogService->logSystemConfigUpdated($validated);
 
-        $configs = SystemConfig::all();
-
-        return view('admin.system-config.index', ['configs' => $configs]);
-    }
-
-    public function update(Request $request)
-    {
-        if (! auth()->user()->isSystemAdmin()) {
-            abort(403, 'Only System Administrators can update system configuration');
-        }
-
-        $validated = $request->validate([
-            'max_login_attempts'           => 'required|integer|min:1',
-            'lockout_minutes'              => 'required|integer|min:1',
-            'inactivity_warning_days'      => 'required|integer|min:1',
-            'warning_response_days'        => 'required|integer|min:1',
-            'blacklist_duration_days'      => 'required|integer|min:1',
-            // Person 5 added these three:
-            'days_before_second_warning'   => 'required|integer|min:1',
-            'days_before_blacklist'        => 'required|integer|min:1',
-            'quiz_late_join_allowed'       => 'nullable|in:0,1',
-        ]);
-
-        // Loop through every validated field and save it
-        foreach ($validated as $key => $value) {
-            SystemConfig::updateOrCreate(
-                ['config_key' => $key],        // Find by key
-                ['config_value' => $value]      // Update the value
-            );
-        }
-
-        // Invalidate cached values so the next read is fresh
-        SystemConfig::clearAllCaches();
-
-        // Log the change for audit trail
-        $this->auditLogService->logSystemConfigUpdated($validated);
-
-        return redirect()->back()->with('success', 'System configuration updated');
-    }
+    return redirect()->back()->with('success', 'System configuration updated');
 }
 ```
 
-**`request->validate([...])`** — If validation fails, Laravel automatically redirects back with error messages. The keys `required`, `integer`, `min:1`, `nullable`, `in:0,1` are Laravel's validation rules:
-- `required` — the field must be present and not empty
-- `integer` — must be a whole number
-- `min:1` — must be at least 1
-- `nullable` — field is optional (for the checkbox)
-- `in:0,1` — the value must be either 0 or 1 (for the checkbox)
+**The `foreach` loop is the key design insight here.** Instead of handling each config key individually, the loop handles ALL config keys automatically. When Person 5 adds three new keys, they only need to add them to the validation rules — the loop does the rest without modification.
 
-**The `foreach` loop is the key design decision here.** Instead of hardcoding each config key individually:
-```php
-// This would be tedious and require changes every time a config is added
-SystemConfig::updateOrCreate(['config_key' => 'max_login_attempts'], ['config_value' => $validated['max_login_attempts']]);
-SystemConfig::updateOrCreate(['config_key' => 'lockout_minutes'], ['config_value' => $validated['lockout_minutes']]);
-// ... repeat for every key ...
-```
+### 7.2 Person 5's Additions — Three New Config Keys
 
-The loop version `foreach ($validated as $key => $value)` automatically handles any config key. When Person 5 added three new validation rules, the loop handled them without modification. This is the **Open/Closed Principle** in practice — the method is open for extension (add new keys to validation) but closed for modification (the loop doesn't need changing).
-
----
-
-### 7.3 Person 5's Additions — New Config Keys
-
-#### Migration — `database/migrations/2026_07_08_000000_add_new_config_keys.php`
+#### The Migration
 
 ```php
+// database/migrations/2026_07_08_000000_add_new_config_keys.php
+
 public function up(): void
 {
-    $now = now();
-
     $newConfigs = [
-        [
-            'config_key' => 'days_before_second_warning',
-            'config_value' => '14',
-            'created_at' => $now,
-            'updated_at' => $now,
-        ],
-        [
-            'config_key' => 'days_before_blacklist',
-            'config_value' => '14',
-            'created_at' => $now,
-            'updated_at' => $now,
-        ],
-        [
-            'config_key' => 'quiz_late_join_allowed',
-            'config_value' => '0',
-            'created_at' => $now,
-            'updated_at' => $now,
-        ],
+        ['config_key' => 'days_before_second_warning', 'config_value' => '14'],
+        ['config_key' => 'days_before_blacklist',      'config_value' => '14'],
+        ['config_key' => 'quiz_late_join_allowed',     'config_value' => '0'],
     ];
 
     foreach ($newConfigs as $config) {
-        // updateOrInsert won't duplicate if the key already exists
         DB::table('system_configs')->updateOrInsert(
             ['config_key' => $config['config_key']],
-            $config
+            ['config_value' => $config['config_value'],
+             'created_at' => now(), 'updated_at' => now()]
         );
     }
 }
-
-public function down(): void
-{
-    DB::table('system_configs')->whereIn('config_key', [
-        'days_before_second_warning',
-        'days_before_blacklist',
-        'quiz_late_join_allowed',
-    ])->delete();
-}
 ```
 
-**Why `updateOrInsert` instead of `insert`?** If the migration runs twice (e.g., on another developer's machine where the keys already exist from a previous run), `insert` would throw a duplicate key error. `updateOrInsert` silently updates the existing row instead.
+**`DB::table(...)` vs the Eloquent model:** This migration uses the Query Builder directly instead of the `SystemConfig` Eloquent model. Why? Because migrations run during deployment, before the application code is fully booted. Using the Query Builder is safer — it doesn't depend on any of Laravel's bootstrapping.
 
-#### What the three config keys do
-
-| Config Key | Default | Consumed By | Effect |
-|---|---|---|---|
-| `days_before_second_warning` | 14 | `MonitorMemberActivity` | Sets the response deadline on Warning 1. After this many days, if the user hasn't acknowledged, Warning 2 is issued. |
-| `days_before_blacklist` | 14 | `MonitorMemberActivity` | Sets the response deadline on Warning 2. After this many days, if the user hasn't acknowledged, they are blacklisted. |
-| `quiz_late_join_allowed` | 0 (false) | Not yet consumed | Reserved for future quiz module use. When enabled, students who join after quiz start time get the full duration. |
-
----
-
-### 7.4 MonitorMemberActivity Update — `app/Console/Commands/MonitorMemberActivity.php`
-
-The existing command implements a 3-step escalation. Person 5 modified it to use the new config keys for the deadlines.
-
-#### Before and after comparison
+#### The Controller Update
 
 ```php
-// BEFORE — both steps used the same config key
-private function issueWarning(User $user): void
-{
-    $warningResponseDays = (int) SystemConfig::getValue('warning_response_days', 7);
+// Added to the validation rules in SystemConfigController::update():
 
-    // Warning 1 deadline
-    'response_deadline' => now()->addDays($warningResponseDays),
-    // ...
-    // Warning 2 deadline — same value
-    'response_deadline' => now()->addDays($warningResponseDays),
-}
+$validated = $request->validate([
+    // ... existing rules ...
+    'days_before_second_warning' => 'required|integer|min:1',
+    'days_before_blacklist'      => 'required|integer|min:1',
+    'quiz_late_join_allowed'     => 'nullable|in:0,1',
+]);
 ```
 
+**`nullable|in:0,1`** — This is specific to checkbox behavior:
+- When a checkbox is CHECKED, the browser submits `quiz_late_join_allowed=1`
+- When a checkbox is UNCHECKED, the browser submits NOTHING for that field
+- If the field is missing from the request, Laravel would fail the `required` validation
+- `nullable` tells Laravel: "it's okay if this field isn't in the request — treat it as null"
+
+### 7.3 The MonitorMemberActivity Update
+
+The existing command implements a 3-step escalation:
+
+```
+Step 1: User inactive for N days → Issue Warning 1 (with response deadline)
+Step 2: Warning 1 deadline passes → Issue Warning 2 (with response deadline)
+Step 3: Warning 2 deadline passes → Blacklist user
+```
+
+**Before — both steps used the same 7-day deadline:**
 ```php
-// AFTER — each step has its own config, with fallback
-private function issueWarning(User $user): void
-{
-    // Try the new config key first, fall back to the legacy one
-    $secondWarningDays = (int) (SystemConfig::getValue('days_before_second_warning')
-        ?: SystemConfig::getValue('warning_response_days', 7));
-
-    $blacklistDays = (int) (SystemConfig::getValue('days_before_blacklist')
-        ?: SystemConfig::getValue('warning_response_days', 7));
-
-    // Warning 1 uses second_warning deadline
-    'response_deadline' => now()->addDays($secondWarningDays),
-
-    // Warning 2 uses blacklist deadline
-    'response_deadline' => now()->addDays($blacklistDays),
-}
+$warningResponseDays = (int) SystemConfig::getValue('warning_response_days', 7);
+// Warning 1 deadline: 7 days
+// Warning 2 deadline: 7 days
 ```
 
-**The `?:` (ternary) fallback logic:**
+**After — each step has its own configurable deadline:**
+```php
+$secondWarningDays = (int) (SystemConfig::getValue('days_before_second_warning')
+    ?: SystemConfig::getValue('warning_response_days', 7));    // Try new key, fallback to old
+
+$blacklistDays = (int) (SystemConfig::getValue('days_before_blacklist')
+    ?: SystemConfig::getValue('warning_response_days', 7));    // Same fallback pattern
+
+// Warning 1 deadline: days_before_second_warning (14, configurable)
+// Warning 2 deadline: days_before_blacklist (14, configurable)
+```
+
+**The `?:` (short ternary) fallback pattern:**
+
 ```php
 SystemConfig::getValue('days_before_second_warning') ?: SystemConfig::getValue('warning_response_days', 7)
 ```
-This reads: "If `days_before_second_warning` has a value (not null, not empty), use it. Otherwise, fall back to `warning_response_days`. If that's also missing, use 7."
 
-This means old installations that never ran Person 5's migration still work — the command gracefully falls back to the existing `warning_response_days` config.
+This reads as: "Use `days_before_second_warning`. If it's null, false, or empty, use `warning_response_days`. If THAT is also null, use 7."
 
-#### The complete escalation flow
+**Why this matters for backwards compatibility:** The old migration only seeds `warning_response_days`. If Person 5's migration hasn't been run yet, `getValue('days_before_second_warning')` returns null, and the `?:` falls through to the existing key. The system keeps working during deployment — the new migration can run minutes after the code deploys, and no downtime occurs.
+
+---
+
+## 8. The Complete Data Flow
+
+Here is how everything connects, from end to end, across all five persons' work:
+
+### When a new topic is created:
 
 ```
-User is inactive for inactivity_warning_days (30 days by default)
-    │
-    ▼
-Warning 1 issued ────────────────── response_deadline = days_before_second_warning (14 days)
-    │
-    ├── User acknowledges? → Warning resolved. No further action.
-    │
-    └── Deadline passes without acknowledgement
-        │
-        ▼
-    Warning 2 issued ────────────────── response_deadline = days_before_blacklist (14 days)
-        │
-        ├── User acknowledges? → Warning resolved. No further action.
-        │
-        └── Deadline passes without acknowledgement
-            │
-            ▼
-        User blacklisted for blacklist_duration_days (90 days)
+1. User submits topic form
+2. TopicController::store()
+3. Topic::create([...]) ← Saves to database, fires "created" event
+4. Topic::booted() fires
+5. TopicClassificationService::classifyTopic($topic)
+   ├── Lowercase title + description
+   ├── Count keyword matches per category
+   ├── Pick highest-scoring category
+   ├── TopicCategory::firstOrCreate(...) ← Creates "Django" category if new
+   └── $topic->update(['category_id' => ...]) ← Links topic to category
+6. User is redirected to the new topic
+```
+
+### Every night at 2:00 AM (scheduled):
+
+```
+1. Scheduler runs app:calculate-statistics
+2. For each group:
+   ├── Count total members
+   ├── Count active this week
+   ├── Count total topics & posts
+   ├── Count unanswered questions
+   ├── Count inactive 30+ days
+   ├── Send inactivity warnings via NotificationService
+   └── Save snapshot to statistics table
+
+3. Scheduler also runs monitor:activity (separate command)
+   └── Checks each user's inactivity level
+       ├── Inactive > threshold → Warning 1 (deadline from days_before_second_warning)
+       ├── Warning 1 expired → Warning 2 (deadline from days_before_blacklist)
+       └── Warning 2 expired → Blacklist
+```
+
+### When an admin visits the statistics dashboard:
+
+```
+1. GET /admin/statistics
+2. StatisticsController@index
+3. StatisticsUtility::getStatsForUser(Auth::user())
+   ├── User is System Admin → return ALL groups
+   ├── User is Group Admin → return their groups only
+   └── User is regular → return only their own group (or none)
+4. For each group:
+   └── Statistics::firstOrCreate(['group_id' => $id])
+       ├── Row exists → use it
+       └── Row doesn't exist → create with zeros
+5. Blade template renders 6 cards per group
+```
+
+### When a user visits the dashboard:
+
+```
+1. GET /dashboard
+2. DashboardController@show
+3. RecommendationService::generateRecommendations($user, 3)
+   ├── Find categories user has posted in → [1, 3, 5]
+   ├── If empty → return popular topics (fallback)
+   ├── Find active topics in those categories
+   ├── Exclude already-posted topics
+   ├── Exclude already-recommended topics
+   ├── Log each recommendation in recommendation_log
+   └── Return 3 topics
+4. Blade renders "Recommended for you" section
+```
+
+### When an admin changes config:
+
+```
+1. Admin visits /admin/system-config
+2. Form loads with current values from system_configs table
+3. Admin changes "Days Before Second Warning" from 14 → 21
+4. PUT /admin/system-config
+5. SystemConfigController@update
+   ├── Validate: required|integer|min:1
+   ├── Loop: foreach validated field → updateOrCreate
+   ├── Clear all config caches
+   └── Redirect back with success message
+6. Next monitor:activity run reads new value
+   └── Warning 1 deadline = now() + 21 days (was 14)
 ```
 
 ---
 
-### 7.5 View Update — `resources/views/admin/system-config/index.blade.php`
+### Final File Inventory
 
-The two new sections added to the config form:
-
-```blade
-{{-- New Section 1: Escalation Timing --}}
-<hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border-color, #e5e7eb);">
-
-<h3>Escalation Timing</h3>
-
-<div class="form-group">
-    <label for="days_before_second_warning" class="form-label">Days Before Second Warning</label>
-    <input type="number" id="days_before_second_warning" name="days_before_second_warning"
-           value="{{ $configs->firstWhere('config_key', 'days_before_second_warning')->config_value ?? 14 }}"
-           min="1" class="form-control" required>
-    <small class="form-text">Days after Warning 1 before issuing Warning 2</small>
-</div>
-
-<div class="form-group">
-    <label for="days_before_blacklist" class="form-label">Days Before Blacklist</label>
-    <input type="number" id="days_before_blacklist" name="days_before_blacklist"
-           value="{{ $configs->firstWhere('config_key', 'days_before_blacklist')->config_value ?? 14 }}"
-           min="1" class="form-control" required>
-    <small class="form-text">Days after Warning 2 before automatic blacklist</small>
-</div>
-
-{{-- New Section 2: Quiz Settings --}}
-<hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border-color, #e5e7eb);">
-
-<h3>Quiz Settings</h3>
-
-<div class="form-group">
-    <label style="display: flex; align-items: center; gap: 0.5rem;">
-        <input type="checkbox" name="quiz_late_join_allowed" value="1"
-               {{ $configs->firstWhere('config_key', 'quiz_late_join_allowed')->config_value === '1' ? 'checked' : '' }}>
-        Allow late joins for quizzes
-    </label>
-    <small class="form-text">If checked, students who join after the quiz start time receive the full duration</small>
-</div>
-```
-
-**How `firstWhere` works:** `$configs` is a Collection of all config rows. `firstWhere('config_key', 'days_before_second_warning')` finds the first element where `config_key` equals that value. If it doesn't exist, `?? 14` provides the default. This prevents the input from being blank if the migration hasn't been run yet.
-
-**How the checkbox value works:** If checked, the form submits `quiz_late_join_allowed=1`. If unchecked, the checkbox is not submitted at all (HTML behavior). Laravel's `nullable|in:0,1` validation allows it to be absent (null) when unchecked.
+| File | Person | Purpose |
+|---|---|---|
+| `database/migrations/*_create_statistics_table.php` | P1 | Statistics table (6 metrics, one row per group) |
+| `database/migrations/*_create_recommendation_log_table.php` | P1 | Prevents duplicate recommendations |
+| `database/migrations/*_add_category_id_to_topics_table.php` | P1 | Enables classification |
+| `database/migrations/*_add_title_message_group_id_to_notifications.php` | P1 | Backward-compat notification columns |
+| `database/migrations/*_add_new_config_keys.php` | P5 | 3 new config keys (escalation + quiz) |
+| `app/Models/Statistics.php` | P1 | Model with activePercentage(), averagePostsPerTopic() |
+| `app/Utilities/StatisticsUtility.php` | P1 | Shared stats computation logic |
+| `app/Http/Controllers/Admin/StatisticsController.php` | P1 | Stats dashboard endpoints |
+| `resources/views/admin/statistics/index.blade.php` | P1 | 6-card metric grid per group |
+| `app/Console/Commands/CalculateStatistics.php` | P2 | Scheduled: computes stats + sends warnings |
+| `app/Console/Commands/ClassifyTopics.php` | P2 | One-time: classify all unclassified topics |
+| `app/Services/TopicClassificationService.php` | P2 | Keyword-matching "ML" classifier |
+| `app/Models/Topic.php` (modified) | P2 | Added category_id + auto-classify hook |
+| `app/Services/RecommendationService.php` | P3 | Personalized recommendation engine |
+| `app/Http/Controllers/DashboardController.php` | P3 | Dashboard with recommendations |
+| `resources/views/recommendations/index.blade.php` | P3 | Full recommendations page |
+| `app/Services/NotificationService.php` | P4 | Central notification-sending service |
+| `app/Http/Controllers/NotificationController.php` | P4 | Web notification center (CRUD) |
+| `app/Models/Notification.php` (modified) | P4 | Added title, message, group_id, markAsRead() |
+| `app/Models/SystemConfig.php` | P5 | Key-value config with 1-hour caching |
+| `app/Http/Controllers/Admin/SystemConfigController.php` (modified) | P5 | Added 3 new config keys to validation |
+| `resources/views/admin/system-config/index.blade.php` (modified) | P5 | Added escalation timing + quiz settings |
+| `app/Console/Commands/MonitorMemberActivity.php` (modified) | P5 | Separate deadlines for W1 and W2 |
+| `routes/console.php` (modified) | P2 | Added stats schedule |
+| `routes/web.php` (modified) | All | All new routes |
 
 ---
 
-## 8. How Everything Connects
+### Testing Quick-Reference
 
-Here is the complete data flow from end to end:
-
-### Step 1: Database Foundation (Person 1)
-All 5 tables are created by migrations. The `category_id` foreign key is added to topics. Without these tables, nothing else works.
-
-### Step 2: Topics Are Created (Person 2)
-When a user creates a topic, the `Topic::booted()` hook fires automatically. `TopicClassificationService` runs the keyword matching algorithm and updates the topic's `category_id`.
-
-**Code path:**
-```
-User submits topic form → TopicController@store → Topic::create([...])
-    → Topic::booted() fires "created" event
-    → TopicClassificationService::classifyTopic($topic)
-    → TopicCategory::firstOrCreate(...) → $topic->update(['category_id' => $id])
-```
-
-### Step 3: Statistics Are Computed (Person 2)
-Every night at 2:00 AM, the scheduler runs `CalculateStatistics`. For each group, it counts members, posts, and topics, saves a row to the `statistics` table, and sends inactivity warnings via `NotificationService`.
-
-**Code path:**
-```
-Server cron triggers Laravel scheduler
-    → routes/console.php: Schedule::command('app:calculate-statistics')
-    → CalculateStatistics::handle()
-    → CalculateStatistics::calculateForGroup($group)
-    → Statistics::updateOrCreate(...)
-    → NotificationService::sendInactivityWarning(...)
-```
-
-### Step 4: Admin Views Statistics (Person 1)
-The admin visits `/admin/statistics`. The `StatisticsController` calls `StatisticsUtility::getStatsForUser()` to get stats for all groups the admin can see, then renders the view with 6 metric cards per group.
-
-**Code path:**
-```
-GET /admin/statistics
-    → StatisticsController@index
-    → StatisticsUtility::getStatsForUser(Auth::user())
-    → view('admin.statistics.index', compact('groupStats'))
-```
-
-### Step 5: Recommendations Are Generated (Person 3)
-The user visits the dashboard. `DashboardController::show()` calls `RecommendationService::generateRecommendations()` which finds categories the user has posted in, finds matching new topics, excludes already-recommended topics, logs each recommendation, and passes them to the view.
-
-**Code path:**
-```
-GET /dashboard
-    → DashboardController@show
-    → RecommendationService::generateRecommendations($user, 3)
-        → Find user's engaged categories (SQL subquery)
-        → Find matching active topics (SQL)
-        → RecommendationLog::updateOrCreate(...) for each
-    → view('auth.dashboard', compact('recentTopics', 'recommendedTopics'))
-```
-
-### Step 6: Notifications Are Delivered (Person 4)
-When `CalculateStatistics` runs, it calls `NotificationService::sendInactivityWarning()`. This creates a row in the `notifications` table. The next time the user loads any page, the navbar query `Auth::user()->notifications()->whereNull('read_at')->count()` shows the red badge. Clicking it opens the notifications page where the user can read, mark as read, or delete each notification.
-
-**Code path (viewing notifications):**
-```
-GET /notifications
-    → NotificationController@index
-    → Notification::where('user_id', Auth::id())->orderByRaw(...)->paginate(20)
-    → view('notifications.index', compact('notifications'))
-```
-
-### Step 7: Admin Configures the System (Person 5)
-The admin visits `/admin/system-config`, changes values like "Days Before Second Warning", and saves. The `SystemConfigController::update()` method validates the input, loops through every key, calls `updateOrCreate` to save, clears the cache, and logs the audit trail. The next time `MonitorMemberActivity` runs, it reads the new values via `SystemConfig::getValue()` and uses them for escalation deadlines.
-
-**Code path (saving config):**
-```
-PUT /admin/system-config
-    → SystemConfigController@update($request)
-    → $request->validate([...])  // All config keys validated here
-    → foreach ($validated as $key => $value) {
-          SystemConfig::updateOrCreate(['config_key' => $key], ['config_value' => $value])
-      }
-    → SystemConfig::clearAllCaches()
-    → AuditLogService::logSystemConfigUpdated($validated)
-```
+1. **Statistics**: Login as System Admin → `/admin/statistics` → see cards → "Recalculate"
+2. **Classification**: Create topic "How to use Django ORM" → check `topic_categories` table
+3. **Recommendations**: Login as user who posted → `/dashboard` → "Recommended for you" section
+4. **Notifications**: Run `php artisan app:calculate-statistics` → login as inactive user → `/notifications`
+5. **Admin Config**: `/admin/system-config` → change value → save → run `monitor:activity --dry-run`
 
 ---
 
-### Complete File Inventory
-
-| File | Person | Type | Purpose |
-|---|---|---|---|
-| `database/migrations/..._create_statistics_table.php` | 1 | Migration | Create statistics table |
-| `database/migrations/..._create_recommendation_log_table.php` | 1 | Migration | Create recommendation_log table |
-| `database/migrations/..._add_category_id_to_topics_table.php` | 1 | Migration | Add category_id FK to topics |
-| `database/migrations/..._add_title_message_group_id_to_notifications_table.php` | 1 | Migration | Extend notifications table |
-| `database/migrations/..._add_new_config_keys.php` | 5 | Migration | Seed 3 new config keys |
-| `app/Models/Statistics.php` | 1 | Model | Statistics model with helper methods |
-| `app/Utilities/StatisticsUtility.php` | 1 | Utility | Shared stats recalculation logic |
-| `app/Http/Controllers/Admin/StatisticsController.php` | 1 | Controller | Stats dashboard endpoints |
-| `resources/views/admin/statistics/index.blade.php` | 1 | View | 6-metric-card stats dashboard |
-| `app/Console/Commands/CalculateStatistics.php` | 2 | Command | Scheduled stats calculation |
-| `app/Console/Commands/ClassifyTopics.php` | 2 | Command | Bulk topic classification |
-| `app/Services/TopicClassificationService.php` | 2 | Service | Keyword-matching classifier |
-| `app/Models/Topic.php` (modified) | 2 | Model | Added category_id + booted() hook |
-| `app/Services/RecommendationService.php` | 3 | Service | Personalized recommendation engine |
-| `app/Http/Controllers/DashboardController.php` | 3 | Controller | Dashboard with recommendations |
-| `resources/views/recommendations/index.blade.php` | 3 | View | Full recommendations page |
-| `app/Services/NotificationService.php` | 4 | Service | Central notification-sending helper |
-| `app/Http/Controllers/NotificationController.php` | 4 | Controller | Web notification center CRUD |
-| `app/Models/Notification.php` (modified) | 4 | Model | Added title, message, group_id, helpers |
-| `app/Models/SystemConfig.php` | 5 | Model | Key-value config with caching |
-| `app/Http/Controllers/Admin/SystemConfigController.php` (modified) | 5 | Controller | Added 3 new config keys to validation |
-| `resources/views/admin/system-config/index.blade.php` (modified) | 5 | View | Added escalation timing + quiz settings |
-| `app/Console/Commands/MonitorMemberActivity.php` (modified) | 5 | Command | Separated W1/W2 deadlines |
-| `routes/console.php` (modified) | 2 | Config | Added stats schedule |
-| `routes/web.php` (modified) | All | Config | Added all new routes |
-
----
-
-### Key Architectural Decisions Explained
-
-1. **`updateOrCreate` pattern** — Used in multiple places (Statistics, SystemConfig, RecommendationLog). It means "find by these conditions, update if exists, create if not." This is idempotent — running the same operation twice doesn't create duplicates.
-
-2. **Caching** — `SystemConfig::getValue()` caches for 1 hour. The dashboard (GroupStatisticsService) also caches. This prevents repeated DB queries on every page load. Cache is cleared when settings change.
-
-3. **Fallback chains** — `SystemConfig::getValue('days_before_second_warning') ?: SystemConfig::getValue('warning_response_days', 7)` ensures backward compatibility. If a key doesn't exist, the system tries an older key, then a hardcoded default.
-
-4. **Ownership checks** — Both `NotificationController` and `StatisticsController` verify that the current user owns or has access to the resource before allowing operations. This prevents users from reading or deleting other users' notifications.
-
-5. **Separation of concerns** — `StatisticsUtility` contains the logic, `StatisticsController` handles HTTP concerns (auth, redirects), and the view handles presentation. This makes it easy to add an API endpoint later that reuses `StatisticsUtility`.
-
----
-
-*End of Document*
+*End of Document — every line explained. Ask if something's still unclear.*
