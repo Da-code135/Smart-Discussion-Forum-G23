@@ -122,6 +122,31 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    // -------------------------------------------------------------------
+    //  Chat Module Relationships
+    // -------------------------------------------------------------------
+
+    /**
+     * All conversations this user participates in.
+     */
+    public function conversations()
+    {
+        return $this->belongsToMany(
+            Conversation::class,
+            'conversation_participants',
+        )
+            ->withPivot('role', 'joined_at')
+            ->withTimestamps();
+    }
+
+    /**
+     * Messages this user has sent (chat messages, not forum posts).
+     */
+    public function chatMessages()
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
     /**
      * Check if a lecturer can teach a specific group.
      */

@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Group;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -26,11 +28,11 @@ class UserFactory extends Factory
             'full_name' => fake()->name(),
             'email' => fake()->unique()->email(),
             'password' => bcrypt('password123'),
-            'role_id' => \App\Models\Role::firstOrCreate(
+            'role_id' => Role::firstOrCreate(
                 ['role_name' => 'Member'],
                 ['description' => 'Member role']
             )->id,
-            'group_id' => \App\Models\Group::firstOrCreate(
+            'group_id' => Group::firstOrCreate(
                 ['group_name' => 'Default Group'],
                 ['description' => 'Default group', 'group_type' => 'student']
             )->id,
