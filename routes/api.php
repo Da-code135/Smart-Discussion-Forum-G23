@@ -410,6 +410,16 @@ Route::prefix($API_VERSION)->group(function () {
             });
 
             // ============================================
+            // CONVERSATION ROUTES (Person 2 — Conversation Management)
+            // ============================================
+
+            Route::get('/conversations', [\App\Http\Controllers\ConversationController::class, 'index']);
+            Route::get('/conversations/{id}', [\App\Http\Controllers\ConversationController::class, 'show']);
+            Route::post('/conversations', [\App\Http\Controllers\ConversationController::class, 'store']);
+            Route::post('/conversations/{id}/participants', [\App\Http\Controllers\ConversationController::class, 'addParticipant']);
+            Route::delete('/conversations/{id}/participants/{userId}', [\App\Http\Controllers\ConversationController::class, 'removeParticipant']);
+
+            // ============================================
             // ADMIN ROUTES (Admin access required)
             // ============================================
 
