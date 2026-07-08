@@ -321,6 +321,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/', [\App\Http\Controllers\ConversationController::class, 'store'])->name('store');
         Route::post('/{id}/participants', [\App\Http\Controllers\ConversationController::class, 'addParticipant'])->name('participants.add');
         Route::delete('/{id}/participants/{userId}', [\App\Http\Controllers\ConversationController::class, 'removeParticipant'])->name('participants.remove');
+        
+        // Messages
+        Route::get('/{id}/messages', [\App\Http\Controllers\MessageController::class, 'index'])->name('messages.index');
+        Route::post('/{id}/messages', [\App\Http\Controllers\MessageController::class, 'store'])->name('messages.store');
     });
 });
 
