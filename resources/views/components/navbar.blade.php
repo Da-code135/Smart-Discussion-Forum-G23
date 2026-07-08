@@ -34,6 +34,10 @@
                 <span class="material-symbols-outlined">quiz</span>
                 <span>Quizzes</span>
             </a>
+            <a href="{{ route('conversations.index') }}" class="app-topbar-link {{ $activeNav === 'conversations' ? 'is-active' : '' }}">
+                <span class="material-symbols-outlined">chat</span>
+                <span>Messages</span>
+            </a>
             <a href="{{ route('profile.edit') }}" class="app-topbar-link {{ $activeNav === 'profile' ? 'is-active' : '' }}">
                 <span class="material-symbols-outlined">person</span>
                 <span>Profile</span>
