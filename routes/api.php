@@ -420,6 +420,13 @@ Route::prefix($API_VERSION)->group(function () {
             Route::delete('/conversations/{id}/participants/{userId}', [\App\Http\Controllers\ConversationController::class, 'removeParticipant']);
 
             // ============================================
+            // MESSAGE ROUTES (Person 3 — Real-Time Messaging)
+            // ============================================
+
+            Route::get('/conversations/{id}/messages', [\App\Http\Controllers\MessageController::class, 'index']);
+            Route::post('/conversations/{id}/messages', [\App\Http\Controllers\MessageController::class, 'store']);
+
+            // ============================================
             // ADMIN ROUTES (Admin access required)
             // ============================================
 
