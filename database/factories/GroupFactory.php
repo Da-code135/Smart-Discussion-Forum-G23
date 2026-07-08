@@ -18,6 +18,7 @@ class GroupFactory extends Factory
         return [
             'group_name' => $this->faker->company,
             'description' => $this->faker->sentence,
+            'group_type' => 'student',
             'created_by' => User::factory(),
         ];
     }
