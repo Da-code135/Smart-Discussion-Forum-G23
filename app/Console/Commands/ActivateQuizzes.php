@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Events\QuizWentLive;
 use App\Models\Quiz;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 /**

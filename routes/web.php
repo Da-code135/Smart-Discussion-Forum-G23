@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\GroupStatisticsController;
 use App\Http\Controllers\Admin\IpWhitelistController;
 use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Controllers\Admin\StatisticsController;
 use App\Http\Controllers\Admin\SystemConfigController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\WarningController;
@@ -16,7 +17,9 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\WarningAcknowledgementController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ForumController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\ReportController;
@@ -45,56 +48,12 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
     // DASHBOARD
-    Route::get('/dashboard', function () {
-        $user = Auth::user();
+    Route::get('/dashboard', [DashboardController::class, 'show'])
+        ->name('dashboard');
 
-        $recentTopics = collect();
-        $recommendedTopics = collect();
-
-        // System admins (group-agnostic) always see topics; others need a group
-        if ($user->isSystemAdmin() || $user->group_id) {
-            $topicQuery = Topic::where('status', 'active');
-
-            // System admins see all topics; others see only accessible groups
-            if (! $user->isSystemAdmin()) {
-                $topicQuery->whereIn('group_id', $user->accessibleGroupIds());
-            }
-
-            $recentTopics = (clone $topicQuery)
-                ->with('creator')
-                ->withCount('posts')
-                ->latest()
-                ->take(5)
-                ->get()
-                ->map(
-                    fn (Topic $topic) => [
-                        'id' => $topic->id,
-                        'title' => $topic->title,
-                        'creator_name' => optional($topic->creator)->full_name ?? 'Deleted User',
-                        'reply_count' => $topic->posts_count,
-                        'created_at' => $topic->created_at,
-                    ],
-                );
-
-            $recommendedTopics = (clone $topicQuery)
-                ->withCount('posts')
-                ->orderByDesc('posts_count')
-                ->take(2)
-                ->get()
-                ->map(
-                    fn (Topic $topic) => [
-                        'id' => $topic->id,
-                        'title' => $topic->title,
-                        'member_count' => $topic->posts_count,
-                    ],
-                );
-        }
-
-        return view(
-            'auth.dashboard',
-            compact('recentTopics', 'recommendedTopics'),
-        );
-    })->name('dashboard');
+    // RECOMMENDATIONS
+    Route::get('/recommendations', [DashboardController::class, 'showRecommendations'])
+        ->name('recommendations.index');
 
     // WARNING ACKNOWLEDGEMENT
     Route::get('/warning-acknowledgement', [
@@ -188,14 +147,10 @@ Route::middleware('auth')->group(function () {
         });
 
     // NOTIFICATIONS
-    Route::get('/notifications', [
-        ForumController::class,
-        'notifications',
-    ])->name('notifications');
-    Route::post('/notifications/{notificationId}/read', [
-        ForumController::class,
-        'markNotificationAsRead',
-    ])->name('notifications.read');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::delete('/notifications/{id}', [NotificationController::class, 'delete'])->name('notifications.delete');
 });
 
 // Topic sharing route (outside auth middleware)
@@ -593,6 +548,16 @@ Route::prefix('admin')
                 'deactivate',
             ])->name('admin.ip-whitelist.deactivate');
         });
+
+        // Statistics Dashboard (Analytics module — Tasks 1 & 2)
+        Route::get('/statistics', [
+            StatisticsController::class,
+            'index',
+        ])->name('admin.statistics.index');
+        Route::post('/statistics/{group}/recalculate', [
+            StatisticsController::class,
+            'recalculate',
+        ])->name('admin.statistics.recalculate');
 
         // Group Management - All admins can view their groups, but actions are controlled by policies
         Route::get('/groups', [

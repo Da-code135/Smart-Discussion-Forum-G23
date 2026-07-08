@@ -49,6 +49,7 @@ class GroupManagementTest extends TestCase
         $response = $this->actingAs($admin)->post(route('admin.groups.store'), [
             'group_name' => 'New Test Group',
             'description' => 'A test group',
+            'group_type' => 'student',
         ]);
 
         $response->assertRedirect(route('admin.groups.index'));
@@ -62,6 +63,7 @@ class GroupManagementTest extends TestCase
         $response = $this->actingAs($admin)->post(route('admin.groups.store'), [
             'group_name' => 'Default Group',
             'description' => 'Duplicate',
+            'group_type' => 'student',
         ]);
 
         $response->assertSessionHasErrors('group_name');
@@ -90,6 +92,7 @@ class GroupManagementTest extends TestCase
         $response = $this->actingAs($admin)->put(route('admin.groups.update', $this->defaultGroup), [
             'group_name' => 'Updated Group Name',
             'description' => 'Updated description',
+            'group_type' => 'student',
         ]);
 
         $response->assertRedirect(route('admin.groups.index'));
@@ -103,7 +106,7 @@ class GroupManagementTest extends TestCase
     public function test_system_admin_can_delete_group(): void
     {
         $admin = $this->createSystemAdmin();
-        $group = Group::create(['group_name' => 'To Delete', 'description' => 'Will be deleted']);
+        $group = Group::create(['group_name' => 'To Delete', 'description' => 'Will be deleted', 'group_type' => 'student']);
 
         $response = $this->actingAs($admin)->delete(route('admin.groups.destroy', $group));
 
@@ -113,7 +116,7 @@ class GroupManagementTest extends TestCase
     public function test_cannot_delete_general_group(): void
     {
         $admin = $this->createSystemAdmin();
-        $general = Group::create(['group_name' => 'General', 'description' => 'General group']);
+        $general = Group::create(['group_name' => 'General', 'description' => 'General group', 'group_type' => 'student']);
 
         $response = $this->actingAs($admin)->delete(route('admin.groups.destroy', $general));
 

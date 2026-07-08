@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Moderation Panel')
+@section('activeNav', 'admin-moderation')
 @section('admin')
 
 @section('content')

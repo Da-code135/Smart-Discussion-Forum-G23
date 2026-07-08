@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Models\Notification;
 use App\Models\Quiz;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 /**

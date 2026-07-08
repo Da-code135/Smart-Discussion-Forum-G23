@@ -43,9 +43,12 @@
             <a href="{{ route('admin.blacklist.index') }}" class="link-btn">Blacklist</a>
             <a href="{{ route('admin.audit-logs.index') }}" class="link-btn">Audit logs</a>
             @if (auth()->user()->isSystemAdmin())
+                <a href="{{ route('admin.statistics.index') }}" class="link-btn">Platform statistics</a>
                 <a href="{{ route('admin.group-statistics.index') }}" class="link-btn">Group statistics</a>
                 <a href="{{ route('admin.system-config.index') }}" class="link-btn">System config</a>
                 <a href="{{ route('admin.ip-whitelist.index') }}" class="link-btn">IP whitelist</a>
+            @else
+                <a href="{{ route('admin.statistics.index') }}" class="link-btn">Platform statistics</a>
             @endif
         </div>
     </section>

@@ -5,13 +5,13 @@ namespace App\Listeners;
 use App\Events\QuizWentLive;
 use App\Models\Notification;
 use App\Models\User;
+
 /**
  * When a quiz goes live (is_active flipped to true), notify every
  * eligible student that the quiz is now available.
  */
 class NotifyQuizLive
 {
-
     /**
      * Handle the event.
      *

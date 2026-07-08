@@ -6,7 +6,6 @@ use App\Models\Grade;
 use App\Models\Quiz;
 use App\Models\StudentAnswer;
 use App\Models\StudentAttempt;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -38,14 +37,15 @@ class StudentQuizController extends Controller
             ->get()
             ->map(function ($quiz) use ($user) {
                 $scheduled = $quiz->getScheduledDateTime();
-                $attempt = \App\Models\StudentAttempt::where('quiz_id', $quiz->quiz_id)
+                $attempt = StudentAttempt::where('quiz_id', $quiz->quiz_id)
                     ->where('student_id', $user->id)
                     ->first();
+
                 return (object) [
                     'quiz' => $quiz,
                     'scheduled' => $scheduled,
                     'has_started' => now()->isAfter($scheduled),
-                    'is_live' => $quiz->is_active && !$attempt,
+                    'is_live' => $quiz->is_active && ! $attempt,
                     'attempt' => $attempt,
                     'is_submitted' => $attempt && $attempt->is_submitted,
                     'result_available' => $attempt && $attempt->is_submitted && $quiz->configuration?->show_results_after_close,

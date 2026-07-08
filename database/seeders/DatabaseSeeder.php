@@ -19,7 +19,10 @@ class DatabaseSeeder extends Seeder
             GroupSeeder::class,
             SuperAdminSeeder::class,
             TopicCategorySeeder::class,
-            QuizSeeder::class,  // Add this line
+            QuizSeeder::class,
         ]);
+
+        // Comprehensive demo data for testing every feature
+        $this->call(DemoDataSeeder::class);
     }
 }

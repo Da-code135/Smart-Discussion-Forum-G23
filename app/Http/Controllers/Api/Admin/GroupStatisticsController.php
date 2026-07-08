@@ -5,10 +5,15 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\User;
+use App\Utilities\StatisticsUtility;
 use Illuminate\Support\Facades\Auth;
 
 class GroupStatisticsController extends Controller
 {
+    public function __construct(
+        protected StatisticsUtility $statisticsUtility
+    ) {}
+
     /**
      * GET /api/v1/admin/group-statistics
      *
@@ -20,7 +25,7 @@ class GroupStatisticsController extends Controller
     public function index()
     {
         // System Admin only
-        if (!Auth::user()->isSystemAdmin()) {
+        if (! Auth::user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized. System Administrator access required.',
@@ -61,7 +66,7 @@ class GroupStatisticsController extends Controller
     public function show(Group $group)
     {
         // System Admin only
-        if (!Auth::user()->isSystemAdmin()) {
+        if (! Auth::user()->isSystemAdmin()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized. System Administrator access required.',
@@ -88,6 +93,37 @@ class GroupStatisticsController extends Controller
                     'member_count' => $group->users->count(),
                     'topic_count' => $group->topics->count(),
                 ],
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/admin/statistics/{group}/recalculate
+     *
+     * Recalculate and persist statistics for a given group from live data.
+     * Access is restricted to users who can access the group (admins).
+     */
+    public function recalculate(Group $group)
+    {
+        $user = Auth::user();
+
+        // Authorise: the user must be able to access this group
+        if (! $user->canAccessGroup($group->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have access to statistics for this group.',
+            ], 403);
+        }
+
+        $stats = $this->statisticsUtility->recalculate($group->id);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Statistics recalculated for {$group->group_name}.",
+            'data' => [
+                'group_id' => $group->id,
+                'group_name' => $group->group_name,
+                'statistics' => $stats,
             ],
         ]);
     }

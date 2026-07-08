@@ -45,6 +45,9 @@ class SystemConfigController extends Controller
             'inactivity_warning_days' => 'required|integer|min:1',
             'warning_response_days' => 'required|integer|min:1',
             'blacklist_duration_days' => 'required|integer|min:1',
+            'days_before_second_warning' => 'required|integer|min:1',
+            'days_before_blacklist' => 'required|integer|min:1',
+            'quiz_late_join_allowed' => 'nullable|in:0,1',
         ]);
 
         foreach ($validated as $key => $value) {

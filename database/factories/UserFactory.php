@@ -26,8 +26,14 @@ class UserFactory extends Factory
             'full_name' => fake()->name(),
             'email' => fake()->unique()->email(),
             'password' => bcrypt('password123'),
-            'role_id' => 5,  // Default to Member
-            'group_id' => 1, // Default to first group
+            'role_id' => \App\Models\Role::firstOrCreate(
+                ['role_name' => 'Member'],
+                ['description' => 'Member role']
+            )->id,
+            'group_id' => \App\Models\Group::firstOrCreate(
+                ['group_name' => 'Default Group'],
+                ['description' => 'Default group', 'group_type' => 'student']
+            )->id,
             'account_status' => 'active',
         ];
     }

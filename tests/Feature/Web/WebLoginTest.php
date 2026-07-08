@@ -38,7 +38,7 @@ class WebLoginTest extends TestCase
         $user = $this->createStudent();
 
         $response = $this->post('/login', [
-            'email' => 'student@test.com',
+            'email' => $user->email,
             'password' => 'Password123',
         ]);
 
@@ -51,7 +51,7 @@ class WebLoginTest extends TestCase
         $this->createStudent();
 
         $response = $this->post('/login', [
-            'email' => 'wrong@test.com',
+            'email' => 'wrong-'.uniqid().'@test.com',
             'password' => 'Password123',
         ]);
 
@@ -61,10 +61,10 @@ class WebLoginTest extends TestCase
 
     public function test_login_fails_with_wrong_password(): void
     {
-        $this->createStudent();
+        $user = $this->createStudent();
 
         $response = $this->post('/login', [
-            'email' => 'student@test.com',
+            'email' => $user->email,
             'password' => 'WrongPassword1',
         ]);
 
@@ -84,7 +84,7 @@ class WebLoginTest extends TestCase
     public function test_login_requires_password(): void
     {
         $response = $this->post('/login', [
-            'email' => 'student@test.com',
+            'email' => 'test-'.uniqid().'@test.com',
         ]);
 
         $response->assertSessionHasErrors('password');
@@ -105,7 +105,7 @@ class WebLoginTest extends TestCase
         ]);
 
         $response = $this->post('/login', [
-            'email' => 'student@test.com',
+            'email' => $user->email,
             'password' => 'Password123',
         ]);
 
@@ -124,7 +124,7 @@ class WebLoginTest extends TestCase
         ]);
 
         $response = $this->post('/login', [
-            'email' => 'student@test.com',
+            'email' => $user->email,
             'password' => 'Password123',
         ]);
 
@@ -150,7 +150,7 @@ class WebLoginTest extends TestCase
         ]);
 
         $response = $this->post('/login', [
-            'email' => 'student@test.com',
+            'email' => $user->email,
             'password' => 'Password123',
         ]);
 
@@ -172,7 +172,7 @@ class WebLoginTest extends TestCase
         ]);
 
         $response = $this->post('/login', [
-            'email' => 'student@test.com',
+            'email' => $user->email,
             'password' => 'Password123',
         ]);
 
@@ -203,7 +203,7 @@ class WebLoginTest extends TestCase
         $user = $this->createStudent(['last_active_at' => null]);
 
         $this->post('/login', [
-            'email' => 'student@test.com',
+            'email' => $user->email,
             'password' => 'Password123',
         ]);
 
@@ -217,15 +217,17 @@ class WebLoginTest extends TestCase
 
     public function test_login_is_rate_limited(): void
     {
+        $user = $this->createStudent();
+
         for ($i = 0; $i < 5; $i++) {
             $this->post('/login', [
-                'email' => 'student@test.com',
+                'email' => $user->email,
                 'password' => 'WrongPass'.$i,
             ]);
         }
 
         $response = $this->post('/login', [
-            'email' => 'student@test.com',
+            'email' => $user->email,
             'password' => 'WrongPass',
         ]);
 

@@ -122,3 +122,7 @@ stitch designs/
 /plan-inspectionIssues.prompt.md
 /docs/IMPLEMENTATION_PLAN.md
 .agents/skills/
+database/seeders/DemoDataSeeder.php
+.nvmrc
+nul
+.lingma/

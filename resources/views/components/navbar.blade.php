@@ -4,7 +4,7 @@
     $words = preg_split('/\s+/', trim($user->full_name));
     $initials = collect($words)->filter()->map(fn ($word) => strtoupper(substr($word, 0, 1)))->take(2)->join('');
     $avatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][$user->id % 5];
-    $groupName = $user->group->group_name ?? 'General Group';
+    $groupName = $user->group?->group_name ?? 'General Group';
 @endphp
 
 <header class="app-topbar">
@@ -51,8 +51,16 @@
         </nav>
 
         <div class="app-topbar-actions">
-            <a href="{{ route('notifications') }}" class="app-topbar-icon-btn" aria-label="Notifications">
+            <a href="{{ route('notifications') }}" class="app-topbar-icon-btn" aria-label="Notifications" style="position: relative;">
                 <span class="material-symbols-outlined">notifications</span>
+                @php
+                    $unreadNotifCount = Auth::user()->notifications()->whereNull('read_at')->count();
+                @endphp
+                @if ($unreadNotifCount > 0)
+                    <span style="position: absolute; top: 2px; right: 2px; background: #f44336; color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; line-height: 1;">
+                        {{ min($unreadNotifCount, 99) }}
+                    </span>
+                @endif
             </a>
 
             <div class="user-menu" data-user-menu>
@@ -80,6 +88,40 @@
                             <a href="{{ route('admin.groups.index') }}" class="user-menu__link">
                                 <span class="material-symbols-outlined">group_work</span>
                                 <span>Group management</span>
+                            </a>
+                            <a href="{{ route('admin.moderation.index') }}" class="user-menu__link">
+                                <span class="material-symbols-outlined">shield</span>
+                                <span>Moderation</span>
+                            </a>
+                            <a href="{{ route('admin.warnings.index') }}" class="user-menu__link">
+                                <span class="material-symbols-outlined">warning</span>
+                                <span>Warnings</span>
+                            </a>
+                            <a href="{{ route('admin.blacklist.index') }}" class="user-menu__link">
+                                <span class="material-symbols-outlined">block</span>
+                                <span>Blacklist</span>
+                            </a>
+                            @if ($user->isSystemAdmin())
+                                <a href="{{ route('admin.audit-logs.index') }}" class="user-menu__link">
+                                    <span class="material-symbols-outlined">receipt_long</span>
+                                    <span>Audit logs</span>
+                                </a>
+                                <a href="{{ route('admin.ip-whitelist.index') }}" class="user-menu__link">
+                                    <span class="material-symbols-outlined">security</span>
+                                    <span>IP whitelist</span>
+                                </a>
+                                <a href="{{ route('admin.system-config.index') }}" class="user-menu__link">
+                                    <span class="material-symbols-outlined">settings_applications</span>
+                                    <span>System config</span>
+                                </a>
+                                <a href="{{ route('admin.group-statistics.index') }}" class="user-menu__link">
+                                    <span class="material-symbols-outlined">insights</span>
+                                    <span>Group statistics</span>
+                                </a>
+                            @endif
+                            <a href="{{ route('admin.statistics.index') }}" class="user-menu__link">
+                                <span class="material-symbols-outlined">bar_chart</span>
+                                <span>Statistics</span>
                             </a>
                         @endif
                         <form method="POST" action="{{ route('logout') }}">

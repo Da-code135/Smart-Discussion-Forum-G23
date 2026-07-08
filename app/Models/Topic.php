@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\TopicClassificationService;
 use Database\Factories\TopicFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -26,7 +27,19 @@ class Topic extends Model
         'post_type',
         'is_answered',
         'is_pinned',
+        'category_id',
     ];
+
+    /**
+     * Model event: after creating a topic, classify it
+     */
+    protected static function booted()
+    {
+        static::created(function ($topic) {
+            // Auto-classify the new topic
+            app(TopicClassificationService::class)->classifyTopic($topic);
+        });
+    }
 
     /**
      * The group that owns this topic.
@@ -51,6 +64,17 @@ class Topic extends Model
     public function posts()
     {
         return $this->hasMany(Post::class);
+    }
+
+    /**
+     * The category this topic is classified under (nullable until classified).
+     *
+     * Used by the ML classifier and recommendation engine to group similar
+     * topics together. Set to null when the category is deleted.
+     */
+    public function category()
+    {
+        return $this->belongsTo(TopicCategory::class, 'category_id');
     }
 
     /**

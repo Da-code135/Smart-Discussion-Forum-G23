@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Mail\VerifyEmailMailable;
-use App\Models\EmailVerificationToken;
+use App\Utilities\ProfileUpdateUtility;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        protected ProfileUpdateUtility $profileUtility
+    ) {}
+
     /**
      * Update user profile.
      *
@@ -36,42 +36,50 @@ class ProfileController extends Controller
             ],
         ]);
 
-        // Check if email changed
-        $emailChanged = $validated['email'] !== $user->email;
-
-        if ($emailChanged) {
-            // Generate new verification token
-            $token = Str::random(64);
-            EmailVerificationToken::create([
-                'user_id' => $user->id,
-                'token' => $token,
-                'email' => $validated['email'],
-                'expires_at' => now()->addHours(24),
-            ]);
-
-            // Send verification email
-            Mail::queue(new VerifyEmailMailable($user, $token));
-        }
-
-        // Update user
-        $user->update([
-            'full_name' => $validated['full_name'],
-            'email' => $validated['email'],
-            'email_verified_at' => $emailChanged ? null : $user->email_verified_at,
-        ]);
-
-        // Reload user with fresh data
-        $user->refresh();
+        $result = $this->profileUtility->updateProfile(
+            $user,
+            $validated['full_name'],
+            $validated['email']
+        );
 
         return response()->json([
             'message' => 'Profile updated successfully',
-            'email_verification_required' => $emailChanged,
+            'email_verification_required' => $result['email_changed'],
             'user' => [
-                'id' => $user->id,
-                'full_name' => $user->full_name,
-                'email' => $user->email,
-                'email_verified_at' => $user->email_verified_at,
+                'id' => $result['user']->id,
+                'full_name' => $result['user']->full_name,
+                'email' => $result['user']->email,
+                'email_verified_at' => $result['user']->email_verified_at,
             ],
         ], 200);
+    }
+
+    /**
+     * Upload profile picture.
+     *
+     * POST /api/v1/profile/picture
+     * Protected by auth:sanctum middleware
+     */
+    public function uploadPicture(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png|max:2048',
+        ]);
+
+        $user = $request->user();
+
+        $path = $this->profileUtility->uploadProfilePicture(
+            $user,
+            $request->file('profile_picture')
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile picture updated successfully.',
+            'data' => [
+                'profile_picture' => $path,
+                'profile_picture_url' => asset('storage/'.$path),
+            ],
+        ]);
     }
 }

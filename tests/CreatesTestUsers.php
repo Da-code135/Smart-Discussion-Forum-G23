@@ -44,12 +44,12 @@ trait CreatesTestUsers
 
         $this->defaultGroup = Group::firstOrCreate(
             ['group_name' => 'Default Group'],
-            ['description' => 'Default test group']
+            ['description' => 'Default test group', 'group_type' => 'student']
         );
 
         $this->secondGroup = Group::firstOrCreate(
             ['group_name' => 'Second Group'],
-            ['description' => 'Second test group']
+            ['description' => 'Second test group', 'group_type' => 'student']
         );
     }
 
@@ -57,10 +57,10 @@ trait CreatesTestUsers
     {
         return User::create(array_merge([
             'full_name' => 'System Admin',
-            'email' => 'sysadmin@test.com',
+            'email' => 'sysadmin-'.uniqid().'@test.com',
             'password' => 'Password123',
             'role_id' => $this->systemAdminRole->id,
-            'group_id' => $this->defaultGroup->id,
+            'group_id' => null,
             'account_status' => 'active',
         ], $attrs));
     }
@@ -69,7 +69,7 @@ trait CreatesTestUsers
     {
         return User::create(array_merge([
             'full_name' => 'Group Admin',
-            'email' => 'groupadmin@test.com',
+            'email' => 'groupadmin-'.uniqid().'@test.com',
             'password' => 'Password123',
             'role_id' => $this->groupAdminRole->id,
             'group_id' => $this->defaultGroup->id,
@@ -81,7 +81,7 @@ trait CreatesTestUsers
     {
         return User::create(array_merge([
             'full_name' => 'Test Student',
-            'email' => 'student@test.com',
+            'email' => 'student-'.uniqid().'@test.com',
             'password' => 'Password123',
             'role_id' => $this->studentRole->id,
             'group_id' => $this->defaultGroup->id,
@@ -93,7 +93,7 @@ trait CreatesTestUsers
     {
         return User::create(array_merge([
             'full_name' => 'Test Member',
-            'email' => 'member@test.com',
+            'email' => 'member-'.uniqid().'@test.com',
             'password' => 'Password123',
             'role_id' => $this->memberRole->id,
             'group_id' => $this->defaultGroup->id,

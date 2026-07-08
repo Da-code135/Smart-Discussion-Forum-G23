@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('email', 100)->unique();
             $table->string('password');
             $table->foreignId('role_id')->constrained('roles');
-            $table->foreignId('group_id')->constrained('groups');
+            $table->foreignId('group_id')->nullable()->constrained('groups');
             $table->enum('account_status', ['active', 'warned', 'blacklisted'])->default('active');
             $table->timestamp('last_active_at')->nullable();
             $table->timestamp('email_verified_at')->nullable();

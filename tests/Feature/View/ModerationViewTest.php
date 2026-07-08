@@ -7,6 +7,7 @@ use App\Models\Post;
 use App\Models\Topic;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\CreatesTestUsers;
 use Tests\TestCase;
 
