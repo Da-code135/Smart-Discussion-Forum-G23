@@ -310,6 +310,21 @@ Route::middleware('auth')->group(function () {
 });
 
 // ============================================
+// CONVERSATION ROUTES (Person 2 — Conversation Management)
+// ============================================
+
+Route::middleware('auth')->group(function () {
+    Route::prefix('conversations')->name('conversations.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\ConversationController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\ConversationController::class, 'create'])->name('create');
+        Route::get('/{id}', [\App\Http\Controllers\ConversationController::class, 'show'])->name('show');
+        Route::post('/', [\App\Http\Controllers\ConversationController::class, 'store'])->name('store');
+        Route::post('/{id}/participants', [\App\Http\Controllers\ConversationController::class, 'addParticipant'])->name('participants.add');
+        Route::delete('/{id}/participants/{userId}', [\App\Http\Controllers\ConversationController::class, 'removeParticipant'])->name('participants.remove');
+    });
+});
+
+// ============================================
 // STUDENT QUIZ ROUTES (Quiz execution & timer — Person 3)
 // ============================================
 
