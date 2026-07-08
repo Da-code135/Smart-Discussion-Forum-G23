@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\StudentQuizController;
 use App\Http\Controllers\Api\TopicController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WarningAcknowledgementController;
+use App\Http\Controllers\Api\MessageStatusController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -425,6 +426,14 @@ Route::prefix($API_VERSION)->group(function () {
 
             Route::get('/conversations/{id}/messages', [\App\Http\Controllers\MessageController::class, 'index']);
             Route::post('/conversations/{id}/messages', [\App\Http\Controllers\MessageController::class, 'store']);
+
+            // ============================================
+            // MESSAGE STATUS ROUTES (Person 4 — Status & Notifications)
+            // ============================================
+
+            Route::post('/messages/{id}/deliver', [MessageStatusController::class, 'deliver']);
+            Route::post('/conversations/{id}/read', [MessageStatusController::class, 'markConversationRead']);
+            Route::get('/me/unread-counts', [MessageStatusController::class, 'unreadCounts']);
 
             // ============================================
             // ADMIN ROUTES (Admin access required)
