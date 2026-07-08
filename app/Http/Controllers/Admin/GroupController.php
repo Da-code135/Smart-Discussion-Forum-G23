@@ -25,7 +25,7 @@ class GroupController extends Controller
     public function index(Request $request)
     {
         $currentUser = auth()->user();
-        $query = Group::withCount('users');
+        $query = Group::withCount('users')->with('createdBy');
 
         // Role-based filtering: Group Admins see only their assigned groups
         if ($currentUser->isGroupAdmin()) {
@@ -67,7 +67,9 @@ class GroupController extends Controller
             abort(403, 'Only System Administrators can create new groups');
         }
 
-        return view('admin.groups.create');
+        return view('admin.groups.create', [
+            'group' => new Group,
+        ]);
     }
 
     // ============================================

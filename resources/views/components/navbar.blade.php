@@ -4,7 +4,7 @@
     $words = preg_split('/\s+/', trim($user->full_name));
     $initials = collect($words)->filter()->map(fn ($word) => strtoupper(substr($word, 0, 1)))->take(2)->join('');
     $avatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][$user->id % 5];
-    $groupName = $user->group->group_name ?? 'General Group';
+    $groupName = $user->group?->group_name ?? 'General Group';
 @endphp
 
 <header class="app-topbar">

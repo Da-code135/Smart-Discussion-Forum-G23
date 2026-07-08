@@ -140,6 +140,12 @@ class ForumExportAndShareTest extends TestCase
             'excluded_user_id' => $excluded->id,
         ]);
 
+        // Register the View creator BEFORE the request to capture view data
+        $repliesPassedToView = null;
+        View::creator('forum.export-pdf', function ($view) use (&$repliesPassedToView) {
+            $repliesPassedToView = $view->getData()['replies'] ?? null;
+        });
+
         // When the excluded user exports, they should get a PDF (not 403)
         // but the first post should be filtered from the replies
         $response = $this->actingAs($excluded)
@@ -147,23 +153,14 @@ class ForumExportAndShareTest extends TestCase
 
         $response->assertOk();
 
-        // The view receives filtered replies — excluded post should not be in the set
-        // We verify by checking the view data passed to the PDF template
-        $repliesPassedToView = null;
-        View::creator('forum.export-pdf', function ($view) use (&$repliesPassedToView) {
-            $repliesPassedToView = $view->getData()['replies'] ?? null;
-        });
-
-        $this->actingAs($excluded)
-            ->get(route('forum.export-pdf', $topic->id));
+        // Verify the view creator was triggered and captured data
+        $this->assertNotNull($repliesPassedToView, 'View creator was not triggered - PDF view may have a different name');
 
         // The excluded user should not see the first post in the replies
-        if ($repliesPassedToView) {
-            $this->assertFalse(
-                $repliesPassedToView->contains('id', $firstPost->id),
-                'Excluded user should not see the post they were excluded from'
-            );
-        }
+        $this->assertFalse(
+            $repliesPassedToView->contains('id', $firstPost->id),
+            'Excluded user should not see the post they were excluded from'
+        );
     }
 
     public function test_export_excludes_removed_posts()
@@ -175,27 +172,26 @@ class ForumExportAndShareTest extends TestCase
         $removedPost = $topic->posts()->oldest()->first();
         $removedPost->update(['is_removed' => true]);
 
-        $response = $this->actingAs($member)
-            ->get(route('forum.export-pdf', $topic->id));
-
-        $response->assertOk();
-
-        // Capture the view data
+        // Register the View creator BEFORE the request to capture view data
         $repliesPassedToView = null;
         View::creator('forum.export-pdf', function ($view) use (&$repliesPassedToView) {
             $repliesPassedToView = $view->getData()['replies'] ?? null;
         });
 
-        $this->actingAs($member)
+        $response = $this->actingAs($member)
             ->get(route('forum.export-pdf', $topic->id));
 
-        if ($repliesPassedToView) {
-            $this->assertFalse(
-                $repliesPassedToView->contains('id', $removedPost->id),
-                'Removed posts should not appear in the PDF export'
-            );
-            $this->assertCount(2, $repliesPassedToView);
-        }
+        $response->assertOk();
+
+        // Verify the view creator was triggered
+        $this->assertNotNull($repliesPassedToView, 'View creator was not triggered - PDF view may have a different name');
+
+        // Removed posts should not appear in the PDF export
+        $this->assertFalse(
+            $repliesPassedToView->contains('id', $removedPost->id),
+            'Removed posts should not appear in the PDF export'
+        );
+        $this->assertCount(2, $repliesPassedToView);
     }
 
     // =======================================================
