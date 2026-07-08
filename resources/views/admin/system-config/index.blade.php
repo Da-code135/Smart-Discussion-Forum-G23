@@ -66,6 +66,21 @@
                 <small class="form-text">Days of inactivity before first warning</small>
             </div>
 
+            <!-- Warning Response Days -->
+            <div class="form-group">
+                <label for="warning_response_days" class="form-label">Warning Response Days</label>
+                <input
+                    type="number"
+                    id="warning_response_days"
+                    name="warning_response_days"
+                    value="{{ $configs->firstWhere('config_key', 'warning_response_days')->config_value ?? 7 }}"
+                    min="1"
+                    class="form-control"
+                    required
+                >
+                <small class="form-text">Days a user has to respond to a warning before escalation</small>
+            </div>
+
             <!-- Blacklist Duration -->
             <div class="form-group">
                 <label for="blacklist_duration_days" class="form-label">Blacklist Duration (days)</label>
