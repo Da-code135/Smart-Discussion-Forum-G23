@@ -13,7 +13,8 @@
 5. [Person 3: Real-Time Messaging](#5-person-3-real-time-messaging)
 6. [Person 4: Message Status & Notifications](#6-person-4-message-status--notifications)
 7. [Person 5: Offline Sync & Testing](#7-person-5-offline-sync--testing)
-8. [The Complete Data Flow](#8-the-complete-data-flow)
+8. [How Everything Connects — The Request Lifecycle](#8-how-everything-connects--the-request-lifecycle)
+9. [The Complete Data Flow](#9-the-complete-data-flow)
 
 ---
 
@@ -1009,42 +1010,749 @@ A documentation file for the desktop client developer, documenting:
 - **`POST /sync/push`** — Upload offline messages, returns per-message success/failure
 - **WebSocket connection** — How to connect to Reverb directly (since the desktop client can't use Laravel Echo)
 
-### 7.3 Testing — `tests/Feature/Chat/ChatTest.php`
+### 7.3 Testing — `tests/Feature/Chat/SyncTest.php` and `tests/Feature/Chat/MessageTest.php`
 
-A comprehensive test suite covering all 5 persons' work, with test methods organized by person:
+**`SyncTest.php`** — Person 5's test suite for the offline sync endpoints. 22 test methods covering:
 
-**Person 1 — Schema integrity:**
-- `test_create_conversation_requires_group_id()`
-- `test_conversation_participants_unique_constraint()`
-- `test_message_status_created_on_message_create()`
+| Category | Test | What It Verifies |
+|---|---|---|
+| **Pull** | `test_pull_requires_authentication()` | Unauthenticated requests get 401 |
+| | `test_pull_requires_device_id()` | Missing `device_id` gets 422 validation error |
+| | `test_pull_returns_no_data_for_first_sync_when_no_activity()` | First sync with no data returns empty arrays |
+| | `test_pull_returns_messages_after_checkpoint()` | Messages created after the checkpoint are returned |
+| | `test_pull_creates_checkpoint_on_first_sync()` | First sync creates a row in `sync_checkpoints` |
+| | `test_pull_updates_checkpoint_after_successful_sync()` | Subsequent syncs advance the timestamp |
+| | `test_pull_returns_only_new_data()` | Old messages (before checkpoint) are NOT returned |
+| | `test_pull_returns_status_updates()` | Status changes (sent→delivered→read) are included |
+| | `test_pull_respects_group_isolation()` | A user from a different group sees nothing |
+| | `test_different_devices_have_independent_checkpoints()` | Two devices track their own sync positions |
+| **Push** | `test_push_requires_authentication()` | Unauthenticated requests get 401 |
+| | `test_push_requires_messages_array()` | Missing `messages` field gets 422 |
+| | `test_push_saves_message_and_returns_message_id()` | A valid message is saved and returns an ID |
+| | `test_push_rejects_non_participant()` | Non-participant gets `success: false` |
+| | `test_push_deduplicates_identical_messages()` | Same message sent twice = only one saved |
+| | `test_push_batch_partial_failure()` | Mixed batch: some succeed, some fail independently |
+| | `test_push_updates_last_activity_at()` | Conversation's `last_activity_at` advances |
+| | `test_push_validates_body_length()` | Messages over 10,000 chars are rejected |
+| | `test_push_max_100_messages()` | Batches over 100 messages are rejected |
+| **Auth** | `test_sync_requires_authenticated_user()` | Both endpoints return 401 without a token |
 
-**Person 2 — Conversation management:**
-- `test_user_can_list_own_conversations()`
-- `test_cross_group_conversation_rejected()`
-- `test_direct_conversation_reuses_existing()`
-- `test_only_admin_can_manage_participants()`
-
-**Person 3 — Messaging:**
-- `test_participant_can_send_message()`
-- `test_non_participant_cannot_send_message()`
-- `test_message_broadcast_on_send()`
-- `test_fetch_messages_paginated()`
-
-**Person 4 — Status:**
-- `test_message_status_progression_sent_to_delivered()`
-- `test_message_status_progression_delivered_to_read()`
-- `test_batch_read_on_conversation_open()`
-- `test_unread_count_accuracy()`
-
-**Person 5 — Sync:**
-- `test_delta_sync_returns_only_new_data()`
-- `test_checkpoint_not_updated_on_failed_request()`
-- `test_offline_message_upload_validates_participants()`
-- `test_group_change_reflected_in_sync()`
+**`MessageTest.php`** — Person 3's messaging tests (already existed, covers send/receive).
 
 ---
 
-## 8. The Complete Data Flow
+## 8. How Everything Connects — The Request Lifecycle
+
+This section traces the complete journey of a request through the chat module, from the moment it hits the server to the response sent back. Understanding this flow is key to understanding how all the pieces fit together.
+
+### 8.1 The Overall Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Incoming Request                          │
+│  (Browser visit /api call / WebSocket connection)                │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Laravel Application                          │
+│                                                                  │
+│  ┌──────────┐    ┌──────────────┐    ┌──────────────────────┐   │
+│  │  Routes   │───►│  Middleware   │───►│    Controller        │   │
+│  │  (web/,  │    │  (auth,      │    │  (Receives Request,  │   │
+│  │  api/)   │    │   admin,     │    │   returns Response)   │   │
+│  └──────────┘    │   sanctum)   │    └──────────┬───────────┘   │
+│                  └──────────────┘               │                │
+│                                                  ▼                │
+│                                       ┌──────────────────────┐   │
+│                                       │    Services Layer     │   │
+│                                       │  Business logic that │   │
+│                                       │  doesn't belong in   │   │
+│                                       │  controllers         │   │
+│                                       └──────────┬───────────┘   │
+│                                                  ▼                │
+│                                       ┌──────────────────────┐   │
+│                                       │    Eloquent Models    │   │
+│                                       │  (Conversation,      │   │
+│                                       │   Message, etc.)     │   │
+│                                       └──────────┬───────────┘   │
+│                                                  ▼                │
+│                                       ┌──────────────────────┐   │
+│                                       │    Database Tables    │   │
+│                                       │  (MySQL queries)      │   │
+│                                       └──────────────────────┘   │
+│                                                                  │
+│  After response is built, events may be broadcast:               │
+│  Controller ──► Event ──► Reverb ──► Other users' browsers       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 Step 1: The Route File Determines Which Code Runs
+
+When a request arrives at the server (e.g., `GET /api/v1/conversations`), Laravel needs to figure out: "Which controller method should handle this?"
+
+**The route file is a lookup table.** It maps HTTP methods + URL patterns to controller methods:
+
+```php
+// routes/api.php — inside the auth:sanctum middleware group
+
+Route::get('/conversations', [ConversationController::class, 'index']);
+```
+
+**This line means:**
+```
+When someone sends:  GET /api/v1/conversations
+Run this middleware:  auth:sanctum (check for valid API token)
+Call this method:     ConversationController::index()
+```
+
+The URL `/api/v1/conversations` is actually constructed from nested prefixes:
+
+```php
+// routes/api.php
+Route::prefix('api')->group(function () {
+    Route::prefix('v1')->group(function () {
+        Route::middleware('auth:sanctum')->group(function () {
+            Route::get('/conversations', [ConversationController::class, 'index']);
+        });
+    });
+});
+```
+
+Each `Route::prefix()` or `Route::middleware()` wraps everything inside it. So the full URL path is `api + v1 + /conversations = /api/v1/conversations`, and the `auth:sanctum` middleware applies to all routes inside the group.
+
+**Route parameters** are marked with `{curly_braces}`:
+
+```php
+Route::get('/conversations/{id}', [ConversationController::class, 'show']);
+Route::post('/conversations/{id}/participants', [ConversationController::class, 'addParticipant']);
+Route::delete('/conversations/{id}/participants/{userId}', [ConversationController::class, 'removeParticipant']);
+```
+
+When a request comes in for `GET /api/v1/conversations/42`, Laravel:
+1. Matches the pattern `/conversations/{id}`
+2. Extracts `id = 42`
+3. Passes `42` as the first argument to `show()`
+4. Calls `ConversationController::show(42)`
+
+**Web routes use named routes** so Blade templates can reference them by name instead of hardcoding URLs:
+
+```php
+Route::get('/conversations', [ConversationController::class, 'index'])->name('conversations.index');
+```
+
+In a Blade view, instead of writing `<a href="/conversations">`, you write:
+```blade
+<a href="{{ route('conversations.index') }}">
+```
+
+If the URL structure changes later, you only update the route file — every link updates automatically.
+
+### 8.3 Step 2: Middleware Filters Every Request
+
+**Middleware is code that runs before and after your controller.** Think of it as a security checkpoint — the request must pass through several checkpoints before reaching your controller, and the response passes through them again on the way out.
+
+```
+Request ──► Middleware 1 (auth:sanctum) ──► Middleware 2 (api.security) ──► Controller
+                                                                              │
+Response ◄── Middleware 1 (auth:sanctum) ◄── Middleware 2 (api.security) ◄───┘
+```
+
+**The `auth:sanctum` middleware** (used by all API routes):
+
+```php
+// Pseudocode of what the middleware does:
+function handle($request, $next) {
+    $token = $request->bearerToken();  // Get token from Authorization header
+
+    if (! $token) {
+        return response()->json(['message' => 'Unauthenticated'], 401);
+    }
+
+    $user = findUserByToken($token);   // Look up the token in the database
+
+    if (! $user) {
+        return response()->json(['message' => 'Invalid token'], 401);
+    }
+
+    $request->setUserResolver(fn () => $user);  // Attach user to request
+
+    return $next($request);  // Continue to the controller
+}
+```
+
+If the token is missing or invalid, the middleware **short-circuits** — it returns a 401 response immediately, and the controller never runs. This is why every controller method can safely call `$request->user()` or `auth()->user()` without checking if the user is logged in — the middleware already handled that.
+
+**The `admin` middleware** checks if the user's role is an admin:
+
+```php
+if (! auth()->user()->isAdmin()) {
+    abort(403);  // Forbidden — controller never runs
+}
+```
+
+**Multiple middlewares stack up.** The request passes through all of them in order. If any middleware rejects the request, the controller never runs.
+
+```
+Request ──► auth:sanctum ──► admin ──► Controller
+    │                            │
+    ▼                            ▼
+  401 if bad token            403 if not admin
+```
+
+### 8.4 Step 3: The Controller Receives and Handles the Request
+
+After passing through all middleware, the request reaches the controller method. Laravel calls the method and passes it:
+
+1. The **Request object** (if type-hinted in the method parameters)
+2. Any **route parameters** (e.g., `{id}`, `{userId}`)
+
+```php
+// Example: DELETE /api/v1/conversations/42/participants/7
+// Maps to: ConversationController::removeParticipant(Request $request, int $id, int $userId)
+
+public function removeParticipant(Request $request, int $id, int $userId): JsonResponse|RedirectResponse
+{
+    // $id = 42 (from the URL {id})
+    // $userId = 7 (from the URL {userId})
+    // $request contains headers, query params, form data
+
+    $conversation = Conversation::findOrFail($id);
+    // ...
+}
+```
+
+**Laravel matches route parameter names to method parameter names automatically.** The route has `{id}` and `{userId}`, so the method parameters `$id` and `$userId` receive those values. The order doesn't matter — Laravel matches by name, not position.
+
+**Controllers that serve both web and API:**
+
+The same controller method often handles both web requests (returning Blade views) and API requests (returning JSON). The `$request->is('api/*')` check distinguishes them:
+
+```php
+public function index(Request $request): View|JsonResponse
+{
+    $conversations = Conversation::forUserInGroup(auth()->user())->paginate(20);
+
+    if ($request->is('api/*')) {
+        // API call → return JSON
+        return response()->json(['data' => $conversations], 200);
+    }
+
+    // Web call → return Blade view
+    return view('conversations.index', compact('conversations'));
+}
+```
+
+**What the controller does inside the method:**
+
+Every controller method follows a similar pattern:
+
+```
+1. Validate input (if the request has form data)
+       │
+2. Fetch data from the database (using Eloquent models)
+       │
+3. Process the data (business logic, often delegated to Services)
+       │
+4. Return a response (JSON for API, redirect/view for web)
+```
+
+### 8.5 Step 4: Eloquent Models Bridge Code and Database
+
+**An Eloquent model is a class that represents a database table.** Each model has a corresponding table, and each instance of the model represents one row in that table.
+
+```
+┌────────────────────────────────────────────────────────┐
+│  Model: Conversation                                    │
+│  Table: conversations                                   │
+│                                                         │
+│  $conversation = Conversation::find(42)                 │
+│  // Runs SQL: SELECT * FROM conversations WHERE id = 42 │
+│                                                         │
+│  $conversation->name           // Reads the 'name' column │
+│  $conversation->type           // Reads the 'type' column │
+│  $conversation->group_id       // Reads the 'group_id'  │
+│  $conversation->created_at     // Reads the 'created_at'│
+└────────────────────────────────────────────────────────┘
+```
+
+**The `$fillable` array** controls which columns can be set via mass-assignment:
+
+```php
+protected $fillable = ['group_id', 'type', 'name', 'last_activity_at'];
+
+// This works:
+Conversation::create(['group_id' => 3, 'type' => 'direct']);
+
+// This throws an error (group_id is mass-assignable, 'admin_only' is not):
+Conversation::create(['group_id' => 3, 'admin_only' => true]);
+```
+
+This prevents a common security vulnerability called **mass assignment** — where a malicious user adds extra fields to a form submission (like `is_admin = true`) that get written to the database.
+
+**The `$casts` array** tells Laravel to automatically convert column values to PHP types:
+
+```php
+protected $casts = [
+    'last_activity_at' => 'datetime',  // String → Carbon instance
+];
+
+// Now this works:
+$conversation->last_activity_at->diffForHumans();  // "2 hours ago"
+$conversation->last_activity_at->format('Y-m-d');  // "2026-07-10"
+
+// Without the cast, last_activity_at would be a plain string,
+// and calling ->diffForHumans() on a string would crash.
+```
+
+#### How Relationships Work
+
+Relationships tell Laravel how tables are connected. They let you navigate from one model to related models without writing JOIN queries manually.
+
+**`belongsTo` — Child points to Parent:**
+
+```php
+// messages table has conversation_id → conversations table
+class Message extends Model {
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(Conversation::class);
+    }
+}
+
+// Usage:
+$message = Message::find(100);
+$conversation = $message->conversation;  // SELECT * FROM conversations WHERE id = 42
+echo $conversation->name;  // Now you have the conversation data
+```
+
+**`hasMany` — Parent has many Children:**
+
+```php
+// A conversation has many messages
+class Conversation extends Model {
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
+}
+
+// Usage:
+$conversation = Conversation::find(42);
+$messages = $conversation->messages;  // SELECT * FROM messages WHERE conversation_id = 42
+foreach ($messages as $message) {
+    echo $message->body;
+}
+```
+
+**`belongsToMany` — Many-to-Many (with a pivot table):**
+
+```php
+// A user can be in many conversations, a conversation can have many users
+// The pivot table 'conversation_participants' links them
+class Conversation extends Model {
+    public function participants(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'conversation_participants')
+            ->withPivot('role', 'joined_at');  // Extra columns on the pivot table
+    }
+}
+
+// Usage:
+$conversation = Conversation::find(42);
+foreach ($conversation->participants as $user) {
+    echo $user->full_name;              // From the users table
+    echo $user->pivot->role;            // From the pivot table (participant/admin)
+    echo $user->pivot->joined_at;       // From the pivot table
+}
+```
+
+**The pivot table** stores extra data about the relationship. Without `withPivot('role', 'joined_at')`, you could only access the user's data, not their role in the conversation.
+
+#### How Scopes Work
+
+**Scopes are pre-built query filters.** They keep your code DRY by packaging common WHERE clauses into reusable methods:
+
+```php
+class Conversation extends Model
+{
+    // Define a scope
+    public function scopeForUserInGroup($query, User $user)
+    {
+        return $query->where('group_id', $user->group_id)
+            ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id));
+    }
+}
+
+// Use it (notice: the method name drops "scope" and uses camelCase):
+$conversations = Conversation::forUserInGroup($user)->get();
+
+// Without the scope, every controller would have to write:
+$conversations = Conversation::where('group_id', $user->group_id)
+    ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
+    ->get();
+```
+
+**Why scopes matter for security:** The `forUserInGroup` scope is used by EVERY controller that lists conversations. If a new developer adds a conversation feature and forgets to add the group isolation check, the scope prevents a data leak. The scope is the single source of truth for this filter — there's no code path that bypasses it.
+
+#### How Eager Loading Works (The N+1 Problem)
+
+Without eager loading, accessing a relationship for multiple items creates a separate SQL query for each item:
+
+```php
+// BAD: N+1 queries
+$conversations = Conversation::all();  // 1 query
+foreach ($conversations as $c) {
+    echo $c->participants->count();    // 1 query PER conversation
+    // If there are 50 conversations, that's 50 more queries
+}
+// Total: 51 queries for a simple list
+```
+
+With eager loading, Laravel gathers all the IDs and runs a single query for all related records:
+
+```php
+// GOOD: 2 queries total
+$conversations = Conversation::with('participants')->get();  // 1 query
+foreach ($conversations as $c) {
+    echo $c->participants->count();    // Data already loaded — no extra query
+}
+// Total: 2 queries
+```
+
+The `with('participants')` runs: `SELECT * FROM conversation_participants WHERE conversation_id IN (1, 2, 3, ... 50)`, then Laravel matches them up in memory.
+
+#### How Model Events (booted) Work
+
+Eloquent fires events at specific points in a model's lifecycle. The `booted()` method lets you register listeners for those events.
+
+```php
+class Message extends Model
+{
+    protected static function booted(): void
+    {
+        // "created" fires AFTER a new message is saved to the database
+        static::created(function (Message $message) {
+            // At this point, $message has an ID and all fields are persisted
+            // Automatically create status rows for all recipients
+            app(MessageStatusService::class)->createInitialStatusRows($message);
+        });
+    }
+}
+```
+
+**The sequence when a message is saved:**
+
+```
+$message = Message::create(['body' => 'Hello']);
+       │
+       ├── 1. "creating" event fires (before insert)
+       │
+       ├── 2. INSERT INTO messages ...
+       │
+       ├── 3. "created" event fires (after insert)
+       │         └── Our booted() listener runs
+       │               └── createInitialStatusRows() is called
+       │
+       └── 4. $message is returned with its ID
+```
+
+**Why this is important:** The booted hook is automatic. Every message that is created — whether through the web interface, the API, or the sync push — gets status rows created automatically. Nobody can forget to call `createInitialStatusRows()` because it's part of the model, not the controller.
+
+### 8.6 Step 5: Services Contain Business Logic
+
+**Services are classes that hold business logic that doesn't belong in controllers or models.** They keep your code organized:
+
+| Layer | Responsibility |
+|---|---|
+| **Controller** | Handle HTTP concerns (validate input, return responses) |
+| **Service** | Execute business logic (transition status, calculate unread counts) |
+| **Model** | Represent data (relationships, scopes, casts) |
+
+**`MessageStatusService`** is a good example. The controller doesn't update `message_status` rows directly — it calls the service:
+
+```php
+// In the controller:
+public function markRead(int $conversationId)
+{
+    // Controller handles HTTP concerns
+    $userId = auth()->id();
+
+    // Service handles business logic
+    $updated = app(MessageStatusService::class)
+        ->markConversationAsRead($conversationId, $userId);
+
+    return response()->json(['updated' => $updated], 200);
+}
+```
+
+**Why not put the logic directly in the controller?**
+
+```
+// BAD: Controller knows too much
+public function markRead(int $conversationId)
+{
+    $updated = MessageStatus::whereIn('message_id', function ($q) use ($conversationId) {
+            $q->select('id')->from('messages')
+                ->where('conversation_id', $conversationId);
+        })
+        ->where('user_id', auth()->id())
+        ->whereIn('status', ['sent', 'delivered'])
+        ->update(['status' => 'read', 'updated_at' => now()]);
+
+    broadcast(new MessagesRead($conversationId, auth()->id()))->toOthers();
+
+    return response()->json(['updated' => $updated], 200);
+}
+
+// GOOD: Controller delegates to Service
+public function markRead(int $conversationId)
+{
+    $updated = app(MessageStatusService::class)
+        ->markConversationAsRead($conversationId, auth()->id());
+
+    return response()->json(['updated' => $updated], 200);
+}
+```
+
+Reasons:
+1. **Testability** — You can test the service in isolation without simulating HTTP requests
+2. **Reusability** — If the sync push endpoint also needs to mark messages as read, it calls the same service method
+3. **Consistency** — The service ensures status transitions always behave the same way (never go backward from 'read' to 'delivered')
+
+### 8.7 Step 6: The Response Is Built and Sent
+
+After the controller processes the request, it returns a response. Laravel converts the response into HTTP and sends it back to the client.
+
+**For API routes — JSON response:**
+
+```php
+return response()->json(['data' => $conversations], 200);
+```
+
+This sends:
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{"data": {"id": 42, "name": null, "type": "direct", ...}}
+```
+
+**For web routes — Blade view:**
+
+```php
+return view('conversations.index', compact('conversations'));
+```
+
+Laravel renders the Blade template into HTML and sends it:
+```
+HTTP/1.1 200 OK
+Content-Type: text/html
+
+<!DOCTYPE html>
+<html>
+...
+```
+
+**For redirects:**
+
+```php
+return redirect()->route('conversations.index')
+    ->with('success', 'Conversation started successfully.');
+```
+
+This sends a `302 Found` response with a `Location` header pointing to the conversations list. The browser follows the redirect, and the success message is stored in the session flash data for one request.
+
+### 8.8 Step 7: Broadcasting to Reverb (The Real-Time Part)
+
+When a message is sent, the controller broadcasts an event after saving to the database:
+
+```php
+broadcast(new MessageSent($message))->toOthers();
+```
+
+**What `broadcast()` does:**
+
+```
+broadcast(new MessageSent($message))
+       │
+       ├── 1. Laravel serializes the MessageSent event into JSON
+       │
+       ├── 2. Reads BROADCAST_CONNECTION from .env
+       │      (reverb, pusher, log, null)
+       │
+       ├── 3. If "reverb": connects to the local Reverb server
+       │      and pushes the event to the Pusher protocol
+       │
+       ├── 4. If "log": writes the event to the log file instead
+       │      (used in development — no actual broadcast happens)
+       │
+       └── 5. If "null": no-ops (broadcasting is disabled)
+```
+
+**The `->toOthers()` method** tells Laravel to NOT send the event back to the sender. Alice already sees her own message in the UI — she doesn't need to receive it again via WebSocket. Only other participants receive the broadcast.
+
+**How the event class controls what is broadcast:**
+
+```php
+class MessageSent implements ShouldBroadcastNow
+{
+    public Message $message;
+
+    public function broadcastOn(): array
+    {
+        // Which channel does this event go to?
+        return [new PrivateChannel("conversation.{$this->message->conversation_id}")];
+    }
+
+    public function broadcastWith(): array
+    {
+        // What data is sent to the clients?
+        return [
+            'id' => $this->message->id,
+            'conversation_id' => $this->message->conversation_id,
+            'sender_id' => $this->message->sender_id,
+            'sender_name' => $this->message->sender->full_name,
+            'body' => $this->message->body,
+            'created_at' => $this->message->created_at->toIso8601String(),
+        ];
+    }
+}
+```
+
+**`PrivateChannel("conversation.42")`** means only authorized users can subscribe. The authorization check runs in `routes/channels.php`:
+
+```php
+Broadcast::channel('conversation.{conversationId}', function ($user, $conversationId) {
+    return Conversation::where('id', $conversationId)
+        ->where('group_id', $user->group_id)
+        ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
+        ->exists();
+});
+```
+
+**The channel authorization closure** is called EVERY time a client tries to subscribe. It receives the authenticated user and the channel parameter (conversationId), and must return `true` (allow) or `false` (deny). This is the security gate for WebSocket subscriptions.
+
+**`ShouldBroadcastNow` vs `ShouldBroadcast`:**
+
+- **`ShouldBroadcastNow`** — Broadcasts synchronously, in the same request. The user's browser waits for the broadcast to finish before getting the response. Adds ~5-15ms. Used for chat messages where every millisecond matters.
+- **`ShouldBroadcast`** — Dispatches a job to the queue. The `queue:work` process picks it up and broadcasts it. Adds ~100-500ms delay. Used for things like email notifications where real-time delivery isn't critical.
+
+### 8.9 Authentication Flow (Sanctum Tokens)
+
+The API uses **Sanctum token authentication**. Here's the complete flow:
+
+```
+1. Client sends: POST /api/v1/login
+   Body: { "email": "alice@example.com", "password": "secret" }
+       │
+       ▼
+2. Server validates credentials against the database
+       │
+       ├── Valid → Server generates a token: "2|abc123def456..."
+       │            Returns: { "token": "2|abc123def456...", "user": { ... } }
+       │
+       └── Invalid → Returns: { "message": "Invalid credentials" }, 401
+       │
+       ▼
+3. Client stores the token (securely, like a password)
+       │
+       ▼
+4. For every subsequent request, client includes:
+   Header: "Authorization: Bearer 2|abc123def456..."
+       │
+       ▼
+5. The auth:sanctum middleware reads the header,
+   looks up the token in the personal_access_tokens table,
+   and attaches the user to the request.
+       │
+       ├── Valid token → Request proceeds to the controller
+       └── Invalid/expired → Returns 401 Unauthorized
+```
+
+**For WebSocket connections, the same token is used:**
+
+```
+1. Client opens WebSocket to Reverb server
+2. Client subscribes to a private channel
+3. Reverb asks the client to authenticate
+4. Client POSTs to /api/broadcasting/auth with:
+   - socket_id (from the WebSocket connection)
+   - channel_name ("private-conversation.42")
+   - Authorization: Bearer <token>
+5. Laravel verifies the token, then runs the channel authorization callback
+6. If authorized, Laravel signs a response and sends it back
+7. Client sends the signature to Reverb
+8. Reverb subscribes the client to the channel
+```
+
+### 8.10 Request Lifecycle Summary — Complete Trace
+
+Let's trace one complete request end-to-end: **Alice sends a message via the API**.
+
+```
+Alice's App                                Laravel Server                         Database / Reverb
+     │                                          │                                     │
+     │  POST /api/v1/conversations/42/messages   │                                     │
+     │  Authorization: Bearer 2|abc...           │                                     │
+     │  { "body": "Hello!" }                     │                                     │
+     │─────────────────────────────────────────►│                                     │
+     │                                          │                                     │
+     │                                          │  ┌─ routes/api.php                    │
+     │                                          │  │  Route::post('/conversations/      │
+     │                                          │  │    {id}/messages', ...)            │
+     │                                          │  └─────────────────────────────────┘ │
+     │                                          │                                     │
+     │                                          │  ┌─ Middleware: auth:sanctum          │
+     │                                          │  │  Reads Bearer token                │
+     │                                          │  │  Finds token in DB                 │
+     │                                          │  │  Attaches Alice as $request->user()│
+     │                                          │  └─────────────────────────────────┘ │
+     │                                          │                                     │
+     │                                          │  ┌─ ConversationController::store()   │
+     │                                          │  │                                   │
+     │                                          │  │  1. $request->validate(['body'...])│
+     │                                          │  │                                   │
+     │                                          │  │  2. Conversation::forUserInGroup()  │
+     │                                          │  │     → SELECT * FROM conversations  │
+     │                                          │  │       WHERE group_id = 3            │
+     │                                          │  │       AND id = 42                   │
+     │                                          │  │       AND EXISTS (participants)     │
+     │                                          │  │                                   │
+     │                                          │  │  3. $conversation->messages()->     │
+     │                                          │  │     create(['body' => 'Hello!'])    │
+     │                                          │  │     → INSERT INTO messages          │
+     │                                          │───────────────────────────────────►  │
+     │                                          │  │                                   │
+     │                                          │  │  4. Message::booted() fires         │
+     │                                          │  │     → MessageStatusService::        │
+     │                                          │  │       createInitialStatusRows()     │
+     │                                          │  │     → INSERT INTO message_status    │
+     │                                          │───────────────────────────────────►  │
+     │                                          │  │                                   │
+     │                                          │  │  5. $conversation->update(...)      │
+     │                                          │  │     → UPDATE conversations          │
+     │                                          │  │       SET last_activity_at = NOW()  │
+     │                                          │───────────────────────────────────►  │
+     │                                          │  │                                   │
+     │                                          │  │  6. broadcast(new MessageSent())    │
+     │                                          │  │     → Reverb broadcasts to all     │
+     │                                          │  │       subscribers of channel        │
+     │                                          │  │       "conversation.42"             │
+     │                                          │───────────────────────────────────►  │
+     │                                          │  │                                   │
+     │                                          │  │  7. Return JSON 201                 │
+     │  ◄─────────────────────────────────────────│  { "data": { "id": 100, ... } }     │
+     │                                          │                                     │
+     │                                          │                                     │
+     │  Bob's Browser (subscribed to channel     │                                     │
+     │  "conversation.42") receives event:      │                                     │
+     │  { "event": "App\\Events\\MessageSent",   │                                     │
+     │    "data": { "id": 100, "body": "Hello!", │                                     │
+     │              "sender_name": "Alice" } }    │                                     │
+```
+
+## 9. The Complete Data Flow
 
 ### When Alice sends a message to Bob (both online):
 
@@ -1179,7 +1887,8 @@ SyncController::push()
 | `app/Events/MessagesRead.php` | P4 | Real-time read receipt broadcast |
 | `app/Http/Controllers/SyncController.php` | P5 | Offline sync pull + push |
 | `docs/sync-api.md` | P5 | API documentation for desktop client |
-| `tests/Feature/Chat/ChatTest.php` | P5 | Comprehensive test suite |
+| `tests/Feature/Chat/SyncTest.php` | P5 | 22 tests for pull + push sync endpoints |
+| `tests/Feature/Chat/MessageTest.php` | P3 | Tests for message send/fetch |
 
 ---
 
