@@ -4,9 +4,6 @@
 @section('activeNav', 'topics')
 
 @php
-    $shareUrl = route('forum.show', $topic->id);
-    $encodedShareUrl = urlencode($shareUrl);
-    $shareText = urlencode($topic->title);
     $creatorInitials = collect(explode(' ', optional($topic->creator)->full_name ?? 'Deleted User'))->map(fn ($w) => strtoupper(substr($w, 0, 1)))->take(2)->join('');
     $creatorAvatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][($topic->creator->id ?? 0) % 5];
 @endphp
@@ -55,47 +52,7 @@
                         <span class="material-symbols-outlined">download</span>
                         Export PDF
                     </a>
-                    <div style="position: relative; display: inline-flex;">
-                        <button type="button" class="post-action-btn" onclick="toggleShareMenu(event)">
-                            <span class="material-symbols-outlined">share</span>
-                            Share
-                        </button>
-                        <div id="share-menu" class="share-menu" style="display: none; position: absolute; right: 0; top: calc(100% + 8px); z-index: 20;">
-                            <div class="page-stack">
-                                <div>
-                                    <h2>Share this topic</h2>
-                                    <p>Recipients must be logged in unless you generate a signed link.</p>
-                                </div>
-                                <div class="share-menu__links">
-                                    <a href="https://wa.me/?text={{ $encodedShareUrl }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">WhatsApp</a>
-                                    <a href="https://twitter.com/intent/tweet?url={{ $encodedShareUrl }}&text={{ $shareText }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">Twitter</a>
-                                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ $encodedShareUrl }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">Facebook</a>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="copyToClipboard('{{ $shareUrl }}')">Copy link</button>
-                                </div>
-                                <form action="{{ route('topics.share', $topic) }}" method="POST" class="form-stack">
-                                    @csrf
-                                    <div class="form-group">
-                                        <label for="expires_in_days" class="form-label">Link expiration</label>
-                                        <select name="expires_in_days" id="expires_in_days" class="form-input" required>
-                                            <option value="1">1 day</option>
-                                            <option value="3">3 days</option>
-                                            <option value="7">7 days</option>
-                                        </select>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary btn-sm">Generate share link</button>
-                                </form>
-                                @if (session('share_url'))
-                                    <div class="form-group">
-                                        <label for="shareUrl" class="form-label">Your signed link</label>
-                                        <div class="form-actions-row">
-                                            <input type="text" id="shareUrl" class="form-input" value="{{ session('share_url') }}" readonly>
-                                            <button type="button" class="btn btn-secondary btn-sm" onclick="copySignedUrl()">Copy</button>
-                                        </div>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
+                    <x-share-dropdown :topic="$topic" />
                     @auth
                         <x-report-button type="topic" :id="$topic->id" />
                     @endauth
@@ -200,48 +157,4 @@
 </div>
 @endsection
 
-@push('scripts')
-<script>
-    function toggleShareMenu(event) {
-        event.stopPropagation();
-        const menu = document.getElementById('share-menu');
-        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-    }
 
-    function copyToClipboard(url) {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url).then(function () {
-                alert('Link copied to clipboard!');
-            }).catch(function () {
-                fallbackCopy(url);
-            });
-        } else {
-            fallbackCopy(url);
-        }
-    }
-
-    function copySignedUrl() {
-        const input = document.getElementById('shareUrl');
-        if (input) {
-            copyToClipboard(input.value);
-        }
-    }
-
-    function fallbackCopy(text) {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        alert('Link copied to clipboard!');
-    }
-
-    document.addEventListener('click', function (event) {
-        const menu = document.getElementById('share-menu');
-        if (menu && menu.style.display !== 'none' && !event.target.closest('#share-menu') && !event.target.closest('[onclick*="toggleShareMenu"]')) {
-            menu.style.display = 'none';
-        }
-    });
-</script>
-@endpush

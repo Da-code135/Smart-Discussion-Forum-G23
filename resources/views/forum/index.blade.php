@@ -71,10 +71,7 @@
                                     <span class="material-symbols-outlined">chat_bubble</span>
                                     {{ $topic->posts_count }} {{ Str::plural('Comment', $topic->posts_count) }}
                                 </a>
-                                <a href="{{ route('forum.show', $topic->id) }}" class="post-action-btn">
-                                    <span class="material-symbols-outlined">share</span>
-                                    Share
-                                </a>
+                                <x-share-dropdown :topic="$topic" />
                             </div>
                         </div>
                     </div>

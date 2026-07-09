@@ -97,6 +97,50 @@
                 });
             }
         });
+
+        // ========== Share / Social helpers ==========
+        function toggleShareMenu(event, menuId) {
+            event.stopPropagation();
+            const menu = document.getElementById(menuId);
+            if (menu) {
+                menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        function copyToClipboard(url) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(function () {
+                    alert('Link copied to clipboard!');
+                }).catch(function () {
+                    fallbackCopy(url);
+                });
+            } else {
+                fallbackCopy(url);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('Link copied to clipboard!');
+        }
+
+        // Global click handler to close share menus when clicking outside
+        document.addEventListener('click', function (event) {
+            document.querySelectorAll('.share-menu').forEach(function (menu) {
+                if (menu.style.display !== 'none') {
+                    const btnId = menu.id.replace('share-menu-', 'share-btn-');
+                    const btn = document.getElementById(btnId);
+                    if (!event.target.closest('#' + menu.id) && btn && !btn.contains(event.target)) {
+                        menu.style.display = 'none';
+                    }
+                }
+            });
+        });
     </script>
 </body>
 </html>

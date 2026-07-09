@@ -110,10 +110,7 @@
                                             <span class="material-symbols-outlined">chat_bubble</span>
                                             {{ $topic['reply_count'] }} {{ $topic['reply_count'] === 1 ? 'Comment' : 'Comments' }}
                                         </a>
-                                        <a href="{{ route('forum.show', $topic['id']) }}" class="post-action-btn">
-                                            <span class="material-symbols-outlined">share</span>
-                                            Share
-                                        </a>
+                                        <x-share-dropdown :topic="$topic" />
                                     </div>
                                 </div>
                             </div>
