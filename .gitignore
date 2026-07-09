@@ -131,4 +131,6 @@ nul
 .env.docker
 docker-compose.yml
 Dockerfile
+Caddyfile
 /docker/
+.dockerignore
