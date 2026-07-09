@@ -126,3 +126,9 @@ database/seeders/DemoDataSeeder.php
 .nvmrc
 nul
 .lingma/
+
+# Docker production demo config
+.env.docker
+docker-compose.yml
+Dockerfile
+/docker/
