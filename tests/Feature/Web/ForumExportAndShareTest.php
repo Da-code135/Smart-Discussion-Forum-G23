@@ -288,7 +288,7 @@ class ForumExportAndShareTest extends TestCase
             ->get(route('forum.show', $topic->id));
 
         $response->assertOk();
-        $response->assertSee('Recipients must be logged in to view this topic.', false);
+        $response->assertSee('Recipients must be logged in unless you generate a signed link.', false);
     }
 
     // =======================================================

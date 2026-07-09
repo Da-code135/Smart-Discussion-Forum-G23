@@ -17,8 +17,10 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\WarningAcknowledgementController;
+use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ForumController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\QuizController;
@@ -97,6 +99,11 @@ Route::middleware('auth')->group(function () {
                 ForumController::class,
                 'index',
             ])->name('index');
+            Route::get('/search', [
+                ForumController::class,
+                'search',
+            ])->name('search');
+
             Route::get('/create', [
                 ForumController::class,
                 'create',
@@ -315,16 +322,16 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::prefix('conversations')->name('conversations.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\ConversationController::class, 'index'])->name('index');
-        Route::get('/create', [\App\Http\Controllers\ConversationController::class, 'create'])->name('create');
-        Route::get('/{id}', [\App\Http\Controllers\ConversationController::class, 'show'])->name('show');
-        Route::post('/', [\App\Http\Controllers\ConversationController::class, 'store'])->name('store');
-        Route::post('/{id}/participants', [\App\Http\Controllers\ConversationController::class, 'addParticipant'])->name('participants.add');
-        Route::delete('/{id}/participants/{userId}', [\App\Http\Controllers\ConversationController::class, 'removeParticipant'])->name('participants.remove');
-        
+        Route::get('/', [ConversationController::class, 'index'])->name('index');
+        Route::get('/create', [ConversationController::class, 'create'])->name('create');
+        Route::get('/{id}', [ConversationController::class, 'show'])->name('show');
+        Route::post('/', [ConversationController::class, 'store'])->name('store');
+        Route::post('/{id}/participants', [ConversationController::class, 'addParticipant'])->name('participants.add');
+        Route::delete('/{id}/participants/{userId}', [ConversationController::class, 'removeParticipant'])->name('participants.remove');
+
         // Messages
-        Route::get('/{id}/messages', [\App\Http\Controllers\MessageController::class, 'index'])->name('messages.index');
-        Route::post('/{id}/messages', [\App\Http\Controllers\MessageController::class, 'store'])->name('messages.store');
+        Route::get('/{id}/messages', [MessageController::class, 'index'])->name('messages.index');
+        Route::post('/{id}/messages', [MessageController::class, 'store'])->name('messages.store');
     });
 });
 

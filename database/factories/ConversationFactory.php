@@ -37,7 +37,7 @@ class ConversationFactory extends Factory
     /**
      * Indicate that the conversation is a group conversation.
      */
-    public function group(string $name = null): static
+    public function group(?string $name = null): static
     {
         return $this->state(fn (array $attributes) => [
             'type' => 'group',

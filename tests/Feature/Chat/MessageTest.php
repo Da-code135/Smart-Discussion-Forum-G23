@@ -6,7 +6,6 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Broadcast;
 use Tests\TestCase;
 
 class MessageTest extends TestCase
@@ -14,17 +13,18 @@ class MessageTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Conversation $conversation;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->user = User::factory()->create();
         $this->conversation = Conversation::factory()->create([
-            'group_id' => $this->user->group_id
+            'group_id' => $this->user->group_id,
         ]);
-        
+
         // Add the user as a participant to the conversation
         $this->conversation->participants()->attach($this->user->id, [
             'role' => 'participant',
@@ -37,7 +37,7 @@ class MessageTest extends TestCase
         $this->actingAs($this->user);
 
         $response = $this->post(route('conversations.messages.store', [
-            'id' => $this->conversation->id
+            'id' => $this->conversation->id,
         ]), [
             'body' => 'Hello, world!',
         ]);
@@ -64,7 +64,7 @@ class MessageTest extends TestCase
         $this->actingAs($nonParticipant);
 
         $response = $this->post(route('conversations.messages.store', [
-            'id' => $this->conversation->id
+            'id' => $this->conversation->id,
         ]), [
             'body' => 'This should fail',
         ]);
@@ -79,7 +79,7 @@ class MessageTest extends TestCase
 
         // Test empty message
         $response = $this->post(route('conversations.messages.store', [
-            'id' => $this->conversation->id
+            'id' => $this->conversation->id,
         ]), [
             'body' => '',
         ]);
@@ -89,7 +89,7 @@ class MessageTest extends TestCase
         // Test message too long
         $longMessage = str_repeat('A', 10001); // 10,001 characters
         $response = $this->post(route('conversations.messages.store', [
-            'id' => $this->conversation->id
+            'id' => $this->conversation->id,
         ]), [
             'body' => $longMessage,
         ]);
@@ -112,11 +112,11 @@ class MessageTest extends TestCase
         $response = $this->getJson("/api/v1/conversations/{$this->conversation->id}/messages");
 
         $response->assertStatus(200);
-        
+
         // Check that the response contains the expected structure
         $data = $response->decodeResponseJson();
         $this->assertArrayHasKey('data', $data);
-        
+
         // The response should contain a paginated structure
         $responseData = $data['data'];
         $this->assertIsArray($responseData);
@@ -131,16 +131,16 @@ class MessageTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-                 ->assertJsonStructure([
-                     'data' => [
-                         'id',
-                         'conversation_id',
-                         'sender_id',
-                         'body',
-                         'created_at',
-                         'updated_at'
-                     ]
-                 ]);
+            ->assertJsonStructure([
+                'data' => [
+                    'id',
+                    'conversation_id',
+                    'sender_id',
+                    'body',
+                    'created_at',
+                    'updated_at',
+                ],
+            ]);
 
         $this->assertDatabaseHas('messages', [
             'conversation_id' => $this->conversation->id,
