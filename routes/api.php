@@ -436,6 +436,13 @@ Route::prefix($API_VERSION)->group(function () {
             Route::get('/me/unread-counts', [MessageStatusController::class, 'unreadCounts']);
 
             // ============================================
+            // SYNC ROUTES (Person 5 — Offline Sync for Desktop Client)
+            // ============================================
+
+            Route::get('/sync/pull', [\App\Http\Controllers\SyncController::class, 'pull']);
+            Route::post('/sync/push', [\App\Http\Controllers\SyncController::class, 'push']);
+
+            // ============================================
             // ADMIN ROUTES (Admin access required)
             // ============================================
 
