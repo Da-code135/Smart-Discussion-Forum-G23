@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\GroupBrowseController;
+use App\Http\Controllers\Api\MessageStatusController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PasswordController;
 use App\Http\Controllers\Api\PostController;
@@ -32,7 +33,8 @@ use App\Http\Controllers\Api\StudentQuizController;
 use App\Http\Controllers\Api\TopicController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WarningAcknowledgementController;
-use App\Http\Controllers\Api\MessageStatusController;
+use App\Http\Controllers\ConversationController;
+use App\Http\Controllers\MessageController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -414,18 +416,18 @@ Route::prefix($API_VERSION)->group(function () {
             // CONVERSATION ROUTES (Person 2 — Conversation Management)
             // ============================================
 
-            Route::get('/conversations', [\App\Http\Controllers\ConversationController::class, 'index']);
-            Route::get('/conversations/{id}', [\App\Http\Controllers\ConversationController::class, 'show']);
-            Route::post('/conversations', [\App\Http\Controllers\ConversationController::class, 'store']);
-            Route::post('/conversations/{id}/participants', [\App\Http\Controllers\ConversationController::class, 'addParticipant']);
-            Route::delete('/conversations/{id}/participants/{userId}', [\App\Http\Controllers\ConversationController::class, 'removeParticipant']);
+            Route::get('/conversations', [ConversationController::class, 'index']);
+            Route::get('/conversations/{id}', [ConversationController::class, 'show']);
+            Route::post('/conversations', [ConversationController::class, 'store']);
+            Route::post('/conversations/{id}/participants', [ConversationController::class, 'addParticipant']);
+            Route::delete('/conversations/{id}/participants/{userId}', [ConversationController::class, 'removeParticipant']);
 
             // ============================================
             // MESSAGE ROUTES (Person 3 — Real-Time Messaging)
             // ============================================
 
-            Route::get('/conversations/{id}/messages', [\App\Http\Controllers\MessageController::class, 'index']);
-            Route::post('/conversations/{id}/messages', [\App\Http\Controllers\MessageController::class, 'store']);
+            Route::get('/conversations/{id}/messages', [MessageController::class, 'index']);
+            Route::post('/conversations/{id}/messages', [MessageController::class, 'store']);
 
             // ============================================
             // MESSAGE STATUS ROUTES (Person 4 — Status & Notifications)
