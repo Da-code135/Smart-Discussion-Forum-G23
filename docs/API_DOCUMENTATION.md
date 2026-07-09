@@ -15,36 +15,47 @@
    - [The token lifecycle](#the-token-lifecycle)
    - [Sending the token with every request](#sending-the-token-with-every-request)
    - [Token management endpoints](#token-management-endpoints)
+   - [Email verification](#email-verification)
 4. [Working with the Forum](#working-with-the-forum)
    - [Topics — the conversation starters](#topics--the-conversation-starters)
    - [Posts — the replies inside a topic](#posts--the-replies-inside-a-topic)
    - [Post visibility — hiding posts from specific people](#post-visibility--hiding-posts-from-specific-people)
    - [Categories — organising topics by subject](#categories--organising-topics-by-subject)
    - [Exporting and sharing topics](#exporting-and-sharing-topics)
-5. [Browsing Groups](#browsing-groups)
-6. [Notifications](#notifications)
-7. [Quiz & Assessment System](#quiz--assessment-system)
+   - [Reporting content](#reporting-content)
+5. [Conversations & Private Messaging](#conversations--private-messaging)
+   - [Managing conversations](#managing-conversations)
+   - [Sending and receiving messages](#sending-and-receiving-messages)
+   - [Message delivery status](#message-delivery-status)
+6. [Browsing Groups](#browsing-groups)
+7. [Notifications](#notifications)
+8. [Recommendations](#recommendations)
+9. [Quiz & Assessment System](#quiz--assessment-system)
    - [For lecturers/admins — creating and managing quizzes](#for-lecturersadmins--creating-and-managing-quizzes)
    - [For students — taking a quiz](#for-students--taking-a-quiz)
    - [Results and reports](#results-and-reports)
-8. [Admin Features — Managing Users and Content](#admin-features--managing-users-and-content)
-   - [User management](#user-management)
-   - [Warnings](#warnings)
-   - [Blacklist](#blacklist)
-   - [Post moderation](#post-moderation)
-   - [Bulk operations](#bulk-operations)
-   - [Advanced search](#advanced-search)
-   - [System configuration](#system-configuration)
-   - [Audit logs](#audit-logs)
-   - [IP whitelist](#ip-whitelist)
-   - [Group management](#group-management)
-9. [How the Desktop Client Should Work (End-to-End Flow)](#how-the-desktop-client-should-work-end-to-end-flow)
-10. [Error Responses](#error-responses)
-11. [Rate Limits — How Fast You Can Send Requests](#rate-limits--how-fast-you-can-send-requests)
-12. [Security Headers](#security-headers)
-13. [CORS Configuration](#cors-configuration)
-14. [Activity Monitoring — Automatic Inactivity Handling](#activity-monitoring--automatic-inactivity-handling)
-15. [Quick Reference — All Endpoints at a Glance](#quick-reference--all-endpoints-at-a-glance)
+10. [Warning Acknowledgement (User-Facing)](#warning-acknowledgement-user-facing)
+11. [Sync & Offline Support](#sync--offline-support)
+12. [Admin Features — Managing Users and Content](#admin-features--managing-users-and-content)
+    - [Dashboard](#dashboard)
+    - [User management](#user-management)
+    - [Warnings](#warnings)
+    - [Blacklist](#blacklist)
+    - [Post moderation](#post-moderation)
+    - [Bulk operations](#bulk-operations)
+    - [Advanced search](#advanced-search)
+    - [System configuration](#system-configuration)
+    - [Audit logs](#audit-logs)
+    - [IP whitelist](#ip-whitelist)
+    - [Group management](#group-management)
+    - [Group statistics](#group-statistics)
+13. [How the Desktop Client Should Work (End-to-End Flow)](#how-the-desktop-client-should-work-end-to-end-flow)
+14. [Error Responses](#error-responses)
+15. [Rate Limits — How Fast You Can Send Requests](#rate-limits--how-fast-you-can-send-requests)
+16. [Security Headers](#security-headers)
+17. [CORS Configuration](#cors-configuration)
+18. [Activity Monitoring — Automatic Inactivity Handling](#activity-monitoring--automatic-inactivity-handling)
+19. [Quick Reference — All Endpoints at a Glance](#quick-reference--all-endpoints-at-a-glance)
 
 ---
 
@@ -276,6 +287,33 @@ The server validates the OTP, resets the password, and **revokes all existing to
 
 Rate limit: 5 OTP guess attempts per 10 minutes per email address (prevents brute-forcing the 6-digit code).
 
+### Email verification
+
+After registering, users can optionally verify their email address. Verification is **not required** to use the app — users can browse the forum and take quizzes without verifying. But some admin actions may require it.
+
+**Verify email with a token:**
+
+```
+POST /api/v1/email/verify
+Authorization: Bearer 1|abc123def456...
+Content-Type: application/json
+
+{
+  "token": "verification-token-from-email"
+}
+```
+
+The verification token is sent to the user's email after registration. Your desktop app could offer a screen where the user pastes this token.
+
+**Resend the verification email:**
+
+```
+POST /api/v1/email/resend
+Authorization: Bearer 1|abc123def456...
+```
+
+Rate limit: 1 request per 60 seconds per user. Returns a success message even if the email was already verified (so you can't probe whether an email is verified).
+
 ---
 
 ## Working with the Forum
@@ -502,6 +540,156 @@ GET /api/v1/topics/{topicId}/shared?signature=...
 
 This route is public — anyone with the signed URL can view the topic. Your desktop app doesn't need to call this; it's meant for the browser.
 
+### Reporting content
+
+Users can report topics or posts that violate the rules. Reports are reviewed by admins.
+
+**Submit a report:**
+
+```
+POST /api/v1/reports
+Authorization: Bearer 1|abc123def456...
+Content-Type: application/json
+
+{
+  "reportable_type": "App\\Models\\Post",
+  "reportable_id": 42,
+  "reason": "This post contains inappropriate content."
+}
+```
+
+- `reportable_type` — Must be `"App\\Models\\Post"` or `"App\\Models\\Topic"` (use double backslashes in JSON).
+- `reportable_id` — The ID of the post or topic being reported.
+- `reason` — Required, max 1000 characters.
+- A user can only report the same content once (returns 409 Conflict on duplicate).
+
+**View your submitted reports:**
+
+```
+GET /api/v1/me/reports
+Authorization: Bearer 1|abc123def456...
+```
+
+Returns a paginated list of your reports with their current status (pending/resolved/dismissed).
+
+---
+
+## Conversations & Private Messaging
+
+The app supports private conversations between users. Think of them like chat rooms — they can have multiple participants. Conversations are **not scoped to groups**; users can message anyone across the entire platform.
+
+Conversations are created implicitly when you start a new one (you pick the participants, a room is created). They have a `type` — either `individual` (2 people) or `group` (3+ people).
+
+### Managing conversations
+
+**List your conversations:**
+
+```
+GET /api/v1/conversations
+Authorization: Bearer 1|abc123def456...
+```
+
+Returns your conversations ordered by most recent activity. Each conversation includes its name (or participant names), type, and last activity timestamp. Paginated.
+
+**Show a conversation (with participants):**
+
+```
+GET /api/v1/conversations/{id}
+Authorization: Bearer 1|abc123def456...
+```
+
+**Create a new conversation:**
+
+```
+POST /api/v1/conversations
+Authorization: Bearer 1|abc123def456...
+Content-Type: application/json
+
+{
+  "participants": [3, 5],
+  "name": "Project Discussion"
+}
+```
+
+- `participants` (required) — Array of user IDs to include. Minimum 1 other person (2 total including you).
+- `name` (optional) — A display name for the conversation. If omitted, the server generates one from participant names.
+- If a conversation already exists with the exact same set of participants and type `individual`, the existing conversation is returned instead of creating a duplicate (avoiding duplicate 1-on-1 chats).
+
+**Add a participant:**
+
+```
+POST /api/v1/conversations/{id}/participants
+Authorization: Bearer 1|abc123def456...
+Content-Type: application/json
+
+{
+  "user_id": 7
+}
+```
+
+**Remove a participant:**
+
+```
+DELETE /api/v1/conversations/{id}/participants/{userId}
+Authorization: Bearer 1|abc123def456...
+```
+
+Only the conversation creator can add or remove participants.
+
+### Sending and receiving messages
+
+**List messages in a conversation:**
+
+```
+GET /api/v1/conversations/{id}/messages
+Authorization: Bearer 1|abc123def456...
+```
+
+Returns messages ordered by oldest first (ascending). Paginated. Each message includes the sender's ID, name, body, and timestamp.
+
+Your desktop app should **poll** this endpoint every 2–3 seconds to receive new messages in real time, keeping the `id` of the last message you received and requesting subsequent pages.
+
+**Send a message:**
+
+```
+POST /api/v1/conversations/{id}/messages
+Authorization: Bearer 1|abc123def456...
+Content-Type: application/json
+
+{
+  "body": "Hello everyone!"
+}
+```
+
+- `body` (required) — The message text, max 10,000 characters.
+
+### Message delivery status
+
+The app tracks whether messages have been delivered and read. This lets you show delivery receipts in the chat UI (like "✓" for sent, "✓✓" for delivered, blue "✓✓" for read).
+
+**Mark a message as delivered** (call this when your app receives a new message from another user):
+
+```
+POST /api/v1/messages/{id}/deliver
+Authorization: Bearer 1|abc123def456...
+```
+
+**Mark an entire conversation as read** (call this when the user opens a conversation or when your chat view is visible):
+
+```
+POST /api/v1/conversations/{id}/read
+Authorization: Bearer 1|abc123def456...
+```
+
+**Get unread counts across all conversations:**
+
+```
+GET /api/v1/me/unread-counts
+Authorization: Bearer 1|abc123def456...
+```
+
+Returns a JSON object mapping conversation IDs to unread message counts. Your desktop app should poll this every 10–15 seconds to update the badge on the messages navigation button.
+
 ---
 
 ## Browsing Groups
@@ -566,6 +754,48 @@ Authorization: Bearer 1|abc123def456...
 ```
 
 Your desktop app should show unread notifications with a visual indicator (e.g., a badge on a bell icon) and mark them as read when the user taps them.
+
+**Mark all notifications as read:**
+
+```
+POST /api/v1/notifications/read-all
+Authorization: Bearer 1|abc123def456...
+```
+
+Use this when the user opens the notifications screen — mark everything read at once instead of calling the single-mark endpoint 50 times.
+
+**Delete a notification:**
+
+```
+DELETE /api/v1/notifications/{id}
+Authorization: Bearer 1|abc123def456...
+```
+
+**Get unread notification count:**
+
+```
+GET /api/v1/me/notifications/unread-count
+Authorization: Bearer 1|abc123def456...
+```
+
+Returns `{"unread_count": 3}`. Poll this every 30–60 seconds to update a badge on the notifications navigation button.
+
+---
+
+## Recommendations
+
+The server can suggest topics that might interest the user based on their activity, group membership, and topic categories.
+
+**Get personalized recommendations:**
+
+```
+GET /api/v1/recommendations?limit=10
+Authorization: Bearer 1|abc123def456...
+```
+
+Optional query parameter `limit` (default 10, max 50). Returns a list of topic recommendations with a `reason` field explaining why each topic was recommended.
+
+Your desktop app could show these on a "Recommended for You" section on the dashboard or forum home screen.
 
 ---
 
@@ -883,6 +1113,115 @@ Downloads a CSV file with columns: Student Name, Email, Score, Max, Percentage, 
 
 ---
 
+## Warning Acknowledgement (User-Facing)
+
+When a user receives a warning from an admin, their account status changes to `warned`. The next time they log in, the login endpoint returns a special 403 response with `requires_warning_acknowledgement: true`. Your desktop app must show the warning to the user and let them acknowledge it before they can proceed.
+
+**Check for unacknowledged warnings** (without logging in — useful for the login screen flow):
+
+```
+GET /api/v1/warnings/unacknowledged
+Authorization: Bearer 1|abc123def456...
+```
+
+Returns the first unacknowledged warning with its reason and deadline if one exists, or an empty response if all warnings are acknowledged.
+
+**Acknowledge a warning:**
+
+```
+POST /api/v1/warnings/acknowledge
+Authorization: Bearer 1|abc123def456...
+```
+
+After acknowledgement, the user's account status changes back to `active` (if no other warnings remain unresolved) and they can use the app normally.
+
+**Desktop client flow for warned users:**
+1. User attempts to log in → gets 403 with `requires_warning_acknowledgement: true` and `user` data.
+2. Your app shows a warning dialog: "You have received a warning: [reason]. You must acknowledge this before continuing."
+3. User taps "Acknowledge" → your app calls `POST /api/v1/warnings/acknowledge`.
+4. On success, your app proceeds to the forum as if they logged in normally (you already have the user data from step 1).
+
+---
+
+## Sync & Offline Support
+
+The API includes dedicated sync endpoints designed to support offline-capable desktop clients. Your app can pull fresh data on startup, then queue writes when offline and replay them when connectivity returns.
+
+This is especially useful for environments with unreliable internet (e.g., campus networks).
+
+### How sync works
+
+**Pull data** (call this when your app starts / after reconnecting):
+
+```
+GET /api/v1/sync/pull?device_id=desktop-abc123
+Authorization: Bearer 1|abc123def456...
+```
+
+Optional query parameter `device_id` so the server can track what each device has already synced. Returns:
+- `topics` — New/updated topics since your last sync.
+- `posts` — New/updated posts since your last sync.
+- `conversations` — Your conversations with recent messages.
+- `notifications` — New notifications.
+- `last_synced_at` — Timestamp you should save locally and send on your next pull.
+
+On the first call (no `last_synced_at`), the server returns all accessible data.
+
+**Push queued changes** (call this to send writes the user made while offline):
+
+```
+POST /api/v1/sync/push
+Authorization: Bearer 1|abc123def456...
+Content-Type: application/json
+
+{
+  "device_id": "desktop-abc123",
+  "operations": [
+    {
+      "action": "POST",
+      "endpoint": "/api/v1/topics",
+      "body": {
+        "title": "Offline topic",
+        "description": "Created while offline"
+      },
+      "client_id": "local-uuid-1"
+    },
+    {
+      "action": "POST",
+      "endpoint": "/api/v1/topics/5/posts",
+      "body": {
+        "content": "Replied while offline"
+      },
+      "client_id": "local-uuid-2"
+    }
+  ]
+}
+```
+
+- `device_id` — A unique identifier for this desktop client installation (generate a UUID on first launch).
+- `operations` — Array of actions the user performed while offline. Each has an `action`, `endpoint`, `body`, and a `client_id` (a UUID you generate locally to deduplicate — the server uses this to skip already-applied operations).
+
+The server processes operations in order. If one fails, it stops and returns the error for that operation so your app can flag it for the user to review.
+
+**Response:**
+```json
+{
+  "processed": ["local-uuid-1", "local-uuid-2"],
+  "failed": [],
+  "last_synced_at": "2026-07-09T14:00:00.000000Z"
+}
+```
+
+### Desktop client sync strategy
+
+1. **On app launch** (after login): Call `GET /api/v1/sync/pull` with your saved `last_synced_at` timestamp. Store the returned data in a local SQLite database.
+2. **While online**: All read operations load from the local cache first, then refresh from the server in the background.
+3. **While offline**: All write operations are saved to a local queue (your local SQLite database) with a unique `client_id`.
+4. **On reconnect**: Call `POST /api/v1/sync/push` with all queued operations. On success, call `GET /api/v1/sync/pull` to refresh the local cache.
+5. **Conflict handling**: If a push operation fails (e.g., the topic was deleted by an admin while you were offline), flag it in the UI for the user to review.
+
+---
+
 ## Admin Features — Managing Users and Content
 
 All admin endpoints are under `/api/v1/admin`. They require the `admin` middleware, which checks that the user is either a System Administrator or a Group Administrator.
@@ -891,6 +1230,44 @@ All admin endpoints are under `/api/v1/admin`. They require the `admin` middlewa
 - **System Administrators** can do everything across all groups.
 - **Group Administrators** are scoped to the groups they administer. They can only see/manage users, warnings, blacklists, and content within those groups.
 - Some actions (creating users, deleting users, changing roles, creating/deleting groups, system config, IP whitelist) are **System Admin only** and enforced in the controller.
+
+### Dashboard
+
+The dashboard endpoint gives admins a quick overview of key metrics.
+
+```
+GET /api/v1/admin/dashboard
+Authorization: Bearer admin-token
+```
+
+Returns summary data including total users, active users, topic/post counts, recent registrations, pending moderation items, and quiz activity. The exact response shape may vary as new metrics are added.
+
+### Group statistics
+
+View and recalculate per-group statistics.
+
+```
+GET /api/v1/admin/group-statistics
+Authorization: Bearer admin-token
+```
+
+Returns statistics for all accessible groups: member count, active members this week, topic/post counts, unanswered questions, inactive members.
+
+```
+GET /api/v1/admin/group-statistics/{group}
+Authorization: Bearer admin-token
+```
+
+Statistics for a single group.
+
+**Recalculate statistics** (if they seem stale):
+
+```
+POST /api/v1/admin/statistics/{group}/recalculate
+Authorization: Bearer admin-token
+```
+
+This re-runs the aggregation queries and updates the cached statistics for that group.
 
 ### User management
 
@@ -1160,10 +1537,13 @@ Once logged in, the app should have these main sections (visibility depends on r
 | Tab/Section | Member | Group Admin | System Admin | Lecturer |
 |-------------|--------|-------------|--------------|----------|
 | **Forum** (topics, posts, categories) | Yes | Yes | Yes | Yes |
+| **Conversations** (private chat) | Yes | Yes | Yes | Yes |
 | **Groups** (browse groups) | Yes (own group) | Yes (admin'd groups) | Yes (all) | Yes (own group) |
 | **Profile** (edit name/email, change password) | Yes | Yes | Yes | Yes |
 | **Quizzes** (take quiz) | Yes | Yes | Yes | Yes |
 | **Notifications** | Yes | Yes | Yes | Yes |
+| **Recommendations** | Yes | Yes | Yes | Yes |
+| **Admin: Dashboard** | No | Yes | Yes | Yes |
 | **Admin: Users** | No | Yes (scoped) | Yes (all) | No |
 | **Admin: Warnings/Blacklist** | No | Yes (scoped) | Yes (all) | No |
 | **Admin: Categories** | No | Yes | Yes | Yes |
@@ -1178,9 +1558,11 @@ Once logged in, the app should have these main sections (visibility depends on r
 
 Your desktop app should poll these endpoints in the background:
 
-- `GET /api/v1/me` — keep the token alive and update user data. The server updates `last_active_at` when you hit this, which prevents automatic inactivity warnings.
+- `GET /api/v1/me` — every 5 minutes to keep the token alive and update user data. The server updates `last_active_at` when you hit this, which prevents automatic inactivity warnings.
+- `GET /api/v1/me/notifications/unread-count` — every 30–60 seconds to update the notification badge.
+- `GET /api/v1/me/unread-counts` — every 10–15 seconds to update the message badge.
 - `GET /api/v1/quizzes/{quiz}/status` — when a quiz is about to start, poll every few seconds so the "Start" button appears as soon as the quiz goes live.
-- `GET /api/v1/me/notifications` — check for new notifications periodically.
+- `GET /api/v1/conversations/{id}/messages` — every 2–3 seconds when a chat view is open, to receive new messages in real time.
 
 ---
 
@@ -1367,6 +1749,13 @@ These thresholds are configurable via the system config endpoints (see "System C
 | POST | `/topics/{id}/toggle-answered` | Yes | Mark question as answered |
 | POST | `/topics/{id}/toggle-pinned` | Yes | Pin/unpin topic |
 
+### Forum — Reports
+
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| POST | `/reports` | Yes | Report a topic or post |
+| GET | `/me/reports` | Yes | List your submitted reports |
+
 ### Forum — Post Visibility
 
 | Method | Endpoint | Auth | What it does |
@@ -1385,6 +1774,21 @@ These thresholds are configurable via the system config endpoints (see "System C
 | PUT | `/admin/categories/{id}` | Admin | Update category |
 | DELETE | `/admin/categories/{id}` | Admin | Delete category |
 
+### Conversations & Messages
+
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/conversations` | Yes | List your conversations |
+| GET | `/conversations/{id}` | Yes | Show conversation with participants |
+| POST | `/conversations` | Yes | Create a conversation |
+| POST | `/conversations/{id}/participants` | Yes | Add a participant |
+| DELETE | `/conversations/{id}/participants/{userId}` | Yes | Remove a participant |
+| GET | `/conversations/{id}/messages` | Yes | List messages in a conversation |
+| POST | `/conversations/{id}/messages` | Yes | Send a message |
+| POST | `/messages/{id}/deliver` | Yes | Mark message as delivered |
+| POST | `/conversations/{id}/read` | Yes | Mark conversation as read |
+| GET | `/me/unread-counts` | Yes | Unread message counts per conversation |
+
 ### Groups
 
 | Method | Endpoint | Auth | What it does |
@@ -1399,7 +1803,30 @@ These thresholds are configurable via the system config endpoints (see "System C
 | Method | Endpoint | Auth | What it does |
 |--------|----------|------|-------------|
 | GET | `/me/notifications` | Yes | List your notifications |
+| GET | `/me/notifications/unread-count` | Yes | Get unread notification count |
 | POST | `/notifications/{id}/read` | Yes | Mark notification as read |
+| POST | `/notifications/read-all` | Yes | Mark all notifications as read |
+| DELETE | `/notifications/{id}` | Yes | Delete a notification |
+
+### Recommendations
+
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/recommendations` | Yes | Get personalized topic recommendations |
+
+### Warning Acknowledgement (User-Facing)
+
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/warnings/unacknowledged` | Yes | Check for unacknowledged warnings |
+| POST | `/warnings/acknowledge` | Yes | Acknowledge a warning |
+
+### Sync & Offline
+
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/sync/pull` | Yes | Pull fresh data since last sync |
+| POST | `/sync/push` | Yes | Push queued offline operations |
 
 ### Quizzes — Lecturer/Admin (CRUD)
 
@@ -1448,6 +1875,15 @@ These thresholds are configurable via the system config endpoints (see "System C
 | GET | `/me/quiz-history` | Yes | Your past attempts |
 | GET | `/me/quiz-notifications` | Yes | Quiz notifications |
 
+### Admin — Dashboard & Statistics
+
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|-------------|
+| GET | `/admin/dashboard` | Admin | Summary metrics and stats |
+| GET | `/admin/group-statistics` | Admin | Statistics for all groups |
+| GET | `/admin/group-statistics/{group}` | Admin | Statistics for a single group |
+| POST | `/admin/statistics/{group}/recalculate` | Admin | Recalculate group statistics |
+
 ### Admin — User & Content Management
 
 | Method | Endpoint | Auth | What it does |
@@ -1459,12 +1895,14 @@ These thresholds are configurable via the system config endpoints (see "System C
 | DELETE | `/admin/users/{id}` | Admin* | Delete user |
 | POST | `/admin/users/{id}/change-role` | Admin* | Change user role |
 | POST | `/admin/users/{id}/reset-password` | Admin | Reset password |
+| POST | `/admin/users/{id}/blacklist` | Admin | Blacklist user |
+| POST | `/admin/users/{id}/lift-blacklist` | Admin | Lift blacklist for user |
+| POST | `/admin/users/{id}/warn` | Admin | Issue warning to user |
 | GET | `/admin/warnings` | Admin | List warnings |
 | GET | `/admin/warnings/{id}` | Admin | Show warning |
 | POST | `/admin/users/{id}/warnings` | Admin | Issue warning |
 | POST | `/admin/warnings/{id}/resolve` | Admin | Resolve warning |
 | GET | `/admin/blacklist-records` | Admin | List blacklist records |
-| POST | `/admin/users/{id}/blacklist` | Admin | Blacklist user |
 | POST | `/admin/blacklist-records/{id}/lift` | Admin | Lift blacklist |
 | GET | `/admin/moderation` | Admin | List reported content |
 | POST | `/admin/moderation/{post}/remove` | Admin | Remove post |
