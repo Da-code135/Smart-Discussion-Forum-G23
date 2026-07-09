@@ -63,7 +63,14 @@ class ForumController extends Controller
      */
     public function create()
     {
-        return view('forum.create-topic');
+        $user = Auth::user();
+
+        // System Admins need a group picker; pass available groups
+        $groups = $user->isSystemAdmin()
+            ? Group::orderBy('group_name')->get()
+            : collect();
+
+        return view('forum.create-topic', compact('groups'));
     }
 
     /**
@@ -81,32 +88,37 @@ class ForumController extends Controller
     {
         $user = Auth::user();
 
-        // System Admins can choose a target group; regular users are locked to their own
-        $targetGroupId = $user->isSystemAdmin()
-            ? ($request->input('group_id') ?: optional($user->group)->id)
-            : $user->group_id;
+        // System Admins must explicitly pick a group; regular users are locked to their own
+        $groupRequired = $user->isSystemAdmin();
 
-        $request->validate([
-            'title' => 'required|max:255|unique:topics,title,NULL,id,group_id,'.
-                $targetGroupId,
+        $validated = $request->validate([
+            'title' => 'required|max:255',
             'description' => 'required|string|max:10000',
             'post_type' => 'sometimes|in:discussion,question',
-            'group_id' => [
-                'sometimes',
-                'integer',
-                'exists:groups,id',
-                function ($attribute, $value, $fail) use ($user) {
-                    if ($user->isSystemAdmin() && ! $user->canAccessGroup($value)) {
-                        $fail('You do not have access to this group.');
-                    }
-                },
-            ],
+            'group_id' => $groupRequired
+                ? 'required|integer|exists:groups,id'
+                : 'sometimes|integer|exists:groups,id',
         ]);
 
+        $targetGroupId = $user->isSystemAdmin()
+            ? $validated['group_id']
+            : $user->group_id;
+
+        // Validate title uniqueness scoped to the selected group
+        $exists = Topic::where('title', $validated['title'])
+            ->where('group_id', $targetGroupId)
+            ->exists();
+
+        if ($exists) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['title' => 'A topic with this title already exists in this group.']);
+        }
+
         Topic::create([
-            'title' => $request->title,
-            'description' => $request->description,
-            'post_type' => $request->post_type ?? 'discussion',
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'post_type' => $validated['post_type'] ?? 'discussion',
             'created_by' => $user->id,
             'group_id' => $targetGroupId,
             'status' => 'active',
@@ -513,5 +525,45 @@ class ForumController extends Controller
         return redirect()
             ->route('notifications')
             ->with('success', 'Notification marked as read.');
+    }
+
+    /**
+     * ============================================
+     * Search Topics
+     * ============================================
+     *
+     * Search active topics by title and description,
+     * scoped to the authenticated user's accessible groups.
+     */
+    public function search(Request $request)
+    {
+        $user = Auth::user();
+        $query = $request->input('q');
+
+        if (! $query || trim($query) === '') {
+            return redirect()->route('forum.index');
+        }
+
+        $results = Topic::where('status', 'active')
+            ->where(function ($q) use ($query) {
+                $q->where('title', 'like', '%'.$query.'%')
+                    ->orWhere('description', 'like', '%'.$query.'%');
+            })
+            ->with('creator')
+            ->withCount('posts');
+
+        // Group isolation
+        if (! $user->isSystemAdmin()) {
+            $results->whereIn('group_id', $user->accessibleGroupIds());
+        }
+
+        $topics = $results->latest()->paginate(10);
+        $topics->appends(['q' => $query]);
+
+        $group = $user->isSystemAdmin() && ! $user->group_id
+            ? Group::orderBy('id')->first()
+            : $user->group;
+
+        return view('forum.search', compact('topics', 'group', 'query'));
     }
 }

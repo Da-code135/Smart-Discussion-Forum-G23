@@ -15,18 +15,26 @@ class QuizController extends Controller
 {
     /**
      * Show list of quizzes scoped to the lecturer's accessible groups.
+     *
+     * System Admins see all quizzes platform-wide for oversight.
      */
     public function index()
     {
         $user = Auth::user();
 
-        $accessibleGroupIds = Quiz::lecturerAccessibleGroupIds($user);
+        $query = Quiz::with('configuration', 'group', 'lecturer:id,full_name');
 
-        $quizzes = Quiz::where('lecturer_id', $user->id)
-            ->whereIn('group_id', $accessibleGroupIds)
-            ->with('configuration', 'group')  // Load config + group for each quiz
-            ->latest()
-            ->paginate(10);
+        if ($user->isSystemAdmin()) {
+            // Platform-wide oversight: every quiz, every group
+            $quizzes = $query->latest()->paginate(10);
+        } else {
+            $accessibleGroupIds = Quiz::lecturerAccessibleGroupIds($user);
+
+            $quizzes = $query->where('lecturer_id', $user->id)
+                ->whereIn('group_id', $accessibleGroupIds)
+                ->latest()
+                ->paginate(10);
+        }
 
         return view('quizzes.index', compact('quizzes'));
     }
@@ -38,7 +46,8 @@ class QuizController extends Controller
     {
         $user = Auth::user();
 
-        // Groups this lecturer can create quizzes for
+        // System Admins can create quizzes for any group; others are limited
+        // to their accessible groups (own + taught + administered).
         $accessibleGroupIds = Quiz::lecturerAccessibleGroupIds($user);
         $groups = Group::whereIn('id', $accessibleGroupIds)->orderBy('group_name')->get();
 
@@ -56,18 +65,21 @@ class QuizController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+
+        // System Admins must explicitly pick a group; others can fall back to their own
+        $groupRequired = $user->isSystemAdmin();
+
         // Validate input
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'target_category' => 'required|in:Student,Lecturer,Administrator,Member',
-            'group_id' => 'nullable|integer|exists:groups,id',
+            'group_id' => $groupRequired ? 'required|integer|exists:groups,id' : 'nullable|integer|exists:groups,id',
             'scheduled_date' => 'required|date|after_or_equal:today',  // Can't schedule in past
             'start_time' => 'required|date_format:H:i',  // Format: 10:30
             'duration_minutes' => 'required|integer|min:1|max:480',  // Max 8 hours
         ]);
-
-        $user = Auth::user();
 
         // Determine the group for this quiz
         $group = null;
@@ -76,7 +88,7 @@ class QuizController extends Controller
             if (! $user->canTeachGroup($group)) {
                 abort(403, 'You cannot create quizzes for this group.');
             }
-        } elseif ($user->group_id) {
+        } elseif ($user->group_id !== null) {
             $group = Group::find($user->group_id);
         }
 

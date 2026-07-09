@@ -41,10 +41,17 @@ class ConversationController extends Controller
      */
     public function create(Request $request): View
     {
-        $users = User::where('id', '!=', auth()->id())
-            ->where('group_id', auth()->user()->group_id)
-            ->whereNull('blacklisted_at')
-            ->orderBy('full_name')
+        $currentUser = auth()->user();
+
+        $usersQuery = User::where('id', '!=', $currentUser->id)
+            ->whereNull('blacklisted_at');
+
+        // System Admins see all users; others see only their group
+        if (! $currentUser->isSystemAdmin()) {
+            $usersQuery->where('group_id', $currentUser->group_id);
+        }
+
+        $users = $usersQuery->orderBy('full_name')
             ->get(['id', 'full_name']);
 
         return view('conversations.create', compact('users'));
@@ -87,20 +94,39 @@ class ConversationController extends Controller
         ]);
 
         $currentUser = auth()->user();
-        $currentUserGroupId = $currentUser->group_id;
 
-        // --- Cross-group check: all participants must be in the same group ---
-        foreach ($validated['participant_ids'] as $userId) {
-            $otherUser = User::findOrFail($userId);
-            if ($otherUser->group_id !== $currentUserGroupId) {
-                $error = "User {$otherUser->full_name} is not in your group. " .
-                    'Conversations are limited to group members only.';
+        // --- Determine target group ---
+        // System Admins must pick a group; others use their own
+        if ($currentUser->isSystemAdmin()) {
+            $targetGroupId = $request->has('group_id')
+                ? (int) $request->input('group_id')
+                : User::find($validated['participant_ids'][0])?->group_id;
+
+            if (! $targetGroupId) {
+                $error = 'A group_id is required or could not be inferred from participants.';
 
                 if ($request->is('api/*')) {
                     return response()->json(['message' => $error], 422);
                 }
 
-                return back()->withErrors(['participant_ids' => $error])->withInput();
+                return back()->withErrors(['group_id' => $error])->withInput();
+            }
+        } else {
+            $targetGroupId = $currentUser->group_id;
+
+            // --- Cross-group check: all participants must be in the same group ---
+            foreach ($validated['participant_ids'] as $userId) {
+                $otherUser = User::findOrFail($userId);
+                if ($otherUser->group_id !== $targetGroupId) {
+                    $error = "User {$otherUser->full_name} is not in your group. ".
+                        'Conversations are limited to group members only.';
+
+                    if ($request->is('api/*')) {
+                        return response()->json(['message' => $error], 422);
+                    }
+
+                    return back()->withErrors(['participant_ids' => $error])->withInput();
+                }
             }
         }
 
@@ -108,11 +134,16 @@ class ConversationController extends Controller
         if ($validated['type'] === 'direct') {
             $otherUserId = $validated['participant_ids'][0];
             $existing = Conversation::where('type', 'direct')
-                ->where('group_id', $currentUserGroupId)
                 ->whereHas('participants', fn ($q) => $q->where('user_id', auth()->id()))
                 ->whereHas('participants', fn ($q) => $q->where('user_id', $otherUserId))
-                ->whereDoesntHave('participants', fn ($q) => $q->whereNotIn('user_id', [auth()->id(), $otherUserId]))
-                ->first();
+                ->whereDoesntHave('participants', fn ($q) => $q->whereNotIn('user_id', [auth()->id(), $otherUserId]));
+
+            // Non-admins are scoped to their group; System Admins cross-group
+            if (! $currentUser->isSystemAdmin()) {
+                $existing->where('group_id', $targetGroupId);
+            }
+
+            $existing = $existing->first();
 
             if ($existing) {
                 $existing->load([
@@ -130,7 +161,7 @@ class ConversationController extends Controller
 
         // --- Create the conversation ---
         $conversation = Conversation::create([
-            'group_id' => $currentUserGroupId,
+            'group_id' => $targetGroupId,
             'type' => $validated['type'],
             'name' => $validated['name'] ?? null,
             'last_activity_at' => now(),

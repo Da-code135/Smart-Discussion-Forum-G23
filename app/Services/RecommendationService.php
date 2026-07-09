@@ -43,7 +43,7 @@ class RecommendationService
         // 3. Find topics in those categories the user hasn't interacted with
         $recommendations = Topic::whereIn('category_id', $userEngagedCategoryIds)
             ->where('status', 'active')
-            ->when($user->group_id !== null, fn ($q) => $q->where('group_id', $user->group_id))
+            ->when(! $user->isSystemAdmin(), fn ($q) => $q->whereIn('group_id', $user->accessibleGroupIds()))
             ->whereNotIn('id', function ($q) use ($user) {
                 // Exclude topics user already posted in
                 $q->select('topic_id')
@@ -68,7 +68,7 @@ class RecommendationService
             RecommendationLog::updateOrCreate(
                 ['user_id' => $user->id, 'topic_id' => $topic->id],
                 [
-                    'group_id' => $user->group_id,
+                    'group_id' => $topic->group_id,
                     'recommended_at' => now(),
                     'reason' => 'Based on similar topics you engaged with',
                 ],
@@ -92,9 +92,9 @@ class RecommendationService
             ->withCount('posts');
 
         // System admins see popular topics across all groups;
-        // regular users see only their own group.
-        if ($user->group_id !== null) {
-            $query->forGroup($user->group_id);
+        // regular users see only their accessible groups.
+        if (! $user->isSystemAdmin()) {
+            $query->whereIn('group_id', $user->accessibleGroupIds());
         }
 
         return $query->orderBy('posts_count', 'desc')

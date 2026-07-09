@@ -26,7 +26,7 @@ class MessageStatusController extends Controller
         $conversation = $message->conversation;
 
         // Security: only participants can mark messages as delivered
-        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
+        if (! $conversation->participants()->where('user_id', $user->id)->exists()) {
             return response()->json([
                 'success' => false,
                 'message' => 'You are not a participant in this conversation.',
@@ -55,7 +55,7 @@ class MessageStatusController extends Controller
         $conversation = Conversation::findOrFail($conversationId);
 
         // Security: only participants can mark messages as read
-        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
+        if (! $conversation->participants()->where('user_id', $user->id)->exists()) {
             return response()->json([
                 'success' => false,
                 'message' => 'You are not a participant in this conversation.',

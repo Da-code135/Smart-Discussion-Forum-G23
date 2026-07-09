@@ -68,7 +68,7 @@
                             </label>
                         @empty
                             <p style="padding: 12px; text-align: center; color: var(--text-muted);">
-                                No other members available in your group.
+                                {{ Auth::user()->isSystemAdmin() ? 'No other users available on the platform.' : 'No other members available in your group.' }}
                             </p>
                         @endforelse
                     </div>

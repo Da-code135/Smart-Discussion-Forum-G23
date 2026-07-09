@@ -260,15 +260,19 @@ class User extends Authenticatable
     /**
      * Get the IDs of all groups this user can access.
      *
+     * - System Admins: all groups (they transcend tenancy)
      * - Regular members: only their own group
      * - Group Admins: their own + administered groups
      * - Lecturers: their own + taught groups
-     * - System Admins: bypass this filter entirely (caller checks isSystemAdmin first)
      *
      * @return int[]
      */
     public function accessibleGroupIds(): array
     {
+        if ($this->isSystemAdmin()) {
+            return Group::pluck('id')->toArray();
+        }
+
         $ids = $this->group_id ? [$this->group_id] : [];
 
         if ($this->isGroupAdmin()) {

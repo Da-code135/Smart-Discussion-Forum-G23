@@ -118,7 +118,7 @@
             </div>
 
             <div class="profile-summary-list">
-                <span class="badge badge-secondary">{{ $user->group->group_name ?? 'General' }}</span>
+                <span class="badge badge-secondary">{{ $user->isSystemAdmin() ? 'Platform' : ($user->group?->group_name ?? 'General') }}</span>
                 <span class="status-badge status-{{ $user->account_status }}">{{ ucfirst($user->account_status) }}</span>
             </div>
 

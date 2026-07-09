@@ -67,11 +67,30 @@ class Conversation extends Model
     }
 
     /**
-     * Scope: conversations the given user participates in, within their group.
+     * Scope: conversations the given user participates in, within their group(s).
+     *
+     * System Admins participate in conversations across all groups;
+     * regular users are scoped to their own group.
      */
     public function scopeForUserInGroup($query, User $user)
     {
+        if ($user->isSystemAdmin()) {
+            return $query->whereHas('participants', fn ($q) => $q->where('user_id', $user->id));
+        }
+
         return $query->where('group_id', $user->group_id)
             ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id));
+    }
+
+    /**
+     * Scope: all conversations (System Admin full access).
+     */
+    public function scopeForAdmin($query, User $user)
+    {
+        if (! $user->isSystemAdmin()) {
+            return $query->whereRaw('1 = 0'); // No access for non-admins
+        }
+
+        return $query;
     }
 }

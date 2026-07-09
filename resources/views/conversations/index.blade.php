@@ -31,35 +31,42 @@
                         : $otherParticipants->pluck('full_name')->implode(', ');
                     $lastMsg = $conversation->lastMessage;
                 @endphp
-                <a href="{{ route('conversations.show', $conversation->id) }}" class="discussion-item">
-                    <div class="app-topbar-avatar" style="--avatar-bg: var(--avatar-tone-{{ ($conversation->id % 5) + 1 }});">
-                        <span class="material-symbols-outlined" style="font-size: 20px;">
-                            {{ $isGroup ? 'group' : 'person' }}
-                        </span>
-                    </div>
-                    <div class="topic-row__body">
-                        <div class="discussion-meta">
-                            <span>{{ $names ?: 'Unknown' }}</span>
-                            @if ($lastMsg)
-                                <span class="discussion-meta-dot"></span>
-                                <span>{{ $lastMsg->created_at->diffForHumans() }}</span>
-                            @endif
+                <article class="post-card">
+                    <a href="{{ route('conversations.show', $conversation->id) }}" class="post-card__content" style="text-decoration: none;">
+                        <div class="post-thumbnail" style="--avatar-bg: var(--avatar-tone-{{ ($conversation->id % 5) + 1 }}); background: var(--app-secondary-soft);">
+                            <span class="material-symbols-outlined" style="font-size: 24px; color: var(--app-secondary);">
+                                {{ $isGroup ? 'group' : 'person' }}
+                            </span>
                         </div>
-                        <h3>
-                            @if ($isGroup)
-                                {{ $conversation->name ?: 'Group' }}
+                        <div class="post-card__body">
+                            <span class="post-title">
+                                @if ($isGroup)
+                                    {{ $conversation->name ?: 'Group' }}
+                                @else
+                                    {{ $names ?: 'Conversation' }}
+                                @endif
+                            </span>
+                            <div class="post-meta">
+                                <span>{{ $names ?: 'Unknown' }}</span>
+                                @if ($lastMsg)
+                                    <span class="post-meta-sep">·</span>
+                                    <span>{{ $lastMsg->created_at->diffForHumans() }}</span>
+                                @endif
+                            </div>
+                            @if ($lastMsg)
+                                <p class="post-excerpt">{{ Str::limit($lastMsg->body, 100) }}</p>
                             @else
-                                {{ $names ?: 'Conversation' }}
+                                <p class="post-excerpt" style="color: var(--app-text-muted);">No messages yet.</p>
                             @endif
-                        </h3>
-                        @if ($lastMsg)
-                            <p class="topic-row__excerpt">{{ Str::limit($lastMsg->body, 100) }}</p>
-                        @else
-                            <p class="topic-row__excerpt" style="color: var(--text-muted);">No messages yet.</p>
-                        @endif
-                    </div>
-                    <span class="section-link">Open <span class="material-symbols-outlined">arrow_forward</span></span>
-                </a>
+                            <div class="post-actions">
+                                <span class="post-action-btn">
+                                    <span class="material-symbols-outlined">arrow_forward</span>
+                                    Open
+                                </span>
+                            </div>
+                        </div>
+                    </a>
+                </article>
             @empty
                 <div class="empty-state">
                     <span class="material-symbols-outlined" style="font-size: 40px;">chat</span>
@@ -78,21 +85,27 @@
     </div>
 
     <aside class="page-shell__sidebar page-stack">
-        <section class="sidebar-card page-stack">
-            <h2>About conversations</h2>
+        <section class="sidebar-card">
+            <div class="sidebar-card__header">
+                <span class="material-symbols-outlined">chat</span>
+                <h2>About conversations</h2>
+            </div>
             <p>Conversations are private — only the people you invite can see what's written here.</p>
-            <div class="profile-summary-list" style="margin-top: 8px;">
-                <span class="badge badge-secondary">{{ $conversations->total() }} conversations</span>
+            <div class="sidebar-stats">
+                <span>{{ $conversations->total() }} conversations</span>
             </div>
         </section>
 
-        <section class="sidebar-card page-stack">
-            <h2>Tips</h2>
-            <ul style="padding-left: 16px;">
+        <section class="sidebar-card">
+            <div class="sidebar-card__header">
+                <span class="material-symbols-outlined">lightbulb</span>
+                <h2>Tips</h2>
+            </div>
+            <ol class="sidebar-rules">
                 <li>Use direct messages for 1-to-1 chats</li>
                 <li>Create a group to discuss with multiple people</li>
                 <li>Topics stay until you archive them</li>
-            </ul>
+            </ol>
         </section>
     </aside>
 </div>

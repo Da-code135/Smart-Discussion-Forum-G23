@@ -67,11 +67,12 @@ class SendQuizReminders extends Command
                 continue;
             }
 
-            // Find target users
+            // Find target users — scope to the quiz's group, not the lecturer's group
+            // (the lecturer may be a System Admin with null group_id, or teach multiple groups)
             $targetUsers = User::whereHas('role', function ($query) use ($quiz) {
                 $query->where('role_name', $quiz->target_category);
             })
-                ->where('group_id', $quiz->lecturer->group_id)
+                ->where('group_id', $quiz->group_id)
                 ->where('account_status', 'active')
                 ->get();
 

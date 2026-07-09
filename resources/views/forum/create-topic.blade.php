@@ -56,6 +56,24 @@
                 </div>
             </div>
 
+            @if (isset($groups) && $groups->isNotEmpty())
+                <div class="form-group">
+                    <label for="group_id" class="form-label">Target group</label>
+                    <select name="group_id" id="group_id" class="form-input @error('group_id') is-invalid @enderror">
+                        <option value="">-- Select a group --</option>
+                        @foreach ($groups as $group)
+                            <option value="{{ $group->id }}" {{ old('group_id') == $group->id ? 'selected' : '' }}>
+                                {{ $group->group_name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('group_id')
+                        <p class="form-error">{{ $message }}</p>
+                    @enderror
+                    <p class="form-hint">Choose which group this topic belongs to.</p>
+                </div>
+            @endif
+
             <div class="form-group">
                 <label for="description" class="form-label">Description</label>
                 <textarea

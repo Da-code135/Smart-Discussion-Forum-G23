@@ -50,11 +50,14 @@ class QuizController extends Controller
     {
         $user = Auth::user();
 
+        // System Admins must explicitly pick a group; others can fall back to their own
+        $groupRequired = $user->isSystemAdmin();
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'target_category' => ['required', Rule::in(['Student', 'Lecturer', 'Administrator', 'Member'])],
-            'group_id' => 'nullable|integer|exists:groups,id',
+            'group_id' => $groupRequired ? 'required|integer|exists:groups,id' : 'nullable|integer|exists:groups,id',
             'scheduled_date' => 'required|date|after_or_equal:today',
             'start_time' => 'required|date_format:H:i',
             'duration_minutes' => 'required|integer|min:1|max:480',
@@ -67,7 +70,7 @@ class QuizController extends Controller
             if (! $user->canTeachGroup($group)) {
                 return response()->json(['success' => false, 'message' => 'You cannot create quizzes for this group.'], 403);
             }
-        } elseif ($user->group_id) {
+        } elseif ($user->group_id !== null) {
             $group = Group::find($user->group_id);
         }
 

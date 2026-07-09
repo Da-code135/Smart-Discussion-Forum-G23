@@ -20,7 +20,7 @@ class DashboardController extends Controller
         $recentTopics = collect();
 
         // System admins (group-agnostic) always see topics; others need a group
-        if ($user->isSystemAdmin() || $user->group_id) {
+        if ($user->isSystemAdmin() || $user->group_id !== null) {
             $topicQuery = Topic::where('status', 'active');
 
             // System admins see all topics; others see only accessible groups

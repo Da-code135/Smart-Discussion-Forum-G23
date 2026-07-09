@@ -7,8 +7,8 @@
     <div class="page-header">
         <div class="page-header-row">
             <div>
-                <h1>My Quizzes</h1>
-                <p>Create and manage quizzes for your students.</p>
+                <h1>{{ Auth::user()->isSystemAdmin() ? 'All Quizzes' : 'My Quizzes' }}</h1>
+                <p>{{ Auth::user()->isSystemAdmin() ? 'Platform-wide quiz oversight across all groups.' : 'Create and manage quizzes for your students.' }}</p>
             </div>
             <a href="{{ route('quizzes.create') }}" class="btn btn-primary">
                 <span class="material-symbols-outlined">add</span>
@@ -35,6 +35,9 @@
                     <tr>
                         <th>Title</th>
                         <th>Group</th>
+                        @if (Auth::user()->isSystemAdmin())
+                            <th>Lecturer</th>
+                        @endif
                         <th>Target</th>
                         <th>Scheduled</th>
                         <th>Duration</th>
@@ -48,6 +51,9 @@
                         <tr>
                             <td><strong>{{ $quiz->title }}</strong></td>
                             <td><span class="badge badge-info">{{ $quiz->group->group_name ?? 'General' }}</span></td>
+                            @if (Auth::user()->isSystemAdmin())
+                                <td>{{ $quiz->lecturer->full_name ?? 'Unknown' }}</td>
+                            @endif
                             <td><span class="badge badge-secondary">{{ $quiz->target_category }}</span></td>
                             <td>{{ $quiz->scheduled_date->format('M d, Y') }} @ {{ $quiz->start_time }}</td>
                             <td>{{ $quiz->duration_minutes }} min</td>
