@@ -77,10 +77,10 @@ class SyncController extends Controller
 
         // Status updates (sent → delivered → read) for this user's messages
         $statusUpdates = MessageStatus::whereIn('message_id', function ($q) use ($conversationIds) {
-                $q->select('id')
-                    ->from('messages')
-                    ->whereIn('conversation_id', $conversationIds);
-            })
+            $q->select('id')
+                ->from('messages')
+                ->whereIn('conversation_id', $conversationIds);
+        })
             ->where('user_id', $user->id)
             ->where('updated_at', '>', $since)
             ->get();
@@ -140,6 +140,7 @@ class SyncController extends Controller
                     'success' => false,
                     'error' => 'Conversation not found or not accessible.',
                 ];
+
                 continue;
             }
 
@@ -161,6 +162,7 @@ class SyncController extends Controller
                     'success' => true,
                     'message_id' => $existing->id,
                 ];
+
                 continue;
             }
 

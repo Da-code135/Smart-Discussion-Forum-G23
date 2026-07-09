@@ -81,45 +81,19 @@
     </aside>
 </div>
 
-<!-- Laravel Echo JavaScript for real-time messaging -->
-<script src="{{ asset('js/app.js') }}"></script>
+{{-- Echo is already initialized in app.js via Vite --}}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Using Laravel Echo (requires npm install laravel-echo pusher-js)
-    import Echo from 'laravel-echo';
-    
-    window.Pusher = require('pusher-js');
-    
-    window.Echo = new Echo({
-        broadcaster: 'reverb',
-        key: import.meta.env.VITE_REVERB_APP_KEY,
-        wsHost: import.meta.env.VITE_REVERB_HOST,
-        wsPort: import.meta.env.VITE_REVERB_PORT,
-        forceTLS: false,
-        disableStats: true,
-        authorizer: (channel) => {
-            return {
-                authorize: (socketId, callback) => {
-                    // Uses Sanctum token for authorization
-                    axios.post('/api/broadcasting/auth', {
-                        socket_id: socketId,
-                        channel_name: channel.name,
-                    })
-                    .then(response => callback(false, response.data))
-                    .catch(error => callback(true, error));
-                }
-            };
-        },
-    });
-    
     const conversationId = {{ $conversation->id }};
     const userId = {{ auth()->id() }};
     
-    // Listen for new messages
-    Echo.private(`conversation.${conversationId}`)
-        .listen('MessageSent', (e) => {
-            appendMessage(e);
-        });
+    // Listen for new messages via Echo (already initialized in app.js)
+    if (window.Echo) {
+        Echo.private(`conversation.${conversationId}`)
+            .listen('MessageSent', (e) => {
+                appendMessage(e);
+            });
+    }
     
     // Function to append a new message to the chat view
     function appendMessage(messageData) {
@@ -187,14 +161,24 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Sending...';
         
+        // Get the Echo socket ID so the server can exclude us from the broadcast
+        const socketId = window.Echo ? window.Echo.socketId() : null;
+        
+        const headers = {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        
+        // Send the socket ID so broadcast()->toOthers() works correctly
+        if (socketId) {
+            headers['X-Socket-ID'] = socketId;
+        }
+
         // Submit via AJAX
         fetch(messageForm.getAttribute('action'), {
             method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify({
                 body: messageBody
             })
@@ -203,14 +187,27 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok) {
                 // Clear the input
                 messageForm.reset();
+                // Parse the JSON response and append the message immediately
+                // (broadcast()->toOthers() excludes us, so Echo won't add a duplicate)
+                return response.json().then(data => {
+                    if (data && data.data) {
+                        appendMessage(data.data);
+                    }
+                }).catch(() => {
+                    // JSON parse failed — still ok, message is in DB
+                });
             } else {
-                // Show error
-                alert('Failed to send message. Please try again.');
+                // Try to parse error message from response
+                response.json().then(data => {
+                    showError(data.message || 'Failed to send message. Please try again.');
+                }).catch(() => {
+                    showError('Failed to send message. Please try again.');
+                });
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred. Please try again.');
+            showError('An error occurred while sending your message.');
         })
         .finally(() => {
             // Re-enable form
@@ -219,6 +216,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Show error message in the UI
+    function showError(message) {
+        // Remove any existing error
+        const existing = document.getElementById('message-error');
+        if (existing) existing.remove();
+
+        const errorEl = document.createElement('div');
+        errorEl.id = 'message-error';
+        errorEl.style.cssText = 'padding: 8px 12px; margin-bottom: 8px; background: var(--app-danger-soft, #ffdad6); color: var(--app-danger, #ba1a1a); border-radius: 4px; font-size: 13px;';
+        errorEl.textContent = message;
+
+        const container = document.getElementById('messages-container');
+        container.parentNode.insertBefore(errorEl, container);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => { if (errorEl.parentNode) errorEl.remove(); }, 5000);
+    }
+
+    // Warn if Echo is not connected (real-time won't work)
+    if (window.Echo && !window.Echo.socketId()) {
+        console.warn('[Chat] Echo is not connected. Real-time updates may not work.');
+    }
+
     // Initial scroll to bottom
     scrollToBottom();
 });

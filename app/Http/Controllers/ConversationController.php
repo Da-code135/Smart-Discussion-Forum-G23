@@ -71,11 +71,16 @@ class ConversationController extends Controller
             ->with('participants:id,full_name')
             ->findOrFail($id);
 
+        $messages = $conversation->messages()
+            ->with('sender:id,full_name')
+            ->orderByDesc('created_at')
+            ->paginate(50);
+
         if ($request->is('api/*')) {
             return response()->json(['data' => $conversation], 200);
         }
 
-        return view('conversations.show', compact('conversation'));
+        return view('conversations.show', compact('conversation', 'messages'));
     }
 
     /**
@@ -86,12 +91,29 @@ class ConversationController extends Controller
      */
     public function store(Request $request): JsonResponse|RedirectResponse
     {
+        // Direct conversations don't need a name — strip it to avoid
+        // empty-string interference with validation.
+        if ($request->input('type') === 'direct') {
+            $request->request->remove('name');
+        }
+
         $validated = $request->validate([
             'type' => 'required|in:direct,group',
             'participant_ids' => 'required|array|min:1',
             'participant_ids.*' => 'exists:users,id',
             'name' => 'required_if:type,group|string|max:255',
         ]);
+
+        // Enforce exactly one participant for direct conversations
+        if ($validated['type'] === 'direct' && count($validated['participant_ids']) !== 1) {
+            $error = 'A direct conversation must have exactly one participant.';
+
+            if ($request->is('api/*')) {
+                return response()->json(['message' => $error], 422);
+            }
+
+            return back()->withErrors(['participant_ids' => $error])->withInput();
+        }
 
         $currentUser = auth()->user();
 

@@ -15,10 +15,15 @@ use Illuminate\Support\Facades\Broadcast;
 */
 
 Broadcast::channel('conversation.{conversationId}', function ($user, $conversationId) {
-    // Only authenticated participants of that conversation can listen.
-    // Must also belong to the same group (group isolation at schema level).
-    return Conversation::where('id', $conversationId)
-        ->where('group_id', $user->group_id)
-        ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
-        ->exists();
+    // Participant must be part of the conversation.
+    $query = Conversation::where('id', $conversationId)
+        ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id));
+
+    // System Admins can listen to any conversation they're a participant of.
+    // Regular users are scoped to their own group.
+    if (! $user->isSystemAdmin()) {
+        $query->where('group_id', $user->group_id);
+    }
+
+    return $query->exists();
 });

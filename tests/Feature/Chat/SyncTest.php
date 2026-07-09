@@ -5,10 +5,8 @@ namespace Tests\Feature\Chat;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageStatus;
-use App\Models\SyncCheckpoint;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Broadcast;
 use Tests\TestCase;
 
 class SyncTest extends TestCase
@@ -16,7 +14,9 @@ class SyncTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected User $otherUser;
+
     protected Conversation $conversation;
 
     protected function setUp(): void

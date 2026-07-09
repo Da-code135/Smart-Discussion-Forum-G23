@@ -97,7 +97,50 @@ function toggleType(value) {
     if (groupNameField) {
         groupNameField.style.display = value === 'group' ? '' : 'none';
     }
+
+    // When switching to 'direct', uncheck all but the first checked box
+    const checkboxes = document.querySelectorAll('input[name="participant_ids[]"]');
+    if (value === 'direct') {
+        const checked = Array.from(checkboxes).filter(cb => cb.checked);
+        if (checked.length > 1) {
+            // Keep only the first checked, uncheck the rest
+            for (let i = 1; i < checked.length; i++) {
+                checked[i].checked = false;
+            }
+        }
+    }
 }
+
+// Limit checkboxes to 1 when type is direct
+document.addEventListener('DOMContentLoaded', function () {
+    const checkboxes = document.querySelectorAll('input[name="participant_ids[]"]');
+    const typeRadios = document.querySelectorAll('input[name="type"]');
+    const selectedType = document.querySelector('input[name="type"]:checked');
+
+    function enforceLimit() {
+        const isDirect = document.querySelector('input[name="type"]:checked')?.value === 'direct';
+        if (!isDirect) return;
+
+        const checked = Array.from(checkboxes).filter(cb => cb.checked);
+        if (checked.length > 1) {
+            // Uncheck the last checked one
+            checked[checked.length - 1].checked = false;
+            alert('Direct conversations can only have one participant. Please uncheck additional selections or switch to Group.');
+        }
+    }
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', function (e) {
+            const isDirect = document.querySelector('input[name="type"]:checked')?.value === 'direct';
+            if (isDirect && this.checked) {
+                // Uncheck all others
+                checkboxes.forEach(other => {
+                    if (other !== this) other.checked = false;
+                });
+            }
+        });
+    });
+});
 </script>
 @endpush
 @endsection

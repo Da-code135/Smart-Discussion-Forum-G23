@@ -61,7 +61,7 @@ class MessageController extends Controller
         $message = $conversation->messages()->create([
             'sender_id' => auth()->id(),
             'body' => $validated['body'],
-        ]);
+        ])->load('sender:id,full_name');
 
         // 4. Update conversation's last_activity_at
         $conversation->update(['last_activity_at' => now()]);
@@ -71,9 +71,19 @@ class MessageController extends Controller
         broadcast(new MessageSent($message))->toOthers();
         // ->toOthers() means the sender doesn't receive their own broadcast
 
-        // 6. Return the message (web: redirect with success, API: JSON)
-        if ($request->is('api/*')) {
-            return response()->json(['data' => $message], 201);
+        // 6. Return the message (AJAX/API: JSON, web: redirect with success)
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'data' => [
+                    'id' => $message->id,
+                    'conversation_id' => $message->conversation_id,
+                    'sender_id' => $message->sender_id,
+                    'sender_name' => $message->sender->full_name,
+                    'body' => $message->body,
+                    'created_at' => $message->created_at->toIso8601String(),
+                    'updated_at' => $message->updated_at->toIso8601String(),
+                ],
+            ], 201);
         }
 
         return redirect()

@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WarningAcknowledgementController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\SyncController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -441,8 +442,8 @@ Route::prefix($API_VERSION)->group(function () {
             // SYNC ROUTES (Person 5 — Offline Sync for Desktop Client)
             // ============================================
 
-            Route::get('/sync/pull', [\App\Http\Controllers\SyncController::class, 'pull']);
-            Route::post('/sync/push', [\App\Http\Controllers\SyncController::class, 'push']);
+            Route::get('/sync/pull', [SyncController::class, 'pull']);
+            Route::post('/sync/push', [SyncController::class, 'push']);
 
             // ============================================
             // ADMIN ROUTES (Admin access required)
