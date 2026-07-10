@@ -75,8 +75,9 @@ class GroupStatisticsService
             ]);
 
         // 5. Weekly topic-creation trend (last 12 weeks)
+        // Uses MySQL's DATE_FORMAT instead of SQLite's strftime
         $weeklyTopics = Topic::where('group_id', $group->id)
-            ->select(DB::raw("strftime('%Y-%W', created_at) as week"), DB::raw('count(*) as total'))
+            ->select(DB::raw("DATE_FORMAT(created_at, '%Y-%u') as week"), DB::raw('count(*) as total'))
             ->where('created_at', '>=', now()->subWeeks(12))
             ->groupBy('week')
             ->orderBy('week')
