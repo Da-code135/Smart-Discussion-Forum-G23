@@ -50,7 +50,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="start_time" class="form-label">Start Time</label>
-                                <input type="time" id="start_time" name="start_time" class="form-input" value="{{ $quiz->start_time }}" required>
+                                <input type="time" id="start_time" name="start_time" class="form-input" value="{{ $quiz->start_time instanceof \Carbon\Carbon ? $quiz->start_time->format('H:i') : substr($quiz->start_time, 0, 5) }}" required>
                             </div>
                             <div class="form-group">
                                 <label for="duration_minutes" class="form-label">Duration (min)</label>
@@ -199,7 +199,7 @@
                 <div class="card-body page-stack" style="font-size: 0.9rem;">
                     <div>
                         <strong>Scheduled:</strong><br>
-                        {{ $quiz->scheduled_date->format('M d, Y') }} @ {{ $quiz->start_time }}
+                        {{ $quiz->scheduled_date instanceof \Carbon\Carbon ? $quiz->scheduled_date->format('M d, Y') : \Carbon\Carbon::parse($quiz->scheduled_date)->format('M d, Y') }} @ {{ $quiz->start_time instanceof \Carbon\Carbon ? $quiz->start_time->format('H:i') : substr($quiz->start_time, 0, 5) }}
                     </div>
 
                     <div>

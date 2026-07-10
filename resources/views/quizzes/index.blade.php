@@ -55,7 +55,7 @@
                                 <td>{{ $quiz->lecturer->full_name ?? 'Unknown' }}</td>
                             @endif
                             <td><span class="badge badge-secondary">{{ $quiz->target_category }}</span></td>
-                            <td>{{ $quiz->scheduled_date->format('M d, Y') }} @ {{ $quiz->start_time }}</td>
+                            <td>{{ $quiz->scheduled_date instanceof \Carbon\Carbon ? $quiz->scheduled_date->format('M d, Y') : \Carbon\Carbon::parse($quiz->scheduled_date)->format('M d, Y') }} @ {{ $quiz->start_time instanceof \Carbon\Carbon ? $quiz->start_time->format('H:i') : substr($quiz->start_time, 0, 5) }}</td>
                             <td>{{ $quiz->duration_minutes }} min</td>
                             <td>{{ $quiz->questions()->count() }}</td>
                             <td>
