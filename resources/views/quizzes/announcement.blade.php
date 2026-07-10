@@ -72,8 +72,14 @@
                         </div>
                     @else
                         {{-- Within 1 hour: show ticking countdown --}}
+                        @php
+                            $cdSecs = max(0, $quizStatus['time_until_start_seconds']);
+                            $cdH = intdiv($cdSecs, 3600);
+                            $cdM = intdiv($cdSecs % 3600, 60);
+                            $cdS = $cdSecs % 60;
+                        @endphp
                         <div style="font-size: 40px; font-weight: 700; color: #2563eb; font-variant-numeric: tabular-nums;" id="countdown">
-                            {{ $quizStatus['time_until_start_display'] }}
+                            {{ sprintf('%02d:%02d:%02d', $cdH, $cdM, $cdS) }}
                         </div>
                     @endif
                 </div>
@@ -81,10 +87,35 @@
                 @if ($quizStatus['time_until_start_seconds'] <= 3600)
                     <script>
                         let secondsRemaining = {{ $quizStatus['time_until_start_seconds'] }};
+                        let expired = false;
+                        const pollUrl = '{{ route("quizzes.status", $quiz->quiz_id) }}';
+
+                        async function checkServerStatus() {
+                            try {
+                                const res = await fetch(pollUrl);
+                                const data = await res.json();
+                                if (data.has_started) {
+                                    clearInterval(timerInterval);
+                                    location.reload();
+                                } else if (data.time_until_start > 0) {
+                                    // Server says more time remains than our local countdown
+                                    // (clock drift or scheduler delay) — resync
+                                    expired = false;
+                                    secondsRemaining = Math.max(secondsRemaining, data.time_until_start);
+                                }
+                            } catch {
+                                // Network error — reload and let the server handle it
+                                clearInterval(timerInterval);
+                                location.reload();
+                            }
+                        }
 
                         function updateCountdown() {
                             if (secondsRemaining <= 0) {
-                                location.reload();
+                                if (!expired) {
+                                    expired = true;
+                                    checkServerStatus();
+                                }
                                 return;
                             }
 
@@ -100,7 +131,7 @@
                             secondsRemaining--;
                         }
 
-                        setInterval(updateCountdown, 1000);
+                        const timerInterval = setInterval(updateCountdown, 1000);
                         updateCountdown();
                     </script>
                 @endif

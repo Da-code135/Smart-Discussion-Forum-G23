@@ -25,17 +25,24 @@
                     $actionLabel = '';
                     $actionRoute = '';
 
+                    $quizEnded = $item->scheduled->copy()->addMinutes($quiz->duration_minutes)->isPast();
+
                     if ($item->is_submitted) {
                         $badge = 'Completed';
                         $badgeClass = 'badge-success';
                         $actionLabel = 'View result';
                         $actionRoute = route('quizzes.result', $quiz);
-                    } elseif ($item->is_live) {
+                    } elseif ($item->attempt && !$item->is_submitted) {
+                        $badge = 'In progress';
+                        $badgeClass = 'badge-warning';
+                        $actionLabel = 'Resume quiz';
+                        $actionRoute = route('quizzes.attempt', $quiz);
+                    } elseif ($item->is_live && !$quizEnded) {
                         $badge = 'Live now';
                         $badgeClass = 'badge-danger';
                         $actionLabel = 'Join quiz';
                         $actionRoute = route('quizzes.attempt', $quiz);
-                    } elseif ($item->has_started && !$item->attempt) {
+                    } elseif ($quizEnded && !$item->attempt) {
                         $badge = 'Missed';
                         $badgeClass = 'badge-secondary';
                         $actionLabel = 'View';

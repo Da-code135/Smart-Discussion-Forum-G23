@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\QuizWentLive;
 use App\Http\Controllers\Controller;
 use App\Models\Grade;
 use App\Models\Quiz;
@@ -92,11 +93,37 @@ class StudentQuizController extends Controller
             ], 403);
         }
 
-        // Quiz must be active
+        // === On-demand activation ===
+        // If the quiz is not yet active but the scheduled time has arrived,
+        // activate it immediately instead of waiting for the scheduler.
+        $scheduledTime = $quiz->getScheduledDateTime();
+        $now = now();
+
         if (! $quiz->is_active) {
+            if ($now->isBefore($scheduledTime)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Quiz has not started yet.',
+                ], 403);
+            }
+
+            // Scheduled time arrived — activate on demand
+            $quiz->update(['is_active' => true]);
+            QuizWentLive::dispatch($quiz);
+        }
+
+        // === Late-join check with grace period ===
+        // A student is considered "late" only if they join more than 5 minutes
+        // after the scheduled start. This prevents blocking users who click
+        // "Join" a second after the quiz goes live.
+        $gracePeriodMinutes = 5;
+        $minutesLate = $scheduledTime->diffInMinutes($now, false);
+        $isSignificantlyLate = $minutesLate > $gracePeriodMinutes;
+
+        if ($isSignificantlyLate && ! $quiz->configuration?->allow_late_join) {
             return response()->json([
                 'success' => false,
-                'message' => 'Quiz is not currently active.',
+                'message' => 'Late joining is not allowed for this quiz.',
             ], 403);
         }
 
@@ -112,8 +139,7 @@ class StudentQuizController extends Controller
             ], 409);
         }
 
-        $scheduledTime = $quiz->getScheduledDateTime();
-        $isLate = now()->isAfter($scheduledTime);
+        $isLate = $minutesLate > 0;
 
         // Create attempt
         $attempt = StudentAttempt::create([
