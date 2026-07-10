@@ -22,11 +22,14 @@
             </div>
         </header>
 
-        {{-- Sort Tabs (decorative) --}}
+        {{-- Sort Tabs --}}
         <div class="sort-tabs">
-            <span class="sort-tab is-active">Hot</span>
-            <span class="sort-tab">New</span>
-            <span class="sort-tab">Top</span>
+            <a href="{{ route('forum.index', ['sort' => 'hot']) }}"
+               class="sort-tab {{ $sort === 'hot' ? 'is-active' : '' }}">Hot</a>
+            <a href="{{ route('forum.index', ['sort' => 'new']) }}"
+               class="sort-tab {{ $sort === 'new' ? 'is-active' : '' }}">New</a>
+            <a href="{{ route('forum.index', ['sort' => 'top']) }}"
+               class="sort-tab {{ $sort === 'top' ? 'is-active' : '' }}">Top</a>
         </div>
 
         {{-- Create Post Card --}}

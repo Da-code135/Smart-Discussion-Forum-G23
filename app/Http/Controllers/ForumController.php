@@ -22,19 +22,19 @@ class ForumController extends Controller
      * ============================================
      *
      * Display all active topics in the authenticated user's group,
-     * paginated and ordered by most recent first.
+     * paginated and sorted by the selected tab (New / Hot / Top).
      *
      * Security: group_id is hard-filtered so topics from other groups
      * never leak into this view (defense in depth).
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
+        $sort = $request->query('sort', 'new');  // Default: newest first
 
         // Build the query: active topics only
         $query = Topic::where('status', 'active')
-            ->with('creator')
-            ->withCount('posts');
+            ->with('creator');
 
         // Group isolation: System Admins see all topics;
         // others (including Lecturers with cross-group access) see only accessible groups
@@ -42,7 +42,31 @@ class ForumController extends Controller
             $query->whereIn('group_id', $user->accessibleGroupIds());
         }
 
-        $topics = $query->latest()->paginate(10);
+        // Apply sorting based on the selected tab
+        switch ($sort) {
+            case 'hot':
+                // Hot = most recent activity (latest reply). Uses the most recent
+                // post's created_at to surface topics with active discussions.
+                $query->withMax('posts', 'created_at')
+                    ->withCount('posts')
+                    ->orderByDesc('posts_max_created_at');
+                break;
+
+            case 'top':
+                // Top = most popular by reply count
+                $query->withCount('posts')
+                    ->orderByDesc('posts_count');
+                break;
+
+            case 'new':
+            default:
+                // New = most recently created topics first
+                $query->withCount('posts')
+                    ->latest();
+                break;
+        }
+
+        $topics = $query->paginate(10)->appends(['sort' => $sort]);
 
         // System Admins may have null group_id — pass the first accessible group
         // for display purposes, or null if truly group-agnostic.
@@ -50,7 +74,7 @@ class ForumController extends Controller
             ? Group::orderBy('id')->first()
             : $user->group;
 
-        return view('forum.index', compact('topics', 'group'));
+        return view('forum.index', compact('topics', 'group', 'sort'));
     }
 
     /**
