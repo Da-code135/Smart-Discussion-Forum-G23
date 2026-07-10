@@ -36,44 +36,6 @@
             </div>
         @endif
 
-        {{-- Stats row (kept but simplified) --}}
-        <section class="stats-grid">
-            <div class="stat-card">
-                <p class="stat-label">Account status</p>
-                <p class="stat-value stat-value--md">{{ ucfirst($user->account_status) }}</p>
-                <div class="stat-card-accent"></div>
-            </div>
-            <div class="stat-card">
-                <p class="stat-label">Role</p>
-                <p class="stat-value stat-value--md">{{ $user->role->role_name }}</p>
-                <div class="stat-card-accent stat-card-accent--secondary"></div>
-            </div>
-            <div class="stat-card">
-                <p class="stat-label">Last active</p>
-                <p class="stat-value stat-value--md">{{ $user->last_active_at ? $user->last_active_at->format('M d, Y') : 'Never' }}</p>
-                <div class="stat-card-accent stat-card-accent--tertiary"></div>
-            </div>
-        </section>
-
-        {{-- Quick actions --}}
-        <section class="card page-stack">
-            <div class="section-header">
-                <div>
-                    <h2>Quick actions</h2>
-                    <p>Common tasks for your account and role.</p>
-                </div>
-            </div>
-            <div class="form-actions-row">
-                <a href="{{ route('forum.index') }}" class="btn btn-primary">Open forum</a>
-                <a href="{{ route('forum.create') }}" class="btn btn-secondary">New topic</a>
-                <a href="{{ route('profile.edit') }}" class="btn btn-ghost">Edit profile</a>
-                @if ($isAdmin)
-                    <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">Manage users</a>
-                    <a href="{{ route('admin.groups.index') }}" class="btn btn-secondary">Manage groups</a>
-                @endif
-            </div>
-        </section>
-
         {{-- Sort tabs (decorative) --}}
         <div class="sort-tabs">
             <span class="sort-tab is-active">Hot</span>
@@ -120,48 +82,76 @@
             @endif
         </section>
 
-        {{-- Recommended topics --}}
-        @if (!empty($recommendedTopics) && count($recommendedTopics) > 0)
-            <section class="page-stack">
-                <div class="section-header">
-                    <div>
-                        <h2>Recommended for you</h2>
-                        <p>Active conversations across the platform you may find useful.</p>
-                    </div>
-                </div>
-                <div class="recommendations-grid">
-                    @foreach ($recommendedTopics as $index => $rec)
-                        <div class="recommendation-card recommendation-card--{{ $index === 0 ? 'secondary' : 'tertiary' }}">
-                            <span class="badge badge-secondary">{{ $index === 0 ? 'Suggested' : 'Trending' }}</span>
-                            <div>
-                                <h3>{{ $rec['title'] }}</h3>
-                                <p>{{ $rec['member_count'] }} active members in this discussion.</p>
-                            </div>
-                            <div class="recommendation-footer">
-                                <span class="meta-text">Join the conversation</span>
-                                <a href="{{ route('forum.show', $rec['id']) }}" class="recommendation-add-btn" aria-label="Join discussion">
-                                    <span class="material-symbols-outlined">arrow_forward</span>
-                                </a>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </section>
-        @endif
     </div>
 
     <aside class="page-shell__sidebar page-stack">
+
+        {{-- Recommended topics (sidebar, Reddit-style) --}}
+        @if (!empty($recommendedTopics) && count($recommendedTopics) > 0)
+            <section class="sidebar-card">
+                <div class="sidebar-card__header">
+                    <span class="material-symbols-outlined">trending_up</span>
+                    <h2>Recommended</h2>
+                </div>
+                <p style="font-size: 13px; color: var(--app-text-secondary); margin-bottom: 12px;">
+                    Active conversations you may find useful.
+                </p>
+                <ul class="sidebar-recommendations">
+                    @foreach ($recommendedTopics as $rec)
+                        <li>
+                            <a href="{{ route('forum.show', $rec['id']) }}" class="sidebar-recommendation-link">
+                                <span class="sidebar-recommendation-title">{{ $rec['title'] }}</span>
+                                <span class="sidebar-recommendation-meta">{{ $rec['member_count'] }} {{ $rec['member_count'] === 1 ? 'comment' : 'comments' }}</span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+
+        {{-- User Hub --}}
         <section class="sidebar-card">
             <div class="sidebar-card__header">
                 <span class="material-symbols-outlined">person</span>
                 <h2>{{ $user->full_name }}</h2>
             </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+
+            {{-- Status badges --}}
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
                 <span class="status-badge status-{{ $user->account_status }}">{{ ucfirst($user->account_status) }}</span>
                 <span class="badge badge-secondary">{{ $user->isSystemAdmin() ? 'Platform' : ($user->group?->group_name ?? 'General') }}</span>
             </div>
-            <p style="margin-top: 8px; font-size: 13px;">{{ $user->role->role_name }} &middot; Member since {{ $user->created_at ? $user->created_at->format('M Y') : 'Recently' }}</p>
-            <a href="{{ route('profile.edit') }}" class="btn btn-secondary btn-block" style="margin-top: 12px;">View profile</a>
+
+            {{-- Mini stats row --}}
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; padding: 12px; background: var(--app-page-bg); border-radius: var(--radius-card);">
+                <div>
+                    <p style="font-size: 11px; color: var(--app-text-muted); margin: 0 0 2px;">Role</p>
+                    <p style="font-size: 13px; font-weight: 600; margin: 0;">{{ $user->role->role_name }}</p>
+                </div>
+                <div>
+                    <p style="font-size: 11px; color: var(--app-text-muted); margin: 0 0 2px;">Last active</p>
+                    <p style="font-size: 13px; font-weight: 600; margin: 0;">{{ $user->last_active_at ? $user->last_active_at->format('M d') : 'Never' }}</p>
+                </div>
+                <div>
+                    <p style="font-size: 11px; color: var(--app-text-muted); margin: 0 0 2px;">Status</p>
+                    <p style="font-size: 13px; font-weight: 600; margin: 0;">{{ ucfirst($user->account_status) }}</p>
+                </div>
+                <div>
+                    <p style="font-size: 11px; color: var(--app-text-muted); margin: 0 0 2px;">Member since</p>
+                    <p style="font-size: 13px; font-weight: 600; margin: 0;">{{ $user->created_at ? $user->created_at->format('M Y') : 'Recently' }}</p>
+                </div>
+            </div>
+
+            {{-- Quick actions --}}
+            <div style="display: grid; gap: 6px;">
+                <a href="{{ route('forum.index') }}" class="btn btn-primary btn-block">Open forum</a>
+                <a href="{{ route('forum.create') }}" class="btn btn-secondary btn-block">New topic</a>
+                @if ($isAdmin)
+                    <a href="{{ route('admin.users.index') }}" class="btn btn-secondary btn-block">Manage users</a>
+                    <a href="{{ route('admin.groups.index') }}" class="btn btn-secondary btn-block">Manage groups</a>
+                @endif
+                <a href="{{ route('profile.edit') }}" class="btn btn-ghost btn-block">Edit profile</a>
+            </div>
         </section>
     </aside>
 </div>
