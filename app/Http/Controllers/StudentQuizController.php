@@ -26,8 +26,12 @@ class StudentQuizController extends Controller
         $user = Auth::user();
 
         $quizzes = Quiz::where('published_at', '!=', null)
-            ->whereHas('lecturer', function ($q) use ($user) {
-                $q->where('group_id', $user->group_id);
+            ->where(function ($q) use ($user) {
+                // System Admins see all quizzes; others see only their group's quizzes
+                if (! $user->isSystemAdmin()) {
+                    $q->where('group_id', $user->group_id)
+                      ->orWhereNull('group_id');
+                }
             })
             ->where('target_category', $user->role->role_name)
             ->with('lecturer', 'configuration')
@@ -44,7 +48,7 @@ class StudentQuizController extends Controller
                 return (object) [
                     'quiz' => $quiz,
                     'scheduled' => $scheduled,
-                    'has_started' => now()->isAfter($scheduled),
+                    'has_started' => $quiz->is_active && now()->isAfter($scheduled),
                     'is_live' => $quiz->is_active && ! $attempt,
                     'attempt' => $attempt,
                     'is_submitted' => $attempt && $attempt->is_submitted,

@@ -26,13 +26,18 @@ class SendQuizAnnouncement
     {
         $quiz = $event->quiz;
 
-        // Find target users: matching role + same group as the lecturer
+        // Find target users: matching role + same group as the quiz (not the lecturer's group)
         $targetUsers = User::whereHas('role', function ($query) use ($quiz) {
             $query->where('role_name', $quiz->target_category);
         })
-            ->where('group_id', $quiz->lecturer->group_id)
-            ->where('account_status', 'active')
-            ->get();
+            ->where('account_status', 'active');
+
+        // Scope to the quiz's group if one is set (null group_id = platform-wide quiz)
+        if ($quiz->group_id) {
+            $targetUsers->where('group_id', $quiz->group_id);
+        }
+
+        $targetUsers = $targetUsers->get();
 
         $count = 0;
 
