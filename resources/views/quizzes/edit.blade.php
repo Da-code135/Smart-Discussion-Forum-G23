@@ -62,27 +62,31 @@
                         <div class="card" style="background: var(--bg-muted, #f8f9fa); padding: 1rem;">
                             <h3 style="margin-top: 0;">Quiz Settings</h3>
 
-                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <input type="checkbox" name="lock_screen_on_start" value="1" {{ $quiz->configuration?->lock_screen_on_start ? 'checked' : '' }}>
-                                    <span>Lock screen during quiz (prevent cheating)</span>
-                                </label>
+	                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+	                                    <input type="hidden" name="lock_screen_on_start" value="0">
+	                                    <input type="checkbox" name="lock_screen_on_start" value="1" {{ $quiz->configuration?->lock_screen_on_start ? 'checked' : '' }}>
+	                                    <span>Lock screen during quiz (prevent cheating)</span>
+	                                </label>
 
-                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <input type="checkbox" name="show_results_after_close" value="1" {{ $quiz->configuration?->show_results_after_close ? 'checked' : '' }}>
-                                    <span>Show results after quiz closes</span>
-                                </label>
+	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+	                                    <input type="hidden" name="show_results_after_close" value="0">
+	                                    <input type="checkbox" name="show_results_after_close" value="1" {{ $quiz->configuration?->show_results_after_close ? 'checked' : '' }}>
+	                                    <span>Show results after quiz closes</span>
+	                                </label>
 
-                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <input type="checkbox" name="show_correct_answers" value="1" {{ $quiz->configuration?->show_correct_answers ? 'checked' : '' }}>
-                                    <span>Show correct answers with results</span>
-                                </label>
+	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+	                                    <input type="hidden" name="show_correct_answers" value="0">
+	                                    <input type="checkbox" name="show_correct_answers" value="1" {{ $quiz->configuration?->show_correct_answers ? 'checked' : '' }}>
+	                                    <span>Show correct answers with results</span>
+	                                </label>
 
-                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <input type="checkbox" name="allow_late_join" value="1" {{ $quiz->configuration?->allow_late_join ? 'checked' : '' }}>
-                                    <span>Allow late joiners (but no extra time)</span>
-                                </label>
-                            </div>
+	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+	                                    <input type="hidden" name="allow_late_join" value="0">
+	                                    <input type="checkbox" name="allow_late_join" value="1" {{ $quiz->configuration?->allow_late_join ? 'checked' : '' }}>
+	                                    <span>Allow late joiners (but no extra time)</span>
+	                                </label>
+	                            </div>
 
                             <div class="form-group" style="margin-top: 1rem;">
                                 <label for="participation_criteria" class="form-label">How to award participation marks?</label>
