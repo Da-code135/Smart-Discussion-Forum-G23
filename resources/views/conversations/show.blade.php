@@ -24,13 +24,23 @@
             <!-- Messages will be loaded here -->
             <div id="messages-list" class="messages-list">
                 @forelse($messages as $message)
-                    <div class="message-item" data-message-id="{{ $message->id }}">
-                        <div class="message-sender">
-                            <strong>{{ $message->sender->full_name }}</strong>
-                            <small class="message-time">{{ $message->created_at->format('M j, g:i A') }}</small>
-                        </div>
-                        <div class="message-body">
-                            {{ $message->body }}
+                    @php
+                        $isMine = $message->sender_id === auth()->id();
+                    @endphp
+                    <div class="message-item {{ $isMine ? 'message-item--mine' : 'message-item--theirs' }}" data-message-id="{{ $message->id }}">
+                        @if (!$isMine)
+                            <span class="message-sender-name">{{ $message->sender->full_name }}</span>
+                        @endif
+                        <div class="message-bubble">
+                            <div class="message-body">{{ $message->body }}</div>
+                            <div class="message-footer">
+                                <span class="message-time">{{ $message->created_at->format('g:i A') }}</span>
+                                @if ($isMine)
+                                    <span class="message-status message-status--{{ $message->delivery_status }}" title="{{ $message->delivery_status_label }}">
+                                        <span class="material-symbols-outlined" style="font-size: 14px;">{{ $message->delivery_status_icon }}</span>
+                                    </span>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 @empty
@@ -98,18 +108,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to append a new message to the chat view
     function appendMessage(messageData) {
         const messagesList = document.getElementById('messages-list');
+        const isMine = messageData.sender_id == userId;
         
         const messageElement = document.createElement('div');
-        messageElement.className = 'message-item';
+        messageElement.className = 'message-item ' + (isMine ? 'message-item--mine' : 'message-item--theirs');
         messageElement.dataset.messageId = messageData.id;
         
+        let senderHtml = '';
+        if (!isMine) {
+            senderHtml = `<span class="message-sender-name">${escapeHtml(messageData.sender_name)}</span>`;
+        }
+        
+        const time = formatTime(messageData.created_at);
+        const statusIcon = isMine ? `<span class="message-status message-status--sent" title="Sent"><span class="material-symbols-outlined" style="font-size: 14px;">done</span></span>` : '';
+        
         messageElement.innerHTML = `
-            <div class="message-sender">
-                <strong>${messageData.sender_name}</strong>
-                <small class="message-time">${formatTime(messageData.created_at)}</small>
-            </div>
-            <div class="message-body">
-                ${escapeHtml(messageData.body)}
+            ${senderHtml}
+            <div class="message-bubble">
+                <div class="message-body">${escapeHtml(messageData.body)}</div>
+                <div class="message-footer">
+                    <span class="message-time">${time}</span>
+                    ${statusIcon}
+                </div>
             </div>
         `;
         
@@ -123,8 +143,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function formatTime(dateString) {
         const date = new Date(dateString);
         return date.toLocaleString(undefined, {
-            month: 'short',
-            day: 'numeric',
             hour: 'numeric',
             minute: '2-digit'
         });

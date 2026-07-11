@@ -2082,39 +2082,87 @@ tbody tr:last-child td {
 .messages-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3, 12px);
+    gap: 6px;
 }
 
 .message-item {
-    display: grid;
-    gap: 4px;
-}
-
-.message-sender {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    max-width: 75%;
 }
 
-.message-sender strong {
-    font-size: 14px;
-    color: var(--app-text-primary);
+.message-item--mine {
+    align-self: flex-end;
+    align-items: flex-end;
 }
 
-.message-time {
+.message-item--theirs {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+
+.message-sender-name {
     font-size: 11px;
-    color: var(--app-text-muted);
+    font-weight: 600;
+    color: var(--app-text-muted, #6b7280);
+    padding: 0 4px;
+    margin-bottom: 1px;
+}
+
+.message-bubble {
+    display: flex;
+    flex-direction: column;
 }
 
 .message-body {
-    font-size: 14px;
+    font-size: 13px;
     color: var(--app-text-primary);
     white-space: pre-wrap;
-    line-height: 1.5;
-    padding: 8px 12px;
+    line-height: 1.45;
+    padding: 6px 10px;
+    border-radius: 12px;
+}
+
+.message-item--mine .message-body {
+    background: var(--color-primary, #4f46e5);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+
+.message-item--theirs .message-body {
     background: var(--surface-container-high, #efe7dd);
-    border-radius: 8px;
-    max-width: 80%;
+    color: var(--app-text-primary);
+    border-bottom-left-radius: 4px;
+}
+
+.message-footer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 4px 0;
+}
+
+.message-time {
+    font-size: 10px;
+    color: var(--app-text-muted, #9ca3af);
+}
+
+.message-status {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+
+.message-status--sent {
+    color: var(--app-text-muted, #9ca3af);
+}
+
+.message-status--delivered {
+    color: var(--app-text-muted, #9ca3af);
+}
+
+.message-status--read {
+    color: var(--color-primary, #4f46e5);
 }
 
 .no-messages {

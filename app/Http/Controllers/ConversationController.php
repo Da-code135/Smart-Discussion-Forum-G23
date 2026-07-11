@@ -72,7 +72,7 @@ class ConversationController extends Controller
             ->findOrFail($id);
 
         $messages = $conversation->messages()
-            ->with('sender:id,full_name')
+            ->with(['sender:id,full_name', 'statusRows'])
             ->orderByDesc('created_at')
             ->paginate(50);
 

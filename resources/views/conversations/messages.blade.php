@@ -14,13 +14,18 @@
             
             <div id="messages-list" class="messages-list">
                 @forelse($messages as $message)
-                    <div class="message-item" data-message-id="{{ $message->id }}">
-                        <div class="message-sender">
-                            <strong>{{ $message->sender->full_name }}</strong>
-                            <small class="message-time">{{ $message->created_at->format('M j, Y g:i A') }}</small>
-                        </div>
-                        <div class="message-body">
-                            {{ $message->body }}
+                    @php
+                        $isMine = $message->sender_id === auth()->id();
+                    @endphp
+                    <div class="message-item {{ $isMine ? 'message-item--mine' : 'message-item--theirs' }}" data-message-id="{{ $message->id }}">
+                        @if (!$isMine)
+                            <span class="message-sender-name">{{ $message->sender->full_name }}</span>
+                        @endif
+                        <div class="message-bubble">
+                            <div class="message-body">{{ $message->body }}</div>
+                            <div class="message-footer">
+                                <span class="message-time">{{ $message->created_at->format('g:i A') }}</span>
+                            </div>
                         </div>
                     </div>
                 @empty

@@ -38,6 +38,62 @@ class Message extends Model
     }
 
     // -------------------------------------------------------------------
+    //  Delivery status helpers (for sender's view)
+    // -------------------------------------------------------------------
+
+    /**
+     * Status priority: higher value = more advanced.
+     */
+    private const STATUS_PRIORITY = [
+        'sent' => 0,
+        'delivered' => 1,
+        'read' => 2,
+    ];
+
+    /**
+     * Get the aggregated delivery status across all recipients.
+     *
+     * From the sender's perspective the message is:
+     *   - "read"      → every recipient has read it
+     *   - "delivered"  → at least one recipient has read or received it, but not all read
+     *   - "sent"       → no recipient has received or read it yet
+     */
+    public function getDeliveryStatusAttribute(): string
+    {
+        if ($this->relationLoaded('statusRows') && $this->statusRows->isNotEmpty()) {
+            $worst = $this->statusRows->min(fn ($row) => self::STATUS_PRIORITY[$row->status] ?? 0);
+
+            return array_search($worst, self::STATUS_PRIORITY) ?? 'sent';
+        }
+
+        return 'sent';
+    }
+
+    /**
+     * Human-readable label for the delivery status.
+     */
+    public function getDeliveryStatusLabelAttribute(): string
+    {
+        return match ($this->delivery_status) {
+            'read' => 'Read',
+            'delivered' => 'Delivered',
+            default => 'Sent',
+        };
+    }
+
+    /**
+     * Material icon name for the delivery status.
+     */
+    public function getDeliveryStatusIconAttribute(): string
+    {
+        return match ($this->delivery_status) {
+            'read' => 'done_all',
+            'delivered' => 'done_all',
+            default => 'done',
+        };
+    }
+
+    // -------------------------------------------------------------------
     //  Booted — auto-create status rows for all participants except sender
     // -------------------------------------------------------------------
 
