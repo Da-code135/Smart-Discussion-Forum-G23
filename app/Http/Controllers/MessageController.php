@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Services\MessageEventManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -63,13 +63,8 @@ class MessageController extends Controller
             'body' => $validated['body'],
         ])->load('sender:id,full_name');
 
-        // 4. Update conversation's last_activity_at
-        $conversation->update(['last_activity_at' => now()]);
-
-        // 5. Broadcast the event
-        // The event class is defined below
-        broadcast(new MessageSent($message))->toOthers();
-        // ->toOthers() means the sender doesn't receive their own broadcast
+        // 4. Broadcast the event and update last_activity_at
+        app(MessageEventManager::class)->messageSent($message);
 
         // 6. Return the message (AJAX/API: JSON, web: redirect with success)
         if ($request->expectsJson() || $request->is('api/*')) {

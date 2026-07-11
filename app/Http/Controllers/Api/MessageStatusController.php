@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Services\MessageEventManager;
 use App\Services\MessageStatusService;
 use Illuminate\Http\Request;
 
@@ -33,7 +34,7 @@ class MessageStatusController extends Controller
             ], 403);
         }
 
-        app(MessageStatusService::class)->markAsDelivered($messageId, $user->id);
+        app(MessageEventManager::class)->messageDelivered($message, $user->id);
 
         return response()->json([
             'success' => true,
@@ -62,8 +63,8 @@ class MessageStatusController extends Controller
             ], 403);
         }
 
-        $updated = app(MessageStatusService::class)
-            ->markConversationAsRead($conversationId, $user->id);
+        $updated = app(MessageEventManager::class)
+            ->messagesRead($conversationId, $user->id);
 
         return response()->json([
             'success' => true,

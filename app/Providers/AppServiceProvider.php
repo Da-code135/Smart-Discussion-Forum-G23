@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\MessageEventManager;
 use App\Services\MessageStatusService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
@@ -15,7 +16,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(MessageEventManager::class, function ($app) {
+            return new MessageEventManager(
+                $app->make(MessageStatusService::class),
+            );
+        });
     }
 
     /**

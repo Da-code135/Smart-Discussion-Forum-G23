@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Events\MessagesRead;
 use App\Models\Message;
 use App\Models\MessageStatus;
 
@@ -55,30 +54,18 @@ class MessageStatusService
     /**
      * Mark ALL messages in a conversation as 'read' for a user in one batch.
      *
-     * Broadcasts MessagesRead event so the sender sees read receipts in real time.
      * Returns the number of status rows that were updated.
+     * Broadcasting is handled by MessageEventManager::messagesRead().
      */
     public function markConversationAsRead(int $conversationId, int $userId): int
     {
-        $updated = MessageStatus::whereIn('message_id', function ($q) use ($conversationId) {
+        return MessageStatus::whereIn('message_id', function ($q) use ($conversationId) {
             $q->select('id')->from('messages')
                 ->where('conversation_id', $conversationId);
         })
             ->where('user_id', $userId)
             ->whereIn('status', ['sent', 'delivered'])
             ->update(['status' => 'read', 'updated_at' => now()]);
-
-        if ($updated > 0) {
-            try {
-                broadcast(new MessagesRead($conversationId, $userId))
-                    ->toOthers();
-            } catch (\Throwable $e) {
-                // Broadcasting failure should not block the read-marking
-                report($e);
-            }
-        }
-
-        return $updated;
     }
 
     /**

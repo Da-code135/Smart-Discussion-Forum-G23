@@ -102,6 +102,14 @@ document.addEventListener('DOMContentLoaded', function() {
         Echo.private(`conversation.${conversationId}`)
             .listen('MessageSent', (e) => {
                 appendMessage(e);
+            })
+            .listen('MessageDelivered', (e) => {
+                updateMessageStatus(e.message_id, 'delivered');
+            })
+            .listen('MessagesRead', (e) => {
+                if (e.read_by_user_id != userId) {
+                    markAllMyMessagesAsRead();
+                }
             });
     }
     
@@ -234,6 +242,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Update a single message's delivery status icon
+    function updateMessageStatus(messageId, status) {
+        const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (!messageEl) return;
+
+        const statusEl = messageEl.querySelector('.message-status');
+        if (statusEl) {
+            statusEl.className = `message-status message-status--${status}`;
+            statusEl.title = status.charAt(0).toUpperCase() + status.slice(1);
+            const icon = statusEl.querySelector('.material-symbols-outlined');
+            if (icon) {
+                icon.textContent = status === 'read' ? 'done_all' : 'done';
+            }
+        }
+    }
+
+    // Mark all of the current user's visible messages as read
+    function markAllMyMessagesAsRead() {
+        document.querySelectorAll('.message-item--mine .message-status').forEach((statusEl) => {
+            statusEl.className = 'message-status message-status--read';
+            statusEl.title = 'Read';
+            const icon = statusEl.querySelector('.material-symbols-outlined');
+            if (icon) {
+                icon.textContent = 'done_all';
+            }
+        });
+    }
+
     // Show error message in the UI
     function showError(message) {
         // Remove any existing error
