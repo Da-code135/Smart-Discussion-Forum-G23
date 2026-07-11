@@ -639,17 +639,7 @@ Route::prefix($API_VERSION)->group(function () {
                         'deactivate',
                     ]);
 
-<<<<<<< Updated upstream
-                // Bulk Operations (Phase 4E)
-                Route::prefix('bulk')->group(function () {
-                    Route::post('/change-roles', [BulkOperationController::class, 'changeRoles']);
-                    Route::post('/change-status', [BulkOperationController::class, 'changeStatus']);
-                    Route::post('/assign-group', [BulkOperationController::class, 'assignGroup']);
-                    Route::post('/blacklist', [BulkOperationController::class, 'blacklist']);
-                    Route::post('/lift-blacklist', [BulkOperationController::class, 'liftBlacklist']);
-                    Route::post('/warn', [BulkOperationController::class, 'warn']);
-                    Route::post('/assign-group-admins', [BulkOperationController::class, 'assignGroupAdmins']);
-=======
+
                     // Blacklist Management (W5-W7, All admins, group-scoped)
                     Route::get('/blacklist-records', [
                         BlacklistController::class,
@@ -795,82 +785,6 @@ Route::prefix($API_VERSION)->group(function () {
                         'deactivate',
                     ]);
 
-                    // Bulk Operations (Phase 4E)
-                    Route::prefix('bulk')->group(function () {
-                        Route::post('/change-roles', [
-                            BulkOperationController::class,
-                            'changeRoles',
-                        ]);
-                        Route::post('/change-status', [
-                            BulkOperationController::class,
-                            'changeStatus',
-                        ]);
-                        Route::post('/assign-group', [
-                            BulkOperationController::class,
-                            'assignGroup',
-                        ]);
-                        Route::post('/blacklist', [
-                            BulkOperationController::class,
-                            'blacklist',
-                        ]);
-                        Route::post('/lift-blacklist', [
-                            BulkOperationController::class,
-                            'liftBlacklist',
-                        ]);
-                        Route::post('/warn', [
-                            BulkOperationController::class,
-                            'warn',
-                        ]);
-                        Route::post('/assign-group-admins', [
-                            BulkOperationController::class,
-                            'assignGroupAdmins',
-                        ]);
-                    });
-
-                    // Advanced Search (Phase 4E)
-                    Route::prefix('search')->group(function () {
-                        Route::post('/users', [
-                            SearchController::class,
-                            'searchUsers',
-                        ]);
-                        Route::post('/groups', [
-                            SearchController::class,
-                            'searchGroups',
-                        ]);
-                        Route::post('/audit-logs', [
-                            SearchController::class,
-                            'searchAuditLogs',
-                        ]);
-                        Route::post('/warnings', [
-                            SearchController::class,
-                            'searchWarnings',
-                        ]);
-                        Route::get('/options/{model}', [
-                            SearchController::class,
-                            'getOptions',
-                        ]);
-                        Route::get('/suggestions/{type}', [
-                            SearchController::class,
-                            'getSuggestions',
-                        ]);
-                    });
-
-                    // Dashboard & Group Statistics (P5)
-                    Route::get('/dashboard', [DashboardController::class, 'index']);
-                    Route::get('/group-statistics', [GroupStatisticsController::class, 'index']);
-                    Route::get('/group-statistics/{group}', [GroupStatisticsController::class, 'show']);
-
-                    // Statistics Management (Recalculate live data)
-                    /**
-                     * POST /api/v1/admin/statistics/{group}/recalculate
-                     * Recalculate and persist group statistics from live data.
-                     */
-                    Route::post('/statistics/{group}/recalculate', [
-                        GroupStatisticsController::class,
-                        'recalculate',
-                    ]);
->>>>>>> Stashed changes
-                });
                     // Bulk Operations (Phase 4E)
                     Route::prefix('bulk')->group(function () {
                         Route::post('/change-roles', [
