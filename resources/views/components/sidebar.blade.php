@@ -23,9 +23,12 @@
                     <span class="material-symbols-outlined sidebar-icon">quiz</span>
                     <span class="sidebar-label">Quizzes</span>
                 </a>
-                <a href="{{ route('conversations.index') }}" class="sidebar-link {{ $activeNav === 'conversations' ? 'is-active' : '' }}" title="Messages">
+                <a href="{{ route('conversations.index') }}" class="sidebar-link {{ $activeNav === 'conversations' ? 'is-active' : '' }}" title="Messages" style="position: relative;">
                     <span class="material-symbols-outlined sidebar-icon">chat</span>
                     <span class="sidebar-label">Messages</span>
+                    @if (!empty($unreadMessageCount) && $unreadMessageCount > 0)
+                        <span class="sidebar-badge">{{ min($unreadMessageCount, 99) }}</span>
+                    @endif
                 </a>
             </div>
 

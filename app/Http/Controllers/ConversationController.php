@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Conversation;
 use App\Models\User;
+use App\Services\MessageStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -73,8 +74,12 @@ class ConversationController extends Controller
 
         $messages = $conversation->messages()
             ->with(['sender:id,full_name', 'statusRows'])
-            ->orderByDesc('created_at')
+            ->orderBy('created_at')
             ->paginate(50);
+
+        // Mark all messages in this conversation as read for the current user.
+        app(MessageStatusService::class)
+            ->markConversationAsRead($conversation->id, auth()->id());
 
         if ($request->is('api/*')) {
             return response()->json(['data' => $conversation], 200);

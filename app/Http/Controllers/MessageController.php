@@ -25,10 +25,10 @@ class MessageController extends Controller
             ->whereHas('participants', fn ($q) => $q->where('user_id', auth()->id()))
             ->findOrFail($conversationId);
 
-        // 2. Fetch messages in reverse chronological order, paginated
+        // 2. Fetch messages in chronological order, paginated
         $messages = $conversation->messages()
             ->with('sender:id,full_name')
-            ->orderByDesc('created_at')
+            ->orderBy('created_at')
             ->paginate(50);
 
         if ($request->is('api/*')) {
