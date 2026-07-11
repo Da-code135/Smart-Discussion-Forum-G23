@@ -4,6 +4,7 @@
 @section('admin')
 
 @section('content')
+<<<<<<< Updated upstream
 <div class="container">
     <!-- Header with Create Button (System Admin only) -->
     <div class="admin-header">
@@ -14,6 +15,20 @@
             </a>
         @endif
     </div>
+=======
+<div class="page-stack">
+    <div class="admin-header page-stack">
+        <div class="admin-header__row">
+            <div>
+                <h1>Group management</h1>
+                <p>Manage groups, member counts, and membership workflows.</p>
+            </div>
+            @if (auth()->user()->isSystemAdmin())
+                <a href="{{ route('admin.groups.create') }}" class="btn btn-primary">Create group</a>
+                <a href="{{ route('admin.groups.trashed') }}" class="btn btn-secondary">Deleted groups</a>
+            @endif
+        </div>
+>>>>>>> Stashed changes
 
     {{-- Search & Sort --}}
     <div class="filter-section">

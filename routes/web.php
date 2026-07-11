@@ -191,6 +191,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/users', [\App\Http\Controllers\Admin\UserManagementController::class, 'index'])
         ->name('users.index');
 
+<<<<<<< Updated upstream
     // User creation & deletion - System Admin only (must be before {user} route to avoid route conflict)
     Route::middleware(['system-admin'])->group(function () {
         Route::get('/users/create', [\App\Http\Controllers\Admin\UserManagementController::class, 'create'])
@@ -209,6 +210,258 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
             ->name('users.blacklist.store');
         Route::post('/warnings/{warning}/resolve', [\App\Http\Controllers\Admin\UserManagementController::class, 'resolveWarning'])
             ->name('warnings.resolve');
+=======
+        // User creation & deletion - System Admin only (must be before {user} route to avoid route conflict)
+        Route::middleware(['system-admin'])->group(function () {
+            Route::get('/users/create', [
+                UserManagementController::class,
+                'create',
+            ])->name('admin.users.create');
+            Route::post('/users', [
+                UserManagementController::class,
+                'store',
+            ])->name('admin.users.store');
+            Route::delete('/users/{user}', [
+                UserManagementController::class,
+                'destroy',
+            ])->name('admin.users.destroy');
+            Route::get('/users/{user}/reset-password', [
+                UserManagementController::class,
+                'showResetPassword',
+            ])->name('admin.users.reset-password');
+            Route::post('/users/{user}/reset-password', [
+                UserManagementController::class,
+                'resetPassword',
+            ])->name('admin.users.reset-password.store');
+            Route::get('/users/{user}/blacklist', [
+                UserManagementController::class,
+                'showBlacklist',
+            ])->name('admin.users.blacklist');
+            Route::post('/users/{user}/blacklist', [
+                UserManagementController::class,
+                'blacklist',
+            ])->name('admin.users.blacklist.store');
+            Route::post('/warnings/{warning}/resolve', [
+                UserManagementController::class,
+                'resolveWarning',
+            ])->name('admin.warnings.resolve');
+        });
+
+        Route::get('/users/{user}', [
+            UserManagementController::class,
+            'show',
+        ])->name('admin.users.show');
+        Route::get('/users/{user}/edit', [
+            UserManagementController::class,
+            'edit',
+        ])->name('admin.users.edit');
+        Route::put('/users/{user}', [
+            UserManagementController::class,
+            'update',
+        ])->name('admin.users.update');
+        Route::post('/users/{user}/lift-blacklist', [
+            UserManagementController::class,
+            'liftBlacklist',
+        ])->name('admin.users.lift-blacklist');
+        Route::post('/users/{user}/change-role', [
+            UserManagementController::class,
+            'changeRole',
+        ])->name('admin.users.change-role');
+
+        // System Config (#92) - System Admin only
+        Route::middleware(['system-admin'])->group(function () {
+            Route::get('/system-config', [
+                SystemConfigController::class,
+                'index',
+            ])->name('admin.system-config.index');
+            Route::put('/system-config', [
+                SystemConfigController::class,
+                'update',
+            ])->name('admin.system-config.update');
+
+            // Group Statistics - System Admin only
+            Route::get('/group-statistics', [
+                GroupStatisticsController::class,
+                'index',
+            ])->name('admin.group-statistics.index');
+            Route::get('/group-statistics/{group}', [
+                GroupStatisticsController::class,
+                'show',
+            ])->name('admin.group-statistics.show');
+        });
+
+        // Admin Dashboard - All admins
+        Route::get('/dashboard', function () {
+            return view('admin.dashboard');
+        })->name('admin.dashboard');
+
+        // Moderation Panel - All admins (group-scoped in controller queries)
+        Route::get('/moderation', [
+            ModerationController::class,
+            'index',
+        ])->name('admin.moderation.index');
+        Route::post('/moderation/{post}/remove', [
+            ModerationController::class,
+            'removePost',
+        ])->name('admin.moderation.remove');
+        Route::post('/moderation/{post}/ignore', [
+            ModerationController::class,
+            'ignoreReport',
+        ])->name('admin.moderation.ignore');
+
+        // Audit Logs - All admins
+        Route::get('/audit-logs', [
+            AuditLogController::class,
+            'index',
+        ])->name('admin.audit-logs.index');
+        Route::get('/audit-logs/{log}', [
+            AuditLogController::class,
+            'show',
+        ])->name('admin.audit-logs.show');
+        Route::get('/audit-logs/export/{format?}', [
+            AuditLogController::class,
+            'export',
+        ])->name('admin.audit-logs.export');
+
+        // IP Whitelist - System Admin only
+        Route::middleware(['system-admin'])->group(function () {
+            Route::get('/ip-whitelist', [
+                IpWhitelistController::class,
+                'index',
+            ])->name('admin.ip-whitelist.index');
+            Route::get('/ip-whitelist/create', [
+                IpWhitelistController::class,
+                'create',
+            ])->name('admin.ip-whitelist.create');
+            Route::post('/ip-whitelist', [
+                IpWhitelistController::class,
+                'store',
+            ])->name('admin.ip-whitelist.store');
+            Route::get('/ip-whitelist/{ipWhitelist}/edit', [
+                IpWhitelistController::class,
+                'edit',
+            ])->name('admin.ip-whitelist.edit');
+            Route::put('/ip-whitelist/{ipWhitelist}', [
+                IpWhitelistController::class,
+                'update',
+            ])->name('admin.ip-whitelist.update');
+            Route::delete('/ip-whitelist/{ipWhitelist}', [
+                IpWhitelistController::class,
+                'destroy',
+            ])->name('admin.ip-whitelist.destroy');
+            Route::post('/ip-whitelist/{ipWhitelist}/activate', [
+                IpWhitelistController::class,
+                'activate',
+            ])->name('admin.ip-whitelist.activate');
+            Route::post('/ip-whitelist/{ipWhitelist}/deactivate', [
+                IpWhitelistController::class,
+                'deactivate',
+            ])->name('admin.ip-whitelist.deactivate');
+        });
+
+        // Statistics Dashboard (Analytics module — Tasks 1 & 2)
+        Route::get('/statistics', [
+            StatisticsController::class,
+            'index',
+        ])->name('admin.statistics.index');
+        Route::post('/statistics/{group}/recalculate', [
+            StatisticsController::class,
+            'recalculate',
+        ])->name('admin.statistics.recalculate');
+
+        // Group Management - All admins can view their groups, but actions are controlled by policies
+        Route::get('/groups', [
+            GroupController::class,
+            'index',
+        ])->name('admin.groups.index');
+
+        // Group creation - System Admin only
+        Route::middleware(['system-admin'])->group(function () {
+            Route::get('/groups/create', [
+                GroupController::class,
+                'create',
+            ])->name('admin.groups.create');
+            Route::post('/groups', [
+                GroupController::class,
+                'store',
+            ])->name('admin.groups.store');
+            Route::post('/groups/bulk-assign', [
+                GroupController::class,
+                'bulkAssign',
+            ])->name('admin.groups.bulk-assign');
+
+            // Trashed groups & restore — System Admin only
+            Route::get('/groups/trashed', [
+                GroupController::class,
+                'trashed',
+            ])->name('admin.groups.trashed');
+            Route::post('/groups/{group}/restore', [
+                GroupController::class,
+                'restore',
+            ])
+                ->withTrashed()
+                ->name('admin.groups.restore');
+        });
+
+        // Group-specific actions - controlled by can-admin-group middleware
+        Route::middleware(['can-admin-group'])->group(function () {
+            Route::get('/groups/{group}/edit', [
+                GroupController::class,
+                'edit',
+            ])->name('admin.groups.edit');
+            Route::put('/groups/{group}', [
+                GroupController::class,
+                'update',
+            ])->name('admin.groups.update');
+            Route::delete('/groups/{group}', [
+                GroupController::class,
+                'destroy',
+            ])->name('admin.groups.destroy');
+            Route::get('/groups/{group}/members', [
+                GroupController::class,
+                'showMembers',
+            ])->name('admin.groups.members');
+            Route::put('/groups/{group}/members', [
+                GroupController::class,
+                'updateMembers',
+            ])->name('admin.groups.update-members');
+        });
+
+        // Warning routes
+        Route::prefix('warnings')->group(function () {
+            Route::get('/', [WarningController::class, 'index'])->name(
+                'admin.warnings.index',
+            );
+            Route::get('/{warning}', [WarningController::class, 'show'])->name(
+                'admin.warnings.show',
+            );
+            Route::post('/', [WarningController::class, 'store'])->name(
+                'admin.warnings.store',
+            );
+            Route::post('/{warning}', [
+                WarningController::class,
+                'update',
+            ])->name('admin.warnings.update');
+        });
+
+        // Blacklist routes
+        Route::prefix('blacklist')->group(function () {
+            Route::get('/', [BlacklistController::class, 'index'])->name(
+                'admin.blacklist.index',
+            );
+            Route::get('/{blacklistRecord}', [
+                BlacklistController::class,
+                'show',
+            ])->name('admin.blacklist.show');
+            Route::post('/', [BlacklistController::class, 'store'])->name(
+                'admin.blacklist.store',
+            );
+            Route::post('/{blacklistRecord}', [
+                BlacklistController::class,
+                'update',
+            ])->name('admin.blacklist.update');
+        });
+>>>>>>> Stashed changes
     });
 
     Route::get('/users/{user}', [\App\Http\Controllers\Admin\UserManagementController::class, 'show'])

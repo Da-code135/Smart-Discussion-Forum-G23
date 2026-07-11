@@ -189,6 +189,15 @@ class GroupController extends Controller
             ], 400);
         }
 
+        // Reassign users to the default group before soft-deleting
+        $defaultGroupId = Group::where('group_name', 'General')->value('id')
+            ?? Group::min('id');
+
+        if ($defaultGroupId && $defaultGroupId != $group->id) {
+            User::where('group_id', $group->id)
+                ->update(['group_id' => $defaultGroupId]);
+        }
+
         // Audit log
         $this->auditLogService->logGroupDeleted($group);
 
@@ -321,6 +330,71 @@ class GroupController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Admin removed from group successfully',
+        ]);
+    }
+
+    /**
+     * GET /api/v1/admin/groups/trashed
+     * List soft-deleted groups (System Admin only)
+     */
+    public function trashed(Request $request)
+    {
+        if (! auth()->user()->isSystemAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Only System Administrators can view trashed groups.',
+            ], 403);
+        }
+
+        $query = Group::onlyTrashed()->withCount('users');
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where('group_name', 'like', '%' . $search . '%');
+        }
+
+        $query->orderBy('deleted_at', 'desc');
+        $groups = $query->paginate($request->input('per_page', 15));
+
+        return response()->json([
+            'success' => true,
+            'data' => $groups->items(),
+            'pagination' => [
+                'total' => $groups->total(),
+                'per_page' => $groups->perPage(),
+                'current_page' => $groups->currentPage(),
+                'last_page' => $groups->lastPage(),
+                'from' => $groups->firstItem(),
+                'to' => $groups->lastItem(),
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/admin/groups/{groupId}/restore
+     * Restore a soft-deleted group (System Admin only)
+     */
+    public function restore($groupId)
+    {
+        if (! auth()->user()->isSystemAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Only System Administrators can restore groups.',
+            ], 403);
+        }
+
+        // Must use withTrashed() — findOrFail alone returns 404 on soft-deleted records
+        $group = Group::withTrashed()->findOrFail($groupId);
+
+        $group->restore();
+
+        // Audit log
+        $this->auditLogService->logGroupRestored($group);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Group '{$group->group_name}' restored successfully",
+            'data' => $group->loadCount('users'),
         ]);
     }
 }
