@@ -639,6 +639,238 @@ Route::prefix($API_VERSION)->group(function () {
                         'deactivate',
                     ]);
 
+<<<<<<< Updated upstream
+                // Bulk Operations (Phase 4E)
+                Route::prefix('bulk')->group(function () {
+                    Route::post('/change-roles', [BulkOperationController::class, 'changeRoles']);
+                    Route::post('/change-status', [BulkOperationController::class, 'changeStatus']);
+                    Route::post('/assign-group', [BulkOperationController::class, 'assignGroup']);
+                    Route::post('/blacklist', [BulkOperationController::class, 'blacklist']);
+                    Route::post('/lift-blacklist', [BulkOperationController::class, 'liftBlacklist']);
+                    Route::post('/warn', [BulkOperationController::class, 'warn']);
+                    Route::post('/assign-group-admins', [BulkOperationController::class, 'assignGroupAdmins']);
+=======
+                    // Blacklist Management (W5-W7, All admins, group-scoped)
+                    Route::get('/blacklist-records', [
+                        BlacklistController::class,
+                        'index',
+                    ]); // W5: List blacklist records
+                    Route::post('/users/{userId}/blacklist', [
+                        BlacklistController::class,
+                        'store',
+                    ]); // W6: Blacklist user
+                    Route::post('/blacklist-records/{recordId}/lift', [
+                        BlacklistController::class,
+                        'lift',
+                    ]); // W7: Lift blacklist
+
+                    // Category Management (C3-C5: Admin only)
+                    Route::post('/categories', [
+                        CategoryController::class,
+                        'store',
+                    ]); // C3: Create category
+                    Route::put('/categories/{categoryId}', [
+                        CategoryController::class,
+                        'update',
+                    ]); // C4: Update category
+                    Route::delete('/categories/{categoryId}', [
+                        CategoryController::class,
+                        'destroy',
+                    ]); // C5: Delete category
+
+                    // Group Management (All admins can view, actions enforced by policies)
+                    Route::get('/groups', [
+                        AdminGroupController::class,
+                        'index',
+                    ]);
+                    // Trashed groups & restore — must be before {groupId} routes to avoid collision
+                    Route::get('/groups/trashed', [
+                        AdminGroupController::class,
+                        'trashed',
+                    ]);
+                    Route::post('/groups/{groupId}/restore', [
+                        AdminGroupController::class,
+                        'restore',
+                    ]);
+                    Route::get('/groups/{groupId}', [
+                        AdminGroupController::class,
+                        'show',
+                    ]);
+                    Route::get('/groups/{groupId}/members', [
+                        AdminGroupController::class,
+                        'showMembers',
+                    ]);
+                    Route::put('/groups/{groupId}/members', [
+                        AdminGroupController::class,
+                        'updateMembers',
+                    ]);
+
+                    // Group CRUD (System Admin only for create/delete)
+                    Route::post('/groups', [
+                        AdminGroupController::class,
+                        'store',
+                    ]);
+                    Route::put('/groups/{groupId}', [
+                        AdminGroupController::class,
+                        'update',
+                    ]);
+                    Route::delete('/groups/{groupId}', [
+                        AdminGroupController::class,
+                        'destroy',
+                    ]);
+
+                    // Group admin management (System Admin only)
+                    Route::post('/groups/{groupId}/admins', [
+                        AdminGroupController::class,
+                        'addAdmin',
+                    ]);
+                    Route::delete('/groups/{groupId}/admins/{userId}', [
+                        AdminGroupController::class,
+                        'removeAdmin',
+                    ]);
+
+                    // System Configuration (System Admin only)
+                    Route::get('/system-config', [
+                        AdminSystemConfigController::class,
+                        'index',
+                    ]);
+                    Route::put('/system-config', [
+                        AdminSystemConfigController::class,
+                        'update',
+                    ]);
+                    Route::get('/system-config/{key}', [
+                        AdminSystemConfigController::class,
+                        'show',
+                    ]);
+
+                    // Audit Logs (All admins)
+                    Route::get('/audit-logs', [
+                        AdminAuditLogController::class,
+                        'index',
+                    ]);
+                    Route::get('/audit-logs/actions', [
+                        AdminAuditLogController::class,
+                        'getActions',
+                    ]);
+                    Route::get('/audit-logs/{logId}', [
+                        AdminAuditLogController::class,
+                        'show',
+                    ]);
+                    Route::get('/audit-logs/export/{format}', [
+                        AdminAuditLogController::class,
+                        'export',
+                    ]);
+
+                    // IP Whitelist (System Admin only)
+                    Route::get('/ip-whitelist', [
+                        AdminIpWhitelistController::class,
+                        'index',
+                    ]);
+                    Route::get('/ip-whitelist/check/{ip}', [
+                        AdminIpWhitelistController::class,
+                        'check',
+                    ]);
+                    Route::get('/ip-whitelist/{ipId}', [
+                        AdminIpWhitelistController::class,
+                        'show',
+                    ]);
+                    Route::post('/ip-whitelist', [
+                        AdminIpWhitelistController::class,
+                        'store',
+                    ]);
+                    Route::put('/ip-whitelist/{ipId}', [
+                        AdminIpWhitelistController::class,
+                        'update',
+                    ]);
+                    Route::delete('/ip-whitelist/{ipId}', [
+                        AdminIpWhitelistController::class,
+                        'destroy',
+                    ]);
+                    Route::post('/ip-whitelist/{ipId}/activate', [
+                        AdminIpWhitelistController::class,
+                        'activate',
+                    ]);
+                    Route::post('/ip-whitelist/{ipId}/deactivate', [
+                        AdminIpWhitelistController::class,
+                        'deactivate',
+                    ]);
+
+                    // Bulk Operations (Phase 4E)
+                    Route::prefix('bulk')->group(function () {
+                        Route::post('/change-roles', [
+                            BulkOperationController::class,
+                            'changeRoles',
+                        ]);
+                        Route::post('/change-status', [
+                            BulkOperationController::class,
+                            'changeStatus',
+                        ]);
+                        Route::post('/assign-group', [
+                            BulkOperationController::class,
+                            'assignGroup',
+                        ]);
+                        Route::post('/blacklist', [
+                            BulkOperationController::class,
+                            'blacklist',
+                        ]);
+                        Route::post('/lift-blacklist', [
+                            BulkOperationController::class,
+                            'liftBlacklist',
+                        ]);
+                        Route::post('/warn', [
+                            BulkOperationController::class,
+                            'warn',
+                        ]);
+                        Route::post('/assign-group-admins', [
+                            BulkOperationController::class,
+                            'assignGroupAdmins',
+                        ]);
+                    });
+
+                    // Advanced Search (Phase 4E)
+                    Route::prefix('search')->group(function () {
+                        Route::post('/users', [
+                            SearchController::class,
+                            'searchUsers',
+                        ]);
+                        Route::post('/groups', [
+                            SearchController::class,
+                            'searchGroups',
+                        ]);
+                        Route::post('/audit-logs', [
+                            SearchController::class,
+                            'searchAuditLogs',
+                        ]);
+                        Route::post('/warnings', [
+                            SearchController::class,
+                            'searchWarnings',
+                        ]);
+                        Route::get('/options/{model}', [
+                            SearchController::class,
+                            'getOptions',
+                        ]);
+                        Route::get('/suggestions/{type}', [
+                            SearchController::class,
+                            'getSuggestions',
+                        ]);
+                    });
+
+                    // Dashboard & Group Statistics (P5)
+                    Route::get('/dashboard', [DashboardController::class, 'index']);
+                    Route::get('/group-statistics', [GroupStatisticsController::class, 'index']);
+                    Route::get('/group-statistics/{group}', [GroupStatisticsController::class, 'show']);
+
+                    // Statistics Management (Recalculate live data)
+                    /**
+                     * POST /api/v1/admin/statistics/{group}/recalculate
+                     * Recalculate and persist group statistics from live data.
+                     */
+                    Route::post('/statistics/{group}/recalculate', [
+                        GroupStatisticsController::class,
+                        'recalculate',
+                    ]);
+>>>>>>> Stashed changes
+                });
                     // Bulk Operations (Phase 4E)
                     Route::prefix('bulk')->group(function () {
                         Route::post('/change-roles', [

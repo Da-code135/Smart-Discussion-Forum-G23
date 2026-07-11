@@ -284,4 +284,45 @@ class GroupController extends Controller
 
         return redirect()->back()->with('success', 'Users assigned to group successfully');
     }
+
+    // ============================================
+    // SHOW TRASHED (SOFT-DELETED) GROUPS
+    // ============================================
+    public function trashed(Request $request)
+    {
+        $query = Group::onlyTrashed()->withCount('users')->with('createdBy');
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where('group_name', 'like', "%{$search}%");
+        }
+
+        $query->orderBy('deleted_at', 'desc');
+        $groups = $query->paginate(15);
+
+        return view('admin.groups.trashed', [
+            'groups' => $groups,
+            'search' => $request->input('search'),
+        ]);
+    }
+
+    // ============================================
+    // RESTORE SOFT-DELETED GROUP (System Admin only)
+    // ============================================
+    public function restore(Group $group)
+    {
+        // Authorization check
+        if (! Gate::allows('restore', $group)) {
+            abort(403, 'Only System Administrators can restore groups');
+        }
+
+        // Restore the group (sets deleted_at = null)
+        $group->restore();
+
+        // Audit log
+        $this->auditLogService->logGroupRestored($group);
+
+        return redirect()->route('admin.groups.trashed')
+            ->with('success', "Group '{$group->group_name}' restored successfully");
+    }
 }

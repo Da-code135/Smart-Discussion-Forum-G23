@@ -181,4 +181,42 @@ class GroupManagementTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    // ============================================
+    // TRASHED GROUPS & RESTORE
+    // ============================================
+
+    public function test_system_admin_can_view_trashed_groups(): void
+    {
+        $admin = $this->createSystemAdmin();
+        $group = Group::create(['group_name' => 'To Delete', 'description' => '', 'group_type' => 'student']);
+        $group->delete();
+
+        $response = $this->actingAs($admin)->get(route('admin.groups.trashed'));
+        $response->assertStatus(200);
+        $response->assertViewIs('admin.groups.trashed');
+        $response->assertSee('To Delete');
+    }
+
+    public function test_system_admin_can_restore_group(): void
+    {
+        $admin = $this->createSystemAdmin();
+        $group = Group::create(['group_name' => 'To Restore', 'description' => '', 'group_type' => 'student']);
+        $group->delete();
+
+        $response = $this->actingAs($admin)->post(route('admin.groups.restore', $group));
+        $response->assertRedirect(route('admin.groups.trashed'));
+        $this->assertDatabaseHas('groups', ['id' => $group->id, 'deleted_at' => null]);
+    }
+
+    public function test_group_admin_cannot_restore_group(): void
+    {
+        $admin = $this->createGroupAdmin();
+        $group = Group::create(['group_name' => 'To Restore', 'description' => '', 'group_type' => 'student']);
+        $group->delete();
+
+        $response = $this->actingAs($admin)->post(route('admin.groups.restore', $group));
+        $response->assertStatus(403);
+        $this->assertNotNull($group->fresh()->deleted_at);
+    }
 }

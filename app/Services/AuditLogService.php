@@ -75,6 +75,7 @@ class AuditLogService
             'group.created' => "{$userName} created group {$targetName}",
             'group.updated' => "{$userName} updated group {$targetName}",
             'group.deleted' => "{$userName} deleted group {$targetName}",
+            'group.restored' => "{$userName} restored group {$targetName}",
             'group.member.added' => "{$userName} added member to group {$targetName}",
             'group.member.removed' => "{$userName} removed member from group {$targetName}",
             'system.config.updated' => "{$userName} updated system configuration",
@@ -263,6 +264,18 @@ class AuditLogService
                 'id' => $group->id,
                 'group_name' => $group->group_name,
             ]
+        );
+    }
+
+    /**
+     * Log group restoration
+     */
+    public function logGroupRestored($group): AuditLog
+    {
+        return $this->log(
+            action: 'group.restored',
+            target: $group,
+            description: Auth::user()?->full_name . ' restored group ' . $group->group_name
         );
     }
 
