@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\QuizWentLive;
 use App\Models\Grade;
 use App\Models\Quiz;
 use App\Models\StudentAnswer;
