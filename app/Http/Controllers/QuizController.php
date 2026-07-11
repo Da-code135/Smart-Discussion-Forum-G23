@@ -183,15 +183,15 @@ class QuizController extends Controller
         ]);
 
         // Update configuration
-        if ($quiz->configuration) {
-            $quiz->configuration->update([
-                'allow_late_join' => $validated['allow_late_join'] ?? false,
-                'lock_screen_on_start' => $validated['lock_screen_on_start'] ?? true,
-                'show_results_after_close' => $validated['show_results_after_close'] ?? true,
-                'show_correct_answers' => $validated['show_correct_answers'] ?? false,
-                'participation_criteria' => $validated['participation_criteria'],
-            ]);
-        }
+	        if ($quiz->configuration) {
+	            $quiz->configuration->update([
+	                'allow_late_join' => $validated['allow_late_join'] ?? false,
+	                'lock_screen_on_start' => $validated['lock_screen_on_start'] ?? false,
+	                'show_results_after_close' => $validated['show_results_after_close'] ?? false,
+	                'show_correct_answers' => $validated['show_correct_answers'] ?? false,
+	                'participation_criteria' => $validated['participation_criteria'],
+	            ]);
+	        }
 
         return back()->with('success', 'Quiz updated.');
     }
