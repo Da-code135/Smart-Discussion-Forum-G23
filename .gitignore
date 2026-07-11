@@ -134,3 +134,5 @@ Dockerfile
 Caddyfile
 /docker/
 .dockerignore
+# Bwat per-workspace permission allowlist
+.bwat/
