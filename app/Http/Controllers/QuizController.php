@@ -162,7 +162,7 @@ class QuizController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'target_category' => 'required|in:Student,Lecturer,Administrator,Member',
-            'scheduled_date' => 'required|date|after_or_equal:today',
+            'scheduled_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'duration_minutes' => 'required|integer|min:1|max:480',
             'allow_late_join' => 'boolean',
@@ -183,15 +183,15 @@ class QuizController extends Controller
         ]);
 
         // Update configuration
-	        if ($quiz->configuration) {
-	            $quiz->configuration->update([
-	                'allow_late_join' => $validated['allow_late_join'] ?? false,
-	                'lock_screen_on_start' => $validated['lock_screen_on_start'] ?? false,
-	                'show_results_after_close' => $validated['show_results_after_close'] ?? false,
-	                'show_correct_answers' => $validated['show_correct_answers'] ?? false,
-	                'participation_criteria' => $validated['participation_criteria'],
-	            ]);
-	        }
+        if ($quiz->configuration) {
+            $quiz->configuration->update([
+                'allow_late_join' => $validated['allow_late_join'] ?? false,
+                'lock_screen_on_start' => $validated['lock_screen_on_start'] ?? false,
+                'show_results_after_close' => $validated['show_results_after_close'] ?? false,
+                'show_correct_answers' => $validated['show_correct_answers'] ?? false,
+                'participation_criteria' => $validated['participation_criteria'],
+            ]);
+        }
 
         return back()->with('success', 'Quiz updated.');
     }
@@ -206,8 +206,9 @@ class QuizController extends Controller
             abort(403, 'You can only delete your own quizzes.');
         }
 
-        if ($quiz->published_at) {
-            return back()->with('error', 'Cannot delete a published quiz.');
+        // Can't delete a quiz that is currently live
+        if ($quiz->is_active) {
+            return back()->with('error', 'Cannot delete a quiz that is currently live.');
         }
 
         $quiz->delete();  // Cascades to questions, answers, etc.
@@ -259,6 +260,33 @@ class QuizController extends Controller
         QuizPublished::dispatch($quiz);
 
         return back()->with('success', 'Quiz published! Students have been notified.');
+    }
+
+    /**
+     * Unpublish a quiz — revert it back to draft status.
+     *
+     * Rule: Can only unpublish if quiz is not currently live (is_active).
+     * Students who already saw the announcement will see it disappear
+     * on their next page load.
+     */
+    public function unpublish(Quiz $quiz)
+    {
+        // Only quiz creator can unpublish
+        if ($quiz->lecturer_id !== Auth::id()) {
+            abort(403, 'You can only manage your own quizzes.');
+        }
+
+        if (! $quiz->published_at) {
+            return back()->with('error', 'Quiz is not published.');
+        }
+
+        if ($quiz->is_active) {
+            return back()->with('error', 'Cannot unpublish a quiz that is currently live.');
+        }
+
+        $quiz->update(['published_at' => null]);
+
+        return back()->with('success', 'Quiz unpublished. It is now a draft again.');
     }
 
     /**

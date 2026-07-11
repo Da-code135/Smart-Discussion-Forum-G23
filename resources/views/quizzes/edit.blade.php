@@ -43,6 +43,20 @@
                             <input type="text" id="title" name="title" class="form-input" value="{{ $quiz->title }}" required>
                         </div>
 
+                        <div class="form-group">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea id="description" name="description" class="form-input" rows="2">{{ $quiz->description }}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="target_category" class="form-label">Who takes this quiz?</label>
+                            <select id="target_category" name="target_category" class="form-input" required>
+                                <option value="Student" {{ $quiz->target_category === 'Student' ? 'selected' : '' }}>Students Only</option>
+                                <option value="Lecturer" {{ $quiz->target_category === 'Lecturer' ? 'selected' : '' }}>Lecturers Only</option>
+                                <option value="Member" {{ $quiz->target_category === 'Member' ? 'selected' : '' }}>All Members</option>
+                            </select>
+                        </div>
+
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
                             <div class="form-group">
                                 <label for="scheduled_date" class="form-label">Date</label>
@@ -227,7 +241,7 @@
                         @endif
                     </div>
 
-                    {{-- Publish Button --}}
+                    {{-- Publish / Unpublish Button --}}
                     @if (!$quiz->published_at && $quiz->questions->count() > 0)
                         <form action="{{ route('quizzes.publish', $quiz->quiz_id) }}" method="POST">
                             @csrf
@@ -236,6 +250,14 @@
                             </button>
                         </form>
                         <small style="color: var(--text-muted);">Students will be notified</small>
+                    @elseif ($quiz->published_at && !$quiz->is_active)
+                        <form action="{{ route('quizzes.unpublish', $quiz->quiz_id) }}" method="POST" onsubmit="return confirm('Unpublish this quiz? It will revert to a draft.');">
+                            @csrf
+                            <button type="submit" class="btn btn-secondary" style="width: 100%;">
+                                Unpublish (Revert to Draft)
+                            </button>
+                        </form>
+                        <small style="color: var(--text-muted);">Reverts to draft — students will no longer see it</small>
                     @elseif ($quiz->published_at)
                         <p style="font-size: 0.8rem; color: var(--text-muted);">Already announced to {{ $quiz->target_category }}s</p>
                     @else
@@ -243,7 +265,7 @@
                     @endif
 
                     {{-- Delete Button --}}
-                    @if (!$quiz->published_at)
+                    @if (!$quiz->is_active)
                         <form action="{{ route('quizzes.destroy', $quiz->quiz_id) }}" method="POST" onsubmit="return confirm('Delete this quiz? All questions and answers will be lost.');">
                             @csrf
                             @method('DELETE')

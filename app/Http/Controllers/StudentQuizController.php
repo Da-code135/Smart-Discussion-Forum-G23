@@ -31,7 +31,7 @@ class StudentQuizController extends Controller
                 // System Admins see all quizzes; others see only their group's quizzes
                 if (! $user->isSystemAdmin()) {
                     $q->where('group_id', $user->group_id)
-                      ->orWhereNull('group_id');
+                        ->orWhereNull('group_id');
                 }
             })
             ->where('target_category', $user->role->role_name)
@@ -44,6 +44,7 @@ class StudentQuizController extends Controller
                 $scheduled = $quiz->getScheduledDateTime();
                 $attempt = StudentAttempt::where('quiz_id', $quiz->quiz_id)
                     ->where('student_id', $user->id)
+                    ->with('grade')
                     ->first();
 
                 $timePassed = now()->isAfter($scheduled);
@@ -54,6 +55,7 @@ class StudentQuizController extends Controller
                     'has_started' => $timePassed,
                     'is_live' => $quiz->is_active && ! $attempt,
                     'attempt' => $attempt,
+                    'grade' => $attempt?->grade,
                     'is_submitted' => $attempt && $attempt->is_submitted,
                     'result_available' => $attempt && $attempt->is_submitted && $quiz->configuration?->show_results_after_close,
                 ];

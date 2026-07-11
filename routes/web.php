@@ -400,6 +400,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/{quiz}', [QuizController::class, 'update'])->name('update');
         Route::delete('/{quiz}', [QuizController::class, 'destroy'])->name('destroy');
         Route::post('/{quiz}/publish', [QuizController::class, 'publish'])->name('publish');
+        Route::post('/{quiz}/unpublish', [QuizController::class, 'unpublish'])->name('unpublish');
 
         // Performance report (lecturer/admin only)
         Route::get('/{quiz}/report', [QuizController::class, 'showPerformanceReport'])->name('report');

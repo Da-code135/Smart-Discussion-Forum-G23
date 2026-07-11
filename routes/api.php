@@ -398,6 +398,7 @@ Route::prefix($API_VERSION)->group(function () {
                     Route::put('/{quiz}', [QuizController::class, 'update']);
                     Route::delete('/{quiz}', [QuizController::class, 'destroy']);
                     Route::post('/{quiz}/publish', [QuizController::class, 'publish']);
+                    Route::post('/{quiz}/unpublish', [QuizController::class, 'unpublish']);
                     Route::get('/{quiz}/report', [QuizController::class, 'report']);
                     // Questions (nested under quizzes)
                     Route::get('/{quiz}/questions', [QuestionController::class, 'index']);

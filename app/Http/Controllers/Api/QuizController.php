@@ -180,10 +180,10 @@ class QuizController extends Controller
      */
     public function destroy(Quiz $quiz)
     {
-        if ($quiz->published_at) {
+        if ($quiz->is_active) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete a published quiz',
+                'message' => 'Cannot delete a quiz that is currently live',
             ], 422);
         }
 
@@ -234,6 +234,36 @@ class QuizController extends Controller
             ],
             'message' => 'Quiz published',
         ]);
+    }
+
+    /**
+     * Unpublish a quiz — revert it back to draft status.
+     */
+    public function unpublish(Quiz $quiz)
+    {
+        if ($quiz->published_at) {
+            if ($quiz->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot unpublish a quiz that is currently live',
+                ], 422);
+            }
+
+            $quiz->update(['published_at' => null]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'quiz' => $quiz->load('configuration', 'lecturer:id,full_name'),
+                ],
+                'message' => 'Quiz unpublished',
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Quiz is not published',
+        ], 422);
     }
 
     /**
