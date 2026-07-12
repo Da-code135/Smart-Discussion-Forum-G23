@@ -30,7 +30,7 @@ class Quiz extends Model
         'published_at',
     ];
 
-    protected $casts = [
+    protected $casts = [//converts values into specific PHP data types
         'scheduled_date' => 'date',
         'start_time' => 'datetime:H:i',
         'is_active' => 'boolean',
@@ -125,5 +125,58 @@ class Quiz extends Model
         }
 
         return $lecturer->accessibleGroupIds();
+    }
+
+    /**
+     * Get all quizzes created by this lecturer (or all if admin) with
+     * their grades, student info, and statistics.
+     *
+     * Used by the lecturer results overview page.
+     *
+     * @param  \App\Models\User  $user  The lecturer or admin
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function lecturerQuizzesWithGrades(User $user)
+    {
+        $query = self::with([
+            'grades.student:id,full_name,email',
+            'group',
+            'lecturer:id,full_name',
+            'configuration',
+        ])
+            ->withCount('questions');
+
+        if ($user->isSystemAdmin()) {
+            // Admins see all quizzes
+            $quizzes = $query->latest()->get();
+        } else {
+            // Lecturers see only their own quizzes
+            $accessibleGroupIds = self::lecturerAccessibleGroupIds($user);
+
+            $quizzes = $query->where('lecturer_id', $user->id)
+                ->whereIn('group_id', $accessibleGroupIds)
+                ->latest()
+                ->get();
+        }
+
+        // Attach computed statistics per quiz
+        return $quizzes->map(function ($quiz) {
+            $quizGrades = $quiz->grades;
+
+            $quiz->stats = [
+                'total_attempts' => $quizGrades->count(),
+                'average_score'  => $quizGrades->count() > 0
+                    ? round($quizGrades->avg('percentage'), 1)
+                    : 0,
+                'highest_score'  => $quizGrades->count() > 0
+                    ? round($quizGrades->max('percentage'), 1)
+                    : 0,
+                'lowest_score'   => $quizGrades->count() > 0
+                    ? round($quizGrades->min('percentage'), 1)
+                    : 0,
+            ];
+
+            return $quiz;
+        });
     }
 }
