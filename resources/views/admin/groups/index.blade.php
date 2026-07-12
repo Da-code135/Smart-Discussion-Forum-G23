@@ -4,7 +4,6 @@
 @section('admin')
 
 @section('content')
-<<<<<<< Updated upstream
 <div class="container">
     <!-- Header with Create Button (System Admin only) -->
     <div class="admin-header">
@@ -15,7 +14,6 @@
             </a>
         @endif
     </div>
-=======
 <div class="page-stack">
     <div class="admin-header page-stack">
         <div class="admin-header__row">
@@ -28,7 +26,6 @@
                 <a href="{{ route('admin.groups.trashed') }}" class="btn btn-secondary">Deleted groups</a>
             @endif
         </div>
->>>>>>> Stashed changes
 
     {{-- Search & Sort --}}
     <div class="filter-section">
