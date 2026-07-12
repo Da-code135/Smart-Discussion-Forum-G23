@@ -392,10 +392,11 @@ Route::middleware('auth')->group(function () {
     // QUIZ ROUTES (Lecturer quiz management)
     // ============================================
 
-    Route::prefix('quizzes')->name('quizzes.')->group(function () {
-        Route::get('/', [QuizController::class, 'index'])->name('index');
-        Route::get('/create', [QuizController::class, 'create'])->name('create');
-        Route::post('/', [QuizController::class, 'store'])->name('store');
+	    Route::prefix('quizzes')->name('quizzes.')->group(function () {
+	        Route::get('/', [QuizController::class, 'index'])->name('index');
+	        Route::get('/create', [QuizController::class, 'create'])->name('create');
+	        Route::get('/results', [QuizController::class, 'showResultsOverview'])->name('results');
+	        Route::post('/', [QuizController::class, 'store'])->name('store');
         Route::get('/{quiz}/edit', [QuizController::class, 'edit'])->name('edit');
         Route::put('/{quiz}', [QuizController::class, 'update'])->name('update');
         Route::delete('/{quiz}', [QuizController::class, 'destroy'])->name('destroy');
