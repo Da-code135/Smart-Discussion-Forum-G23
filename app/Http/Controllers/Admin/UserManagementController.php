@@ -28,19 +28,19 @@ class UserManagementController extends Controller
     public function index(Request $request)
     {
         $currentUser = auth()->user();
-        $query = User::query();
+        $query = User::query();//this initializes a query builder for the User model, allowing us to build a query to fetch users from the database.
 
         // Role-based filtering: Group Admins see only users in their groups
         if ($currentUser->isGroupAdmin()) {
-            $adminGroupIds = $currentUser->administeredGroups()->pluck('groups.id');
+            $adminGroupIds = $currentUser->administeredGroups()->pluck('groups.id');//this retrieves the IDs of the groups that the current Group Admin manages. It uses the administeredGroups relationship to get the groups and then plucks their IDs into a collection.
             $query->whereIn('group_id', $adminGroupIds);
         }
         // System Admins see all users (no filter needed)
 
         // #89: SEARCH FUNCTIONALITY
-        if ($request->filled('search')) {
+        if ($request->filled('search')) {//did the admin enter a search term in the search box? If so, we want to filter the users based on that term.
             $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
+            $query->where(function ($q) use ($search) {//this adds a nested where condition to the query. It allows us to search for users where either the full_name or email contains the search term.
                 $q->where('full_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             });
@@ -57,7 +57,7 @@ class UserManagementController extends Controller
         }
 
         // #88: EAGER LOAD ROLE (prevent N+1 query)
-        $users = $query->with(['role', 'group'])
+        $users = $query->with(['role', 'group'])//this tells the query to also load the related role and group for each user, which prevents the N+1 query problem where a separate query would be executed for each user's role and group.
             ->paginate(15); // #88: Paginate 15 per page
 
         $roles = Role::all();

@@ -221,7 +221,12 @@ class GroupController extends Controller
     public function updateMembers(Request $request, Group $group)
     {
         // Authorization check
-        if (! Gate::allows('manageMembers', $group)) {
+        if (! Gate::allows('manageMembers', $group)) {//Does the current user have permission to manage members of THIS specific group?"
+        /*This is Laravel's authorization gate system. You'd define the gate in app/Providers/AuthServiceProvider.php:
+phpGate::define('manageMembers', function (User $user, Group $group) {
+    return $user->isSystemAdmin() || 
+           ($user->isGroupAdmin() && $group->hasAdmin($user->id));
+});*/
             abort(403, 'You do not have permission to manage members of this group');
         }
 
@@ -238,9 +243,9 @@ class GroupController extends Controller
             ?? Group::min('id');
 
         if ($defaultGroupId != $group->id) {
-            User::where('group_id', $group->id)
-                ->whereNotIn('id', $selectedUserIds)
-                ->update(['group_id' => $defaultGroupId]);
+            User::where('group_id', $group->id)//find users in this group
+                ->whereNotIn('id', $selectedUserIds) //but not in the selected list
+                ->update(['group_id' => $defaultGroupId]);//move them to the default group
         }
 
         // Add selected users to this group

@@ -32,7 +32,7 @@ class ProfileController extends Controller
             'email' => [
                 'required',
                 'email',
-                Rule::unique('users', 'email')->ignore($user->id),
+                Rule::unique('users', 'email')->ignore($user->id),// Ensures the email is unique, ignoring the current user's email. users is the table name, email is the column name, and $user->id is the ID of the currently authenticated user. This prevents validation errors when a user updates their profile without changing their email address.
             ],
         ]);
 
@@ -67,7 +67,7 @@ class ProfileController extends Controller
 
         $user = Auth::user();
 
-        $this->profileUtility->uploadProfilePicture(
+       $path = $this->profileUtility->uploadProfilePicture(
             $user,
             $request->file('profile_picture')
         );
