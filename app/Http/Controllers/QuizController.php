@@ -335,4 +335,29 @@ class QuizController extends Controller
             'lowest_score' => round(min($scores), 2),
         ];
     }
+
+    /**
+     * Show an overview of all quiz results for the lecturer.
+     *
+     * GET /quizzes/results
+     *
+     * Displays every quiz the lecturer has created, with:
+     *   - Aggregate stats per quiz (attempts, avg, highest, lowest)
+     *   - A per-student breakdown for each quiz
+     *
+     * Access: Lecturers see their own quizzes; admins see all.
+     */
+    public function showResultsOverview()
+    {
+        $user = Auth::user();
+
+        // Only lecturers and admins can access this page
+        if ($user->role?->role_name !== 'Lecturer' && ! $user->isAdmin()) {
+            abort(403, 'Only lecturers and admins can view quiz results.');
+        }
+
+        $quizzes = Quiz::lecturerQuizzesWithGrades($user);
+
+        return view('quizzes.lecturer-results', compact('quizzes'));
+    }
 }
