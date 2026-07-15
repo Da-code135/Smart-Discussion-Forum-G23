@@ -23,6 +23,12 @@
                     <span class="material-symbols-outlined sidebar-icon">quiz</span>
                     <span class="sidebar-label">Quizzes</span>
                 </a>
+                @if ($user->isAdmin() || $user->role?->role_name === 'Lecturer')
+                    <a href="{{ route('quizzes.results') }}" class="sidebar-link {{ $activeNav === 'quiz-results' ? 'is-active' : '' }}" title="Quiz Results" style="padding-left: 2.5rem;">
+                        <span class="material-symbols-outlined sidebar-icon" style="font-size: 18px;">bar_chart</span>
+                        <span class="sidebar-label" style="font-size: 0.875rem;">Results</span>
+                    </a>
+                @endif
                 <a href="{{ route('conversations.index') }}" class="sidebar-link {{ $activeNav === 'conversations' ? 'is-active' : '' }}" title="Messages" style="position: relative;">
                     <span class="material-symbols-outlined sidebar-icon">chat</span>
                     <span class="sidebar-label">Messages</span>
