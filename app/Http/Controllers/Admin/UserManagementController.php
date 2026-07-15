@@ -298,6 +298,9 @@ class UserManagementController extends Controller
         // #90: Update user.account_status = active
         $user->update(['account_status' => 'active']);
 
+        // Audit log
+        $this->auditLogService->logBlacklistLifted($user);
+
         return redirect()->back()->with('success', "Blacklist lifted for {$user->full_name}");
     }
 
