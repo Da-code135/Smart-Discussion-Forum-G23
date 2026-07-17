@@ -136,3 +136,5 @@ Caddyfile
 .dockerignore
 # Bwat per-workspace permission allowlist
 .bwat/
+.kilo/
+docs/CHAT_AND_SYNC_SYSTEM.md
