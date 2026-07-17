@@ -1,6 +1,8 @@
+import Chart from 'chart.js/auto';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 
+window.Chart = Chart;
 window.Pusher = Pusher;
 
 window.Echo = new Echo({
