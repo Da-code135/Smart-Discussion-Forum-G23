@@ -73,39 +73,49 @@ Instead of installing Maven globally, we use the **Maven Wrapper** (`mvnw.cmd`) 
 
 ### Folder Structure
 
-The desktop app lives in a `desktop/` folder inside your existing Laravel project:
+The desktop app lives in a **separate folder** outside the Laravel project. The two never mix:
 
 ```
-smart-discussion-forum/          ← your existing repo
-├── app/
-├── routes/
-├── ... (Laravel files)
+C:\Users\hp\Desktop\
+├── smart-discussion-forum/             ← your existing Laravel repo
+│   ├── app/
+│   ├── routes/
+│   ├── ... (Laravel files)
+│   └── .git/
 │
-└── desktop/                     ← NEW: the desktop app
-    ├── pom.xml                  ← 🟢 dependency file (like composer.json)
-    ├── mvnw.cmd                 ← 🟢 Maven Wrapper (auto-downloads Maven)
-    ├── mvnw                     ← 🟢 Linux version of the wrapper
-    ├── .mvn/                    ← 🟢 Maven config folder
+└── smart-discussion-forum-desktop/     ← NEW: the desktop app (own git repo)
+    ├── pom.xml                         ← 🟢 dependency file (like composer.json)
+    ├── mvnw.cmd                        ← 🟢 Maven Wrapper (auto-downloads Maven)
+    ├── mvnw                            ← 🟢 Linux version of the wrapper
+    ├── .mvn/                           ← 🟢 Maven config folder
     │
     └── src/main/
         ├── java/com/yourforum/
-        │   ├── App.java         ← 🟢 Entry point (main method)
-        │   ├── api/             ← 🟢 HTTP & Auth layer
+        │   ├── App.java                ← 🟢 Entry point (main method)
+        │   ├── api/                    ← 🟢 HTTP & Auth layer
         │   │   ├── ApiClient.java
         │   │   └── AuthManager.java
-        │   ├── models/          ← 🟢 Data classes matching API responses
+        │   ├── models/                 ← 🟢 Data classes matching API responses
         │   │   ├── User.java
         │   │   └── ...
-        │   ├── controllers/     ← 🟢 Screen logic
-        │   │   ├── LoginController.java
+        │   ├── views/                  ← 🟢 One file per screen (layout + logic)
+        │   │   ├── LoginView.java
+        │   │   ├── RegisterView.java
+        │   │   ├── DashboardView.java
         │   │   └── ...
-        │   └── utils/           ← 🟢 Helper classes
+        │   └── utils/                  ← 🟢 Helper classes
         │       └── TokenStorage.java
         │
         └── resources/
             └── styles/
-                └── app.css      ← 🟢 Colors, fonts, sizes
+                └── app.css             ← 🟢 Colors, fonts, sizes
 ```
+
+**Why a separate folder?**
+- Clean separation of languages (PHP vs Java) — no confusion
+- Each project gets its own git repository (the assignment says "Create private git repositories" — plural)
+- Laravel's `vendor/` and Java's Maven downloads don't interfere
+- You can give different team members access to different repos
 
 ---
 
@@ -158,37 +168,58 @@ You do NOT install Maven. The Maven Wrapper (`mvnw.cmd`) handles it. We download
 
 ## 3. Phase 0 — Project Setup (ALL 5 TOGETHER)
 
-**Goal:** Create the `desktop/` folder, write `pom.xml`, download Maven Wrapper, and compile a window that says "Hello from Smart Discussion Forum."
+**Goal:** Create the `smart-discussion-forum-desktop` folder, write `pom.xml`, download Maven Wrapper, and compile a window that says "Hello from Smart Discussion Forum."
 
 **Time:** ~1 hour with all 5 working together.
 
 ### Step 3.1: Create the folder structure
 
-Open a terminal in your Laravel project root (`C:\Users\hp\Desktop\smart-discussion-forum`):
+Navigate to your desktop (or wherever you keep your projects) and create a new folder:
 
 ```cmd
-mkdir desktop\src\main\java\com\yourforum\api
-mkdir desktop\src\main\java\com\yourforum\models
-mkdir desktop\src\main\java\com\yourforum\controllers
-mkdir desktop\src\main\java\com\yourforum\utils
-mkdir desktop\src\main\resources\styles
+cd C:\Users\hp\Desktop
+mkdir smart-discussion-forum-desktop
+cd smart-discussion-forum-desktop
+```
+
+Now create the Java source folders inside it:
+
+```cmd
+mkdir src\main\java\com\yourforum\api
+mkdir src\main\java\com\yourforum\models
+mkdir src\main\java\com\yourforum\views
+mkdir src\main\java\com\yourforum\utils
+mkdir src\main\resources\styles
+```
+
+Your result should look like this on disk:
+```
+C:\Users\hp\Desktop\smart-discussion-forum-desktop\
+├── src\
+│   ├── main\
+│   │   ├── java\com\yourforum\
+│   │   │   ├── api\
+│   │   │   ├── models\
+│   │   │   ├── views\
+│   │   │   └── utils\
+│   │   └── resources\styles\
 ```
 
 **Why this folder structure?**
 
-- `src/main/java` — This is the Maven convention for Java source code. `src/main/resources` is for non-code files (CSS, images, FXML).
+- `src/main/java` — This is the Maven convention for Java source code. `src/main/resources` is for non-code files (CSS, images, etc.).
 - `com/yourforum` — A **package name**. In Java, packages prevent naming conflicts. If two people both create a class called `User`, they go in different packages. We use `com.yourforum` but you can change it to your team name (e.g. `com.teamname`).
 - Each subfolder has a purpose:
   - `api/` — Classes that talk to the Laravel server
   - `models/` — Classes that represent data (User, Topic, Post, etc.)
-  - `controllers/` — Classes that handle user actions (button clicks, form submissions)
+  - `views/` — One file per screen. Contains BOTH the layout code and the logic code (no FXML)
   - `utils/` — Utility/helper classes (token storage, alerts, etc.)
 
 ### Step 3.2: Create pom.xml
 
 **What is a POM?** `pom.xml` stands for **Project Object Model**. It's Maven's version of `composer.json` — it lists your project's dependencies (libraries) and how to build it.
 
-Create the file `desktop/pom.xml` and paste this:
+Create the file `pom.xml` (in the `smart-discussion-forum-desktop` folder — not inside `src/`, it sits at the root) and paste this:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -286,29 +317,29 @@ Create the file `desktop/pom.xml` and paste this:
 
 ### Step 3.3: Download Maven Wrapper
 
-In your `desktop/` folder, run:
+In your `smart-discussion-forum-desktop` folder (you should already be here from the previous step), run:
 
 ```cmd
-cd desktop
+cd C:\Users\hp\Desktop\smart-discussion-forum-desktop
 ```
 
 Then download the Maven Wrapper files. Since you may not have curl, create these files manually:
 
-**`desktop/.mvn/wrapper/maven-wrapper.properties`** — Create the `.mvn/wrapper` folder first, then this file:
+**`smart-discussion-forum-desktop/.mvn/wrapper/maven-wrapper.properties`** — Create the `.mvn/wrapper` folder first, then this file:
 
 ```properties
 distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.6/apache-maven-3.9.6-bin.zip
 wrapperUrl=https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.2.0/maven-wrapper-3.2.0.jar
 ```
 
-**`desktop/mvnw.cmd`** — The Windows Maven Wrapper script. Download it from:
+**`smart-discussion-forum-desktop/mvnw.cmd`** — Download from:
 https://raw.githubusercontent.com/apache/maven-wrapper/maven-wrapper-3.2.0/mvnw.cmd
 
-Right-click → Save as → `mvnw.cmd` in the `desktop/` folder.
+Right-click → Save as → `mvnw.cmd` in the `smart-discussion-forum-desktop` folder.
 
-**`desktop/mvnw`** — The Linux/Mac version. Same URL but with `mvnw` at the end.
+**`smart-discussion-forum-desktop/mvnw`** — The Linux/Mac version. Same URL but with `mvnw` at the end.
 
-**Alternative:** If you have Node.js or curl, you can generate the wrapper by running this from the `desktop/` folder (if you have a Java JDK, the wrapper works):
+**Alternative:** If you have Node.js or curl, you can generate the wrapper by running this from the `smart-discussion-forum-desktop` folder (if you have a Java JDK, the wrapper works):
 
 ```
 mvn -N wrapper:wrapper
@@ -320,7 +351,7 @@ But since you don't have Maven installed yet, this won't work. So use the manual
 
 **What is App.java?** The starting point of the application. Every JavaFX app needs a class that extends `Application` and overrides the `start()` method. This is like `index.php` or `public/index.php` — it's where execution begins.
 
-Create `desktop/src/main/java/com/yourforum/App.java`:
+Create `src/main/java/com/yourforum/App.java` (inside your `smart-discussion-forum-desktop` folder):
 
 ```java
 // Line 1: Package declaration. Must match the folder structure.
@@ -419,7 +450,7 @@ public class App extends Application {
 
 **What is app.css?** Just like CSS for a website, this file defines colors, fonts, spacing, and sizes for your desktop app.
 
-Create `desktop/src/main/resources/styles/app.css`:
+Create `src/main/resources/styles/app.css`:
 
 ```css
 /* ========================================
@@ -493,7 +524,7 @@ Create `desktop/src/main/resources/styles/app.css`:
 
 ### Step 3.6: Compile and Run!
 
-Open a terminal in `desktop/` and run:
+Open a terminal in your `smart-discussion-forum-desktop` folder and run:
 
 ```cmd
 mvnw.cmd clean javafx:run
@@ -510,7 +541,7 @@ mvnw.cmd clean javafx:run
 
 ### Troubleshooting Phase 0
 
-**"mvnw.cmd is not recognized"** — You're in the wrong folder. Run from `desktop/`, not the Laravel root.
+**"mvnw.cmd is not recognized"** — You're in the wrong folder. Make sure you're in `smart-discussion-forum-desktop\`, not the Laravel root.
 
 **"JavaFX runtime components are missing"** — You downloaded a JRE, not a JDK. Install the JDK from Adoptium.
 
@@ -548,7 +579,7 @@ User clicks button
 
 **Why singleton:** If every screen created its own HTTP client, they'd each need their own token copy, and changing the token (logout) would require updating every object.
 
-Create `desktop/src/main/java/com/yourforum/api/ApiClient.java`:
+Create `src/main/java/com/yourforum/api/ApiClient.java`:
 
 ```java
 package com.yourforum.api;
@@ -867,7 +898,7 @@ public class ApiClient {
 
 **What it is:** A custom error class. When the API returns an error (wrong password, server down, permission denied), this exception carries the error message and HTTP status code so the UI can show it to the user.
 
-Create `desktop/src/main/java/com/yourforum/api/ApiException.java`:
+Create `src/main/java/com/yourforum/api/ApiException.java`:
 
 ```java
 package com.yourforum.api;
@@ -907,7 +938,7 @@ public class ApiException extends Exception {
 
 **How:** Uses `java.util.prefs.Preferences` — a built-in Java feature that stores small data in the Windows Registry (on Windows) or a config file (on Linux/Mac). No files to manage.
 
-Create `desktop/src/main/java/com/yourforum/utils/TokenStorage.java`:
+Create `src/main/java/com/yourforum/utils/TokenStorage.java`:
 
 ```java
 package com.yourforum.utils;
@@ -985,7 +1016,7 @@ public class TokenStorage {
 
 These cases are too complex to inline in the Login screen code.
 
-Create `desktop/src/main/java/com/yourforum/api/AuthManager.java`:
+Create `src/main/java/com/yourforum/api/AuthManager.java`:
 
 ```java
 package com.yourforum.api;
@@ -1259,7 +1290,7 @@ public class WarnedException extends Exception {
 
 #### LoginResponse.java
 
-Create `desktop/src/main/java/com/yourforum/models/LoginResponse.java`:
+Create `src/main/java/com/yourforum/models/LoginResponse.java`:
 
 ```java
 package com.yourforum.models;
@@ -1306,7 +1337,7 @@ public class LoginResponse {
 
 We handle this by storing `role` and `group` as `Object` (which can hold either a String or a JsonObject) and providing helper methods.
 
-Create `desktop/src/main/java/com/yourforum/models/User.java`:
+Create `src/main/java/com/yourforum/models/User.java`:
 
 ```java
 package com.yourforum.models;
@@ -1568,10 +1599,10 @@ public class SomeScreenView {
 }
 ```
 
-Create `desktop/src/main/java/com/yourforum/controllers/LoginView.java`:
+Create `src/main/java/com/yourforum/views/LoginView.java`:
 
 ```java
-package com.yourforum.controllers;
+package com.yourforum.views;
 
 import com.yourforum.api.ApiException;
 import com.yourforum.api.AuthManager;
@@ -1579,7 +1610,6 @@ import com.yourforum.api.WarnedException;
 import com.yourforum.models.LoginResponse;
 import com.yourforum.models.User;
 
-import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -1707,9 +1737,9 @@ public class LoginView {
                 loginButton.setDisable(false);
 
                 // Switch to the dashboard
-                // LandingDashboardView is the main app shell (built next phase)
+                // DashboardView is the main app shell (built next phase)
                 Scene dashboardScene = new Scene(
-                        LandingDashboardView.create(stage),
+                        DashboardView.create(stage),
                         1024, 768
                 );
                 stage.setScene(dashboardScene);
@@ -1805,7 +1835,7 @@ public class LoginView {
             loading.setVisible(false);
             loginButton.setDisable(false);
             stage.setScene(new Scene(
-                    LandingDashboardView.create(stage), 1024, 768
+                    DashboardView.create(stage), 1024, 768
             ));
         });
 
@@ -1841,10 +1871,10 @@ public class LoginView {
 
 A simpler screen for creating a new account.
 
-Create `desktop/src/main/java/com/yourforum/controllers/RegisterView.java`:
+Create `src/main/java/com/yourforum/views/RegisterView.java`:
 
 ```java
-package com.yourforum.controllers;
+package com.yourforum.views;
 
 import com.google.gson.JsonObject;
 import com.yourforum.api.ApiClient;
@@ -1960,7 +1990,7 @@ public class RegisterView {
 
                 // Go to dashboard
                 stage.setScene(new Scene(
-                        LandingDashboardView.create(stage), 1024, 768
+                        DashboardView.create(stage), 1024, 768
                 ));
             });
 
@@ -2002,7 +2032,7 @@ public class RegisterView {
 
 A utility that shows popup dialogs (error, success, confirmation). Every team member will use this.
 
-Create `desktop/src/main/java/com/yourforum/utils/AlertHelper.java`:
+Create `src/main/java/com/yourforum/utils/AlertHelper.java`:
 
 ```java
 package com.yourforum.utils;
@@ -2079,8 +2109,8 @@ Now update `App.java` to try restoring a session first. If a saved token exists 
 package com.yourforum;
 
 import com.yourforum.api.AuthManager;
-import com.yourforum.controllers.LandingDashboardView;
-import com.yourforum.controllers.LoginView;
+import com.yourforum.views.DashboardView;
+import com.yourforum.views.LoginView;
 
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -2100,7 +2130,7 @@ public class App extends Application {
         Scene scene;
         if (sessionRestored) {
             // User was logged in — go straight to dashboard
-            scene = new Scene(LandingDashboardView.create(stage), 1024, 768);
+            scene = new Scene(DashboardView.create(stage), 1024, 768);
         } else {
             // No saved session — show login
             scene = new Scene(LoginView.create(stage), 1024, 768);
@@ -2127,7 +2157,7 @@ public class App extends Application {
    php artisan serve
    ```
 
-2. Open a NEW terminal in the `desktop/` folder and run:
+2. Open a NEW terminal in the `smart-discussion-forum-desktop` folder and run:
    ```cmd
    mvnw.cmd clean javafx:run
    ```
@@ -2146,16 +2176,16 @@ public class App extends Application {
 
 **Goal:** The main app window with a sidebar navigation and a content area.
 
-**Note:** `LandingDashboardView` is referenced in LoginView but doesn't exist yet. We're creating it now.
+**Note:** `DashboardView` is referenced in LoginView but doesn't exist yet. We're creating it now.
 
-### Step 6.1: Create LandingDashboardView.java
+### Step 6.1: Create DashboardView.java
 
 This is the main app shell. It has:
 - A **sidebar** on the left with navigation buttons
 - A **content area** on the right that changes based on which button is clicked
 
 ```java
-package com.yourforum.controllers;
+package com.yourforum.views;
 
 import com.yourforum.api.AuthManager;
 import javafx.geometry.Insets;
@@ -2167,7 +2197,7 @@ import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
 /**
- * LandingDashboardView — the main app window after login.
+ * DashboardView — the main app window after login.
  *
  * LAYOUT:
  * ┌─────────────┬──────────────────────────────────┐
@@ -2189,7 +2219,7 @@ import javafx.stage.Stage;
  * 2. Add a button to the sidebar
  * 3. Wire it to switch the content area
  */
-public class LandingDashboardView {
+public class DashboardView {
 
     // The content area — this is what sidebar buttons swap out
     private static StackPane contentArea;
@@ -2382,10 +2412,10 @@ public class LandingDashboardView {
 
 ### Step 6.2: IMPORTANT — How the Navigation Works
 
-When Person 2 creates `TopicListView.java`, they wire it into the dashboard by editing `LandingDashboardView.java`:
+When Person 2 creates `TopicListView.java`, they wire it into the dashboard by editing `DashboardView.java`:
 
 ```java
-// In LandingDashboardView.java, replace the topics button handler:
+// In DashboardView.java, replace the topics button handler:
 topicsBtn.setOnAction(e -> {
     contentArea.getChildren().clear();
     contentArea.getChildren().add(TopicListView.create());
@@ -2410,7 +2440,7 @@ The entire app works this way. Each person builds their feature as a `create()` 
 - ✅ `TokenStorage.java` — already written
 - ✅ `LoginView.java` — already written
 - ✅ `RegisterView.java` — already written
-- ✅ `LandingDashboardView.java` — already written
+- ✅ `DashboardView.java` — already written
 - ✅ `AlertHelper.java` — already written
 - ✅ `User.java`, `LoginResponse.java` — already written
 
@@ -2808,7 +2838,7 @@ public static Parent create() {
 
 ### Step D: Wire into Dashboard
 
-In `LandingDashboardView.java`, replace the placeholder button handler:
+In `DashboardView.java`, replace the placeholder button handler:
 
 ```java
 // BEFORE (placeholder):
@@ -2828,7 +2858,7 @@ topicsBtn.setOnAction(e -> {
 ### Step E: Test
 
 1. Start the Laravel server: `php artisan serve`
-2. Start the desktop app: `mvnw.cmd clean javafx:run` (from the `desktop/` folder)
+2. Start the desktop app: `mvnw.cmd clean javafx:run` (from the `smart-discussion-forum-desktop` folder)
 3. Log in
 4. Click your sidebar button
 5. Verify the data loads correctly
@@ -2995,7 +3025,7 @@ The `Task.setOnSucceeded()` callback already runs on the JavaFX thread, so you'r
 ## 12. Quick Reference: Pattern for Every Screen
 
 ```java
-package com.yourforum.controllers;
+package com.yourforum.views;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
