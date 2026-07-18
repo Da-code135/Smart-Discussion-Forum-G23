@@ -1,115 +1,118 @@
+@push('styles')
+<style>
+    .audit-row { transition: background-color 0.15s ease; }
+    .audit-row:hover td { background: color-mix(in srgb, var(--app-accent-soft) 30%, var(--app-card-bg)); }
+    .audit-description { max-width: 320px; }
+    .export-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+</style>
+@endpush
+
 @extends('layouts.app')
 
 @section('title', 'Audit Logs')
-@section('admin')
 
 @section('content')
-<div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800">Audit Logs</h1>
-            <p class="text-gray-600 mt-1">Track all administrative actions and system changes</p>
-        </div>
-        <div class="flex gap-2">
-            <a href="{{ route('admin.audit-logs.export', ['format' => 'csv'] + request()->query()) }}" 
-               class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition">
-                📥 Export CSV
-            </a>
-            <a href="{{ route('admin.audit-logs.export', ['format' => 'json'] + request()->query()) }}" 
-               class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition">
-                📄 Export JSON
-            </a>
+<div class="page-stack">
+    {{-- Header --}}
+    <div class="admin-header">
+        <div class="admin-header__row">
+            <div>
+                <h1>Audit logs</h1>
+                <p>Track all administrative actions and system changes.</p>
+            </div>
+            <div class="export-bar">
+                <a href="{{ route('admin.audit-logs.export', ['format' => 'csv'] + request()->query()) }}"
+                   class="btn btn-sm btn-secondary">
+                    <span class="material-symbols-outlined" style="font-size:14px;">download</span>
+                    CSV
+                </a>
+                <a href="{{ route('admin.audit-logs.export', ['format' => 'json'] + request()->query()) }}"
+                   class="btn btn-sm btn-secondary">
+                    <span class="material-symbols-outlined" style="font-size:14px;">download</span>
+                    JSON
+                </a>
+            </div>
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <form method="GET" action="{{ route('admin.audit-logs.index') }}" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <!-- Action Filter -->
-                <div>
-                    <label for="action" class="block text-sm font-medium text-gray-700 mb-2">Action Type</label>
-                    <select name="action" id="action" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">All Actions</option>
-                        @foreach($actions as $action)
-                            <option value="{{ $action['value'] }}" {{ $filters['action'] === $action['value'] ? 'selected' : '' }}>
+    {{-- Filters --}}
+    <div class="admin-header">
+        <form method="GET" action="{{ route('admin.audit-logs.index') }}" class="form-stack">
+            <div class="filter-section">
+                <div class="form-group">
+                    <label for="action" class="form-label">Action type</label>
+                    <select name="action" id="action" class="form-control">
+                        <option value="">All actions</option>
+                        @foreach ($actions as $action)
+                            <option value="{{ $action['value'] }}" {{ ($filters['action'] ?? '') === $action['value'] ? 'selected' : '' }}>
                                 {{ $action['label'] }}
                             </option>
                         @endforeach
                     </select>
                 </div>
 
-                <!-- Start Date Filter -->
-                <div>
-                    <label for="start_date" class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                    <input type="date" name="start_date" id="start_date" 
-                           value="{{ $filters['start_date'] ?? '' }}"
-                           class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                <div class="form-group">
+                    <label for="start_date" class="form-label">Start date</label>
+                    <input type="date" name="start_date" id="start_date"
+                           value="{{ $filters['start_date'] ?? '' }}" class="form-control">
                 </div>
 
-                <!-- End Date Filter -->
-                <div>
-                    <label for="end_date" class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                    <input type="date" name="end_date" id="end_date" 
-                           value="{{ $filters['end_date'] ?? '' }}"
-                           class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                <div class="form-group">
+                    <label for="end_date" class="form-label">End date</label>
+                    <input type="date" name="end_date" id="end_date"
+                           value="{{ $filters['end_date'] ?? '' }}" class="form-control">
                 </div>
-            </div>
 
-            <div class="flex gap-2">
-                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition">
-                    🔍 Apply Filters
-                </button>
-                <a href="{{ route('admin.audit-logs.index') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition">
-                    ✖ Clear
-                </a>
+                <div class="filter-button-group" style="align-self: flex-end;">
+                    <button type="submit" class="btn btn-primary">Apply filters</button>
+                    <a href="{{ route('admin.audit-logs.index') }}" class="btn btn-secondary">Clear</a>
+                </div>
             </div>
         </form>
     </div>
 
-    <!-- Audit Logs Table -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+    {{-- Table --}}
+    <div class="table-container">
+        <table>
+            <thead>
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Description</th>
+                    <th>IP address</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                @forelse($logs as $log)
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ $log->created_at->format('Y-m-d H:i:s') }}
+            <tbody>
+                @forelse ($logs as $log)
+                    <tr class="audit-row">
+                        <td style="white-space:nowrap;">{{ $log->created_at->format('Y-m-d H:i') }}</td>
+                        <td>{{ $log->user?->full_name ?? 'System' }}</td>
+                        <td>
+                            <span class="badge badge-info">{{ $log->action_label }}</span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ $log->user?->full_name ?? 'System' }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                {{ $log->action_label }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 text-sm text-gray-900 max-w-md truncate">
+                        <td class="audit-description" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                             {{ $log->formatted_description }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ $log->ip_address ?? 'N/A' }}
+                        <td style="font-size:12px;color:var(--app-text-muted);font-family:monospace;">
+                            {{ $log->ip_address ?? '—' }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="{{ route('admin.audit-logs.show', $log) }}" 
-                               class="text-blue-600 hover:text-blue-900">
-                                View Details
+                        <td>
+                            <a href="{{ route('admin.audit-logs.show', $log) }}" class="btn btn-sm btn-ghost">
+                                Details
+                                <span class="material-symbols-outlined" style="font-size:14px;">chevron_right</span>
                             </a>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                        <td colspan="6" style="text-align:center;color:var(--app-text-muted);padding:2rem;">
                             No audit logs found matching your criteria.
                         </td>
                     </tr>
@@ -118,9 +121,9 @@
         </table>
     </div>
 
-    <!-- Pagination -->
-    @if($logs->hasPages())
-        <div class="mt-6">
+    {{-- Pagination --}}
+    @if ($logs->hasPages())
+        <div class="pagination">
             {{ $logs->links() }}
         </div>
     @endif
