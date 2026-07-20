@@ -126,3 +126,16 @@ database/seeders/DemoDataSeeder.php
 .nvmrc
 nul
 .lingma/
+/.dockerignore
+/.env.docker
+/.kilo/plans/1783979460798-controller-specs-plan.md
+/.kilo/plans/1783979460798-javafx-desktop-plan.md
+/.kilo/plans/1783979460798-module1-auth-profile-nav.md
+/.kilo/plans/1783979460798-module2-forum-categories-reports.md
+/.kilo/plans/1783979460798-module3-conversations-messaging.md
+/.kilo/plans/1783979460798-module4-quiz-system.md
+/.kilo/plans/1783979460798-module5-admin-panel.md
+/Caddyfile
+/docs/CHAT_AND_SYNC_SYSTEM.md
+/docker-compose.yml
+/Dockerfile
