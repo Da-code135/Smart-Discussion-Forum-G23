@@ -39,6 +39,22 @@ class Group extends Model
     }
 
     /**
+     * All topics in this group.
+     */
+    public function topics()
+    {
+        return $this->hasMany(Topic::class);
+    }
+
+    /**
+     * All quizzes in this group.
+     */
+    public function quizzes()
+    {
+        return $this->hasMany(Quiz::class, 'group_id');
+    }
+
+    /**
      * Check if specific user is admin of this group
      */
     public function hasAdmin(User $user): bool

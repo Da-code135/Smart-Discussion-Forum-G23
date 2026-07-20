@@ -376,4 +376,63 @@ class ConversationController extends Controller
 
         return back()->with('success', 'Participant removed.');
     }
+
+    /**
+     * Delete a conversation (soft-delete).
+     *
+     * DELETE /api/v1/conversations/{id}
+     *
+     * Only the conversation creator or an admin participant can delete.
+     * System admins can delete any conversation.
+     */
+    public function destroy(Request $request, int $id): JsonResponse|RedirectResponse
+    {
+        $conversation = Conversation::findOrFail($id);
+
+        // Verify the user is a participant
+        $participant = $conversation->participants()
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if (! $participant) {
+            if ($request->is('api/*')) {
+                return response()->json(
+                    ['message' => 'You are not a participant of this conversation.'],
+                    403,
+                );
+            }
+
+            abort(403, 'You are not a participant of this conversation.');
+        }
+
+        // Authorization: conversation admin, group admin, or system admin
+        $isConversationAdmin = $conversation->participants()
+            ->where('user_id', auth()->id())
+            ->wherePivot('role', 'admin')
+            ->exists();
+
+        $isSystemAdmin = auth()->user()->isSystemAdmin();
+        $isGroupAdmin = auth()->user()->isGroupAdmin()
+            && auth()->user()->group_id === $conversation->group_id;
+
+        if (! $isConversationAdmin && ! $isSystemAdmin && ! $isGroupAdmin) {
+            if ($request->is('api/*')) {
+                return response()->json(
+                    ['message' => 'Only conversation admins or system admins can delete conversations.'],
+                    403,
+                );
+            }
+
+            abort(403, 'Only conversation admins or system admins can delete conversations.');
+        }
+
+        $conversation->delete();
+
+        if ($request->is('api/*')) {
+            return response()->json(['message' => 'Conversation deleted successfully.'], 200);
+        }
+
+        return redirect()->route('conversations.index')
+            ->with('success', 'Conversation deleted successfully.');
+    }
 }

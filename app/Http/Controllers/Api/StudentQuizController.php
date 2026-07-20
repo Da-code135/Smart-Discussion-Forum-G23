@@ -15,6 +15,63 @@ use Illuminate\Support\Facades\DB;
 class StudentQuizController extends Controller
 {
     /**
+     * GET /api/v1/my-quizzes
+     * List all available quizzes for the authenticated student.
+     */
+    public function index()
+    {
+        $user = Auth::user();
+
+        $quizzes = Quiz::where('published_at', '!=', null)
+            ->where(function ($q) use ($user) {
+                if (! $user->isSystemAdmin()) {
+                    $q->where('group_id', $user->group_id)
+                        ->orWhereNull('group_id');
+                }
+            })
+            ->where('target_category', $user->role->role_name)
+            ->with('lecturer:id,full_name', 'configuration')
+            ->withCount('questions')
+            ->orderBy('scheduled_date')
+            ->orderBy('start_time')
+            ->get()
+            ->map(function ($quiz) use ($user) {
+                $scheduled = $quiz->getScheduledDateTime();
+                $attempt = StudentAttempt::where('quiz_id', $quiz->quiz_id)
+                    ->where('student_id', $user->id)
+                    ->with('grade')
+                    ->first();
+
+                $timePassed = now()->isAfter($scheduled);
+
+                return [
+                    'quiz' => $quiz,
+                    'scheduled' => $scheduled->toIso8601String(),
+                    'has_started' => $timePassed,
+                    'is_live' => $quiz->is_active && ! $attempt,
+                    'attempt' => $attempt ? [
+                        'id' => $attempt->id,
+                        'is_submitted' => $attempt->is_submitted,
+                    ] : null,
+                    'grade' => $attempt?->grade ? [
+                        'total_score' => $attempt->grade->total_score,
+                        'max_score' => $attempt->grade->max_score,
+                        'percentage' => $attempt->grade->percentage,
+                    ] : null,
+                    'is_submitted' => $attempt && $attempt->is_submitted,
+                    'result_available' => $attempt && $attempt->is_submitted && $quiz->configuration?->show_results_after_close,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'quizzes' => $quizzes,
+            ],
+        ]);
+    }
+
+    /**
      * GET /api/v1/quizzes/{quiz}/announcement
      * Show quiz announcement with timing info (pre-quiz landing).
      */

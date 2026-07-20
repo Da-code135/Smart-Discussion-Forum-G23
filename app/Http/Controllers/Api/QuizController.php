@@ -133,6 +133,13 @@ class QuizController extends Controller
      */
     public function update(Request $request, Quiz $quiz)
     {
+        $user = Auth::user();
+
+        // Only the quiz creator or an admin can update
+        if ($quiz->lecturer_id !== $user->id && ! $user->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Not authorized to update this quiz.'], 403);
+        }
+
         if ($quiz->published_at) {
             return response()->json([
                 'success' => false,
@@ -180,6 +187,13 @@ class QuizController extends Controller
      */
     public function destroy(Quiz $quiz)
     {
+        $user = Auth::user();
+
+        // Only the quiz creator or an admin can delete
+        if ($quiz->lecturer_id !== $user->id && ! $user->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Not authorized to delete this quiz.'], 403);
+        }
+
         if ($quiz->is_active) {
             return response()->json([
                 'success' => false,
@@ -200,6 +214,13 @@ class QuizController extends Controller
      */
     public function publish(Request $request, Quiz $quiz)
     {
+        $user = Auth::user();
+
+        // Only the quiz creator or an admin can publish
+        if ($quiz->lecturer_id !== $user->id && ! $user->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Not authorized to publish this quiz.'], 403);
+        }
+
         if ($quiz->published_at) {
             return response()->json([
                 'success' => false,
@@ -241,6 +262,13 @@ class QuizController extends Controller
      */
     public function unpublish(Quiz $quiz)
     {
+        $user = Auth::user();
+
+        // Only the quiz creator or an admin can unpublish
+        if ($quiz->lecturer_id !== $user->id && ! $user->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Not authorized to unpublish this quiz.'], 403);
+        }
+
         if ($quiz->published_at) {
             if ($quiz->is_active) {
                 return response()->json([

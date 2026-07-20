@@ -16,6 +16,11 @@ class Message extends Model
         'conversation_id',
         'sender_id',
         'body',
+        'is_removed',
+    ];
+
+    protected $casts = [
+        'is_removed' => 'boolean',
     ];
 
     // -------------------------------------------------------------------
@@ -35,6 +40,18 @@ class Message extends Model
     public function statusRows(): HasMany
     {
         return $this->hasMany(MessageStatus::class);
+    }
+
+    // -------------------------------------------------------------------
+    //  Scopes
+    // -------------------------------------------------------------------
+
+    /**
+     * Scope: only messages that haven't been removed.
+     */
+    public function scopeNotRemoved($query)
+    {
+        return $query->where('is_removed', false);
     }
 
     // -------------------------------------------------------------------

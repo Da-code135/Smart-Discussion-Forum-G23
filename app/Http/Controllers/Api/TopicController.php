@@ -8,6 +8,7 @@ use App\Models\Topic;
 use App\Services\AuditLogService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class TopicController extends Controller
 {
@@ -106,33 +107,38 @@ class TopicController extends Controller
      * POST /api/v1/topics
      *
      * Topic is scoped to the authenticated user's group.
-     * System admins can optionally specify a target group_id.
+     * System admins must specify a target group_id.
      */
     public function store(Request $request)
     {
         $user = $request->user();
 
-        $formRules = [
-            'title' => 'required|string|max:255|unique:topics,title',
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
             'description' => 'required|string|max:10000',
             'post_type' => 'sometimes|in:discussion,question',
-        ];
+            'group_id' => $user->isSystemAdmin()
+                ? 'required|integer|exists:groups,id'
+                : 'sometimes|integer|exists:groups,id',
+        ]);
 
-        // System admins can optionally specify a target group
-        if ($user->isSystemAdmin()) {
-            $formRules['group_id'] = 'sometimes|integer|exists:groups,id';
+        $groupId = $user->isSystemAdmin()
+            ? $validated['group_id']
+            : $user->group_id;
+
+        if (Topic::where('title', $validated['title'])->where('group_id', $groupId)->exists()) {
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors' => ['title' => ['A topic with this title already exists in this group.']],
+            ], 422);
         }
-
-        $validated = $request->validate($formRules);
 
         $topic = Topic::create([
             'title' => $validated['title'],
             'description' => $validated['description'],
             'post_type' => $validated['post_type'] ?? 'discussion',
             'created_by' => $user->id,
-            'group_id' => $user->isSystemAdmin() && $request->has('group_id')
-                    ? $validated['group_id']
-                    : $user->group_id,
+            'group_id' => $groupId,
             'status' => 'active',
         ]);
 
@@ -199,7 +205,12 @@ class TopicController extends Controller
         }
 
         $validated = $request->validate([
-            'title' => 'sometimes|string|max:255|unique:topics,title,'.$topic->id,
+            'title' => [
+                'sometimes', 'string', 'max:255',
+                Rule::unique('topics', 'title')
+                    ->where(fn ($query) => $query->where('group_id', $topic->group_id))
+                    ->ignore($topic->id),
+            ],
             'description' => 'sometimes|string|max:10000',
             'status' => 'sometimes|in:active,archived',
             'post_type' => 'sometimes|in:discussion,question',
@@ -422,6 +433,7 @@ class TopicController extends Controller
         $pdf = Pdf::loadView('forum.export-pdf', [
             'topic' => $topic,
             'replies' => $replies,
+            'exportedBy' => $user,
         ]);
 
         return $pdf->download('topic-'.$topic->id.'.pdf');

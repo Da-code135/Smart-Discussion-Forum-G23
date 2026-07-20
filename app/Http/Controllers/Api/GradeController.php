@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Grade;
 use App\Models\Quiz;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
 class GradeController extends Controller
@@ -104,12 +105,54 @@ class GradeController extends Controller
     }
 
     /**
+     * Check that the authenticated user is a lecturer or admin.
+     */
+    private function authorizeLecturerOrAdmin(): ?JsonResponse
+    {
+        $user = Auth::user();
+        if (! $user->isAdmin() && ! $user->isLecturer()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Lecturer or admin access required.',
+            ], 403);
+        }
+
+        return null;
+    }
+
+    /**
+     * Check that the lecturer owns the quiz (or is admin).
+     */
+    private function authorizeQuizOwnership(Quiz $quiz): ?JsonResponse
+    {
+        $user = Auth::user();
+        if ($user->isAdmin()) {
+            return null;
+        }
+        if ($quiz->lecturer_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only view grades for your own quizzes.',
+            ], 403);
+        }
+
+        return null;
+    }
+
+    /**
      * GET /api/v1/lecturer/quizzes/{quiz}/grades
      *
      * Lecturer/admin: list all grades for a given quiz.
      */
     public function index(Quiz $quiz)
     {
+        if ($denied = $this->authorizeLecturerOrAdmin()) {
+            return $denied;
+        }
+        if ($denied = $this->authorizeQuizOwnership($quiz)) {
+            return $denied;
+        }
+
         $quiz->load('grades.student:id,full_name,email');
 
         return response()->json([
@@ -146,6 +189,17 @@ class GradeController extends Controller
      */
     public function show(Grade $grade)
     {
+        if ($denied = $this->authorizeLecturerOrAdmin()) {
+            return $denied;
+        }
+
+        $quiz = $grade->quiz;
+        if ($quiz) {
+            if ($denied = $this->authorizeQuizOwnership($quiz)) {
+                return $denied;
+            }
+        }
+
         $grade->load([
             'attempt.answers.question.answers',
             'attempt.answers.selectedAnswer',
@@ -222,6 +276,13 @@ class GradeController extends Controller
      */
     public function exportCsv(Quiz $quiz)
     {
+        if ($denied = $this->authorizeLecturerOrAdmin()) {
+            return $denied;
+        }
+        if ($denied = $this->authorizeQuizOwnership($quiz)) {
+            return $denied;
+        }
+
         $quiz->load('grades.student:id,full_name,email');
 
         $headers = [
