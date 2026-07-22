@@ -10,10 +10,16 @@
                 <h1>{{ Auth::user()->isSystemAdmin() ? 'All Quizzes' : 'My Quizzes' }}</h1>
                 <p>{{ Auth::user()->isSystemAdmin() ? 'Platform-wide quiz oversight across all groups.' : 'Create and manage quizzes for your students.' }}</p>
             </div>
-            <a href="{{ route('quizzes.create') }}" class="btn btn-primary">
-                <span class="material-symbols-outlined">add</span>
-                Create Quiz
-            </a>
+            <div style="display: flex; gap: 0.5rem;">
+                <a href="{{ route('quizzes.results') }}" class="btn btn-secondary">
+                    <span class="material-symbols-outlined">bar_chart</span>
+                    Results
+                </a>
+                <a href="{{ route('quizzes.create') }}" class="btn btn-primary">
+                    <span class="material-symbols-outlined">add</span>
+                    Create Quiz
+                </a>
+            </div>
         </div>
     </div>
 

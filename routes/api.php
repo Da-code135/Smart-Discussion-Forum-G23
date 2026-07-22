@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\GroupBrowseController;
 use App\Http\Controllers\Api\MessageStatusController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\PasswordController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\PostVisibilityController;
@@ -32,6 +33,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\StudentQuizController;
 use App\Http\Controllers\Api\TopicController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\UserSearchController;
 use App\Http\Controllers\Api\WarningAcknowledgementController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\MessageController;
@@ -279,6 +281,19 @@ Route::prefix($API_VERSION)->group(function () {
             ]); // N5: Delete a notification
 
             // ============================================
+            // ONBOARDING API (User-facing)
+            // ============================================
+
+            Route::post('/onboarding/agree', [OnboardingController::class, 'agree']);
+            Route::get('/onboarding/status', [OnboardingController::class, 'status']);
+
+            // ============================================
+            // USER SEARCH API (User-facing)
+            // ============================================
+
+            Route::post('/search/topics', [UserSearchController::class, 'searchTopics']);
+
+            // ============================================
             // RECOMMENDATIONS API (User-facing, authentication required)
             // ============================================
 
@@ -353,6 +368,7 @@ Route::prefix($API_VERSION)->group(function () {
             // ============================================
             // STUDENT QUIZ ROUTES (Quiz execution & timer)
             // ============================================
+            Route::get('/my-quizzes', [StudentQuizController::class, 'index']);
             Route::prefix('quizzes')->group(function () {
                 Route::get('/{quiz}/announcement', [StudentQuizController::class, 'announcement']);
                 Route::get('/{quiz}/status', [StudentQuizController::class, 'status']);
@@ -368,9 +384,9 @@ Route::prefix($API_VERSION)->group(function () {
             // RESULTS & REPORTS API (Person 3 — Lecturer grades + export)
             // ============================================
 
-            // Lecturer grade management — admin-scoped, uses "lecturer" prefix
+            // Lecturer grade management — uses "lecturer" prefix
             // for semantic clarity (these are the lecturer-facing grade endpoints)
-            Route::middleware('admin')->prefix('lecturer')->group(function () {
+            Route::prefix('lecturer')->group(function () {
                 Route::get('/quizzes/{quiz}/grades', [GradeController::class, 'index']);
                 Route::get('/quizzes/{quiz}/grades/export', [GradeController::class, 'exportCsv']);
                 Route::get('/grades/{grade}', [GradeController::class, 'show']);
@@ -390,29 +406,27 @@ Route::prefix($API_VERSION)->group(function () {
             // ============================================
             // QUIZ API (Lecturer/Admin — Quiz CRUD + Questions + Answers)
             // ============================================
-            Route::middleware('admin')->group(function () {
-                Route::prefix('quizzes')->name('quizzes.')->group(function () {
-                    Route::get('/', [QuizController::class, 'index']);
-                    Route::post('/', [QuizController::class, 'store']);
-                    Route::get('/{quiz}', [QuizController::class, 'show']);
-                    Route::put('/{quiz}', [QuizController::class, 'update']);
-                    Route::delete('/{quiz}', [QuizController::class, 'destroy']);
-                    Route::post('/{quiz}/publish', [QuizController::class, 'publish']);
-                    Route::post('/{quiz}/unpublish', [QuizController::class, 'unpublish']);
-                    Route::get('/{quiz}/report', [QuizController::class, 'report']);
-                    // Questions (nested under quizzes)
-                    Route::get('/{quiz}/questions', [QuestionController::class, 'index']);
-                    Route::post('/{quiz}/questions', [QuestionController::class, 'store']);
-                    Route::put('/{quiz}/questions/{question}', [QuestionController::class, 'update']);
-                    Route::delete('/{quiz}/questions/{question}', [QuestionController::class, 'destroy']);
-                    Route::put('/{quiz}/questions/reorder', [QuestionController::class, 'reorder']);
-                });
-                // Answers (not nested — uses explicit question binding)
-                Route::get('/questions/{question}/answers', [AnswerController::class, 'index']);
-                Route::post('/questions/{question}/answers', [AnswerController::class, 'store']);
-                Route::put('/answers/{answer}', [AnswerController::class, 'update']);
-                Route::delete('/answers/{answer}', [AnswerController::class, 'destroy']);
+            Route::prefix('quizzes')->name('quizzes.')->group(function () {
+                Route::get('/', [QuizController::class, 'index']);
+                Route::post('/', [QuizController::class, 'store']);
+                Route::get('/{quiz}', [QuizController::class, 'show']);
+                Route::put('/{quiz}', [QuizController::class, 'update']);
+                Route::delete('/{quiz}', [QuizController::class, 'destroy']);
+                Route::post('/{quiz}/publish', [QuizController::class, 'publish']);
+                Route::post('/{quiz}/unpublish', [QuizController::class, 'unpublish']);
+                Route::get('/{quiz}/report', [QuizController::class, 'report']);
+                // Questions (nested under quizzes)
+                Route::get('/{quiz}/questions', [QuestionController::class, 'index']);
+                Route::post('/{quiz}/questions', [QuestionController::class, 'store']);
+                Route::put('/{quiz}/questions/{question}', [QuestionController::class, 'update']);
+                Route::delete('/{quiz}/questions/{question}', [QuestionController::class, 'destroy']);
+                Route::put('/{quiz}/questions/reorder', [QuestionController::class, 'reorder']);
             });
+            // Answers (not nested — uses explicit question binding)
+            Route::get('/questions/{question}/answers', [AnswerController::class, 'index']);
+            Route::post('/questions/{question}/answers', [AnswerController::class, 'store']);
+            Route::put('/answers/{answer}', [AnswerController::class, 'update']);
+            Route::delete('/answers/{answer}', [AnswerController::class, 'destroy']);
 
             // ============================================
             // CONVERSATION ROUTES (Person 2 — Conversation Management)
@@ -421,6 +435,7 @@ Route::prefix($API_VERSION)->group(function () {
             Route::get('/conversations', [ConversationController::class, 'index']);
             Route::get('/conversations/{id}', [ConversationController::class, 'show']);
             Route::post('/conversations', [ConversationController::class, 'store']);
+            Route::delete('/conversations/{id}', [ConversationController::class, 'destroy']);
             Route::post('/conversations/{id}/participants', [ConversationController::class, 'addParticipant']);
             Route::delete('/conversations/{id}/participants/{userId}', [ConversationController::class, 'removeParticipant']);
 
@@ -430,6 +445,8 @@ Route::prefix($API_VERSION)->group(function () {
 
             Route::get('/conversations/{id}/messages', [MessageController::class, 'index']);
             Route::post('/conversations/{id}/messages', [MessageController::class, 'store']);
+            Route::put('/messages/{id}', [MessageController::class, 'update']);
+            Route::delete('/messages/{id}', [MessageController::class, 'destroy']);
 
             // ============================================
             // MESSAGE STATUS ROUTES (Person 4 — Status & Notifications)
@@ -536,144 +553,6 @@ Route::prefix($API_VERSION)->group(function () {
                         AdminGroupController::class,
                         'index',
                     ]);
-                    Route::get('/groups/{groupId}', [
-                        AdminGroupController::class,
-                        'show',
-                    ]);
-                    Route::get('/groups/{groupId}/members', [
-                        AdminGroupController::class,
-                        'showMembers',
-                    ]);
-                    Route::put('/groups/{groupId}/members', [
-                        AdminGroupController::class,
-                        'updateMembers',
-                    ]);
-
-                    // Group CRUD (System Admin only for create/delete)
-                    Route::post('/groups', [
-                        AdminGroupController::class,
-                        'store',
-                    ]);
-                    Route::put('/groups/{groupId}', [
-                        AdminGroupController::class,
-                        'update',
-                    ]);
-                    Route::delete('/groups/{groupId}', [
-                        AdminGroupController::class,
-                        'destroy',
-                    ]);
-
-                    // Group admin management (System Admin only)
-                    Route::post('/groups/{groupId}/admins', [
-                        AdminGroupController::class,
-                        'addAdmin',
-                    ]);
-                    Route::delete('/groups/{groupId}/admins/{userId}', [
-                        AdminGroupController::class,
-                        'removeAdmin',
-                    ]);
-
-                    // System Configuration (System Admin only)
-                    Route::get('/system-config', [
-                        AdminSystemConfigController::class,
-                        'index',
-                    ]);
-                    Route::put('/system-config', [
-                        AdminSystemConfigController::class,
-                        'update',
-                    ]);
-                    Route::get('/system-config/{key}', [
-                        AdminSystemConfigController::class,
-                        'show',
-                    ]);
-
-                    // Audit Logs (All admins)
-                    Route::get('/audit-logs', [
-                        AdminAuditLogController::class,
-                        'index',
-                    ]);
-                    Route::get('/audit-logs/actions', [
-                        AdminAuditLogController::class,
-                        'getActions',
-                    ]);
-                    Route::get('/audit-logs/{logId}', [
-                        AdminAuditLogController::class,
-                        'show',
-                    ]);
-                    Route::get('/audit-logs/export/{format}', [
-                        AdminAuditLogController::class,
-                        'export',
-                    ]);
-
-                    // IP Whitelist (System Admin only)
-                    Route::get('/ip-whitelist', [
-                        AdminIpWhitelistController::class,
-                        'index',
-                    ]);
-                    Route::get('/ip-whitelist/check/{ip}', [
-                        AdminIpWhitelistController::class,
-                        'check',
-                    ]);
-                    Route::get('/ip-whitelist/{ipId}', [
-                        AdminIpWhitelistController::class,
-                        'show',
-                    ]);
-                    Route::post('/ip-whitelist', [
-                        AdminIpWhitelistController::class,
-                        'store',
-                    ]);
-                    Route::put('/ip-whitelist/{ipId}', [
-                        AdminIpWhitelistController::class,
-                        'update',
-                    ]);
-                    Route::delete('/ip-whitelist/{ipId}', [
-                        AdminIpWhitelistController::class,
-                        'destroy',
-                    ]);
-                    Route::post('/ip-whitelist/{ipId}/activate', [
-                        AdminIpWhitelistController::class,
-                        'activate',
-                    ]);
-                    Route::post('/ip-whitelist/{ipId}/deactivate', [
-                        AdminIpWhitelistController::class,
-                        'deactivate',
-                    ]);
-
-
-                    // Blacklist Management (W5-W7, All admins, group-scoped)
-                    Route::get('/blacklist-records', [
-                        BlacklistController::class,
-                        'index',
-                    ]); // W5: List blacklist records
-                    Route::post('/users/{userId}/blacklist', [
-                        BlacklistController::class,
-                        'store',
-                    ]); // W6: Blacklist user
-                    Route::post('/blacklist-records/{recordId}/lift', [
-                        BlacklistController::class,
-                        'lift',
-                    ]); // W7: Lift blacklist
-
-                    // Category Management (C3-C5: Admin only)
-                    Route::post('/categories', [
-                        CategoryController::class,
-                        'store',
-                    ]); // C3: Create category
-                    Route::put('/categories/{categoryId}', [
-                        CategoryController::class,
-                        'update',
-                    ]); // C4: Update category
-                    Route::delete('/categories/{categoryId}', [
-                        CategoryController::class,
-                        'destroy',
-                    ]); // C5: Delete category
-
-                    // Group Management (All admins can view, actions enforced by policies)
-                    Route::get('/groups', [
-                        AdminGroupController::class,
-                        'index',
-                    ]);
-                    // Trashed groups & restore — must be before {groupId} routes to avoid collision
                     Route::get('/groups/trashed', [
                         AdminGroupController::class,
                         'trashed',

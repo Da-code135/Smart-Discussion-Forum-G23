@@ -148,12 +148,33 @@ class User extends Authenticatable
     }
 
     /**
+     * Grades for this student.
+     */
+    public function grades()
+    {
+        return $this->hasMany(Grade::class, 'student_id');
+    }
+
+    /**
+     * Quiz attempts by this student.
+     */
+    public function attempts()
+    {
+        return $this->hasMany(StudentAttempt::class, 'student_id');
+    }
+
+    /**
      * Check if a lecturer can teach a specific group.
      */
     public function canTeachGroup(Group $group): bool
     {
         if ($this->isSystemAdmin()) {
             return true;
+        }
+
+        // Members cannot teach quizzes in any group
+        if ($this->role && $this->role->role_name === 'Member') {
+            return false;
         }
 
         // Own group or explicitly assigned

@@ -34,6 +34,14 @@ class TopicCategory extends Model
     }
 
     /**
+     * All topics assigned to this category.
+     */
+    public function topics()
+    {
+        return $this->hasMany(Topic::class, 'category_id');
+    }
+
+    /**
      * Scope: categories belonging to a specific group.
      */
     public function scopeForGroup($query, int $groupId)

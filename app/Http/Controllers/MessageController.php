@@ -85,4 +85,110 @@ class MessageController extends Controller
             ->back()
             ->with('success', 'Message sent successfully.');
     }
+
+    /**
+     * Edit a message (sender only, within 10 minutes of sending).
+     *
+     * PUT /api/v1/messages/{id}
+     *
+     * Group isolation enforced via conversation.
+     */
+    public function update(Request $request, int $messageId): JsonResponse
+    {
+        $user = $request->user();
+
+        $message = Message::with('conversation')->findOrFail($messageId);
+
+        // Group isolation check via conversation
+        if (! $user->canAccessGroup($message->conversation->group_id)) {
+            return response()->json(
+                ['message' => 'You do not have access to this message.'],
+                403,
+            );
+        }
+
+        // Only the sender can edit their own message
+        if ($message->sender_id !== $user->id) {
+            return response()->json(
+                ['message' => 'You can only edit your own messages.'],
+                403,
+            );
+        }
+
+        // Cannot edit removed messages
+        if ($message->is_removed) {
+            return response()->json(
+                ['message' => 'This message has been removed and cannot be edited.'],
+                403,
+            );
+        }
+
+        // Must be within 10 minutes of sending
+        if ($message->created_at->diffInMinutes(now()) > 10) {
+            return response()->json(
+                ['message' => 'Messages can only be edited within 10 minutes of sending.'],
+                403,
+            );
+        }
+
+        $validated = $request->validate([
+            'body' => 'required|string|max:10000',
+        ]);
+
+        $message->update(['body' => $validated['body']]);
+
+        return response()->json([
+            'message' => 'Message updated successfully.',
+            'data' => [
+                'id' => $message->id,
+                'conversation_id' => $message->conversation_id,
+                'sender_id' => $message->sender_id,
+                'body' => $message->body,
+                'created_at' => $message->created_at->toIso8601String(),
+                'updated_at' => $message->updated_at->toIso8601String(),
+            ],
+        ], 200);
+    }
+
+    /**
+     * Soft-delete a message (sender or conversation admin).
+     *
+     * DELETE /api/v1/messages/{id}
+     *
+     * Sets is_removed = true. Group isolation enforced via conversation.
+     */
+    public function destroy(Request $request, int $messageId): JsonResponse
+    {
+        $user = $request->user();
+
+        $message = Message::with('conversation')->findOrFail($messageId);
+
+        // Group isolation check via conversation
+        if (! $user->canAccessGroup($message->conversation->group_id)) {
+            return response()->json(
+                ['message' => 'You do not have access to this message.'],
+                403,
+            );
+        }
+
+        // Authorization: sender or conversation admin
+        $isSender = $message->sender_id === $user->id;
+        $isAdmin = $message->conversation->participants()
+            ->where('user_id', $user->id)
+            ->wherePivot('role', 'admin')
+            ->exists();
+
+        if (! $isSender && ! $isAdmin && ! $user->isSystemAdmin()) {
+            return response()->json(
+                ['message' => 'You are not authorized to delete this message.'],
+                403,
+            );
+        }
+
+        $message->update(['is_removed' => true]);
+
+        return response()->json([
+            'message' => 'Message deleted successfully.',
+        ], 200);
+    }
 }

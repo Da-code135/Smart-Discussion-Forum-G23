@@ -23,12 +23,6 @@
                     <span class="material-symbols-outlined sidebar-icon">quiz</span>
                     <span class="sidebar-label">Quizzes</span>
                 </a>
-                @if ($user->isAdmin() || $user->role?->role_name === 'Lecturer')
-                    <a href="{{ route('quizzes.results') }}" class="sidebar-link {{ $activeNav === 'quiz-results' ? 'is-active' : '' }}" title="Quiz Results" style="padding-left: 2.5rem;">
-                        <span class="material-symbols-outlined sidebar-icon" style="font-size: 18px;">bar_chart</span>
-                        <span class="sidebar-label" style="font-size: 0.875rem;">Results</span>
-                    </a>
-                @endif
                 <a href="{{ route('conversations.index') }}" class="sidebar-link {{ $activeNav === 'conversations' ? 'is-active' : '' }}" title="Messages" style="position: relative;">
                     <span class="material-symbols-outlined sidebar-icon">chat</span>
                     <span class="sidebar-label">Messages</span>
@@ -85,14 +79,16 @@
                         <span class="material-symbols-outlined sidebar-icon">receipt_long</span>
                         <span class="sidebar-label">Audit Logs</span>
                     </a>
-                    <a href="{{ route('admin.ip-whitelist.index') }}" class="sidebar-link" title="IP Whitelist">
-                        <span class="material-symbols-outlined sidebar-icon">security</span>
-                        <span class="sidebar-label">IP Whitelist</span>
-                    </a>
-                    <a href="{{ route('admin.system-config.index') }}" class="sidebar-link" title="System Config">
-                        <span class="material-symbols-outlined sidebar-icon">settings_applications</span>
-                        <span class="sidebar-label">System Config</span>
-                    </a>
+                    @if ($user->isSystemAdmin())
+                        <a href="{{ route('admin.ip-whitelist.index') }}" class="sidebar-link" title="IP Whitelist">
+                            <span class="material-symbols-outlined sidebar-icon">security</span>
+                            <span class="sidebar-label">IP Whitelist</span>
+                        </a>
+                        <a href="{{ route('admin.system-config.index') }}" class="sidebar-link" title="System Config">
+                            <span class="material-symbols-outlined sidebar-icon">settings_applications</span>
+                            <span class="sidebar-label">System Config</span>
+                        </a>
+                    @endif
                     <a href="{{ route('admin.group-statistics.index') }}" class="sidebar-link" title="Group Stats">
                         <span class="material-symbols-outlined sidebar-icon">insights</span>
                         <span class="sidebar-label">Group Stats</span>
