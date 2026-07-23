@@ -118,6 +118,7 @@ class UserManagementTest extends TestCase
         $admin2 = $this->createSystemAdmin([
             'email' => 'admin2@test.com',
             'full_name' => 'Admin Two',
+            'group_id' => $this->defaultGroup->id,
         ]);
 
         $response = $this->actingAs($admin1)->post(route('admin.users.change-role', $admin2), [
@@ -388,6 +389,7 @@ class UserManagementTest extends TestCase
 
         $response = $this->actingAs($admin)->post(route('admin.users.blacklist.store', $user), [
             'reason' => 'Permanent ban',
+            'duration_days' => null,
         ]);
 
         $response->assertRedirect();

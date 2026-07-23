@@ -14,7 +14,7 @@ class ModerationMigrationsTest extends TestCase
     public function test_is_reported_column_exists_in_posts_table(): void
     {
         // Run the migration that adds is_reported column
-        $this->artisan('migrate', ['--database' => 'testing']);
+        $this->artisan('migrate');
 
         // Check that the is_reported column exists in the posts table
         $this->assertTrue(
@@ -30,7 +30,7 @@ class ModerationMigrationsTest extends TestCase
     public function test_moderation_logs_table_exists(): void
     {
         // Run the migration that creates moderation_logs table
-        $this->artisan('migrate', ['--database' => 'testing']);
+        $this->artisan('migrate');
 
         // Check that the moderation_logs table exists
         $this->assertTrue(
@@ -54,7 +54,7 @@ class ModerationMigrationsTest extends TestCase
     public function test_moderation_logs_table_has_correct_foreign_keys(): void
     {
         // Run the migration that creates moderation_logs table
-        $this->artisan('migrate', ['--database' => 'testing']);
+        $this->artisan('migrate');
 
         // Note: Laravel doesn't provide direct way to check foreign key constraints in tests
         // So we'll verify the columns exist and assume the foreign keys were created properly
@@ -65,7 +65,7 @@ class ModerationMigrationsTest extends TestCase
     public function test_moderation_logs_table_has_timestamps(): void
     {
         // Run the migration that creates moderation_logs table
-        $this->artisan('migrate', ['--database' => 'testing']);
+        $this->artisan('migrate');
 
         // Check that timestamp columns exist
         $this->assertTrue(Schema::hasColumn('moderation_logs', 'created_at'));
@@ -74,14 +74,13 @@ class ModerationMigrationsTest extends TestCase
 
     public function test_down_migration_for_is_reported_column(): void
     {
-        // Run the migration up
-        $this->artisan('migrate', ['--database' => 'testing']);
-
-        // Verify the column exists
+        // Verify the column exists (migrations already ran via RefreshDatabase)
         $this->assertTrue(Schema::hasColumn('posts', 'is_reported'));
 
-        // Rollback the migration
-        $this->artisan('migrate:rollback', ['--database' => 'testing']);
+        // Disable FK checks so SQLite allows column drops across tables
+        DB::statement('PRAGMA foreign_keys = OFF');
+        $this->artisan('migrate:rollback', ['--path' => 'database/migrations/2026_06_30_000005_add_is_reported_to_posts.php']);
+        DB::statement('PRAGMA foreign_keys = ON');
 
         // Verify the column is dropped
         $this->assertFalse(Schema::hasColumn('posts', 'is_reported'));
@@ -89,14 +88,13 @@ class ModerationMigrationsTest extends TestCase
 
     public function test_down_migration_for_moderation_logs_table(): void
     {
-        // Run the migration up
-        $this->artisan('migrate', ['--database' => 'testing']);
-
-        // Verify the table exists
+        // Verify the table exists (migrations already ran via RefreshDatabase)
         $this->assertTrue(Schema::hasTable('moderation_logs'));
 
-        // Rollback the migration
-        $this->artisan('migrate:rollback', ['--database' => 'testing']);
+        // Disable FK checks so SQLite allows table drops
+        DB::statement('PRAGMA foreign_keys = OFF');
+        $this->artisan('migrate:rollback', ['--path' => 'database/migrations/2026_06_30_000006_create_moderation_logs_table.php']);
+        DB::statement('PRAGMA foreign_keys = ON');
 
         // Verify the table is dropped
         $this->assertFalse(Schema::hasTable('moderation_logs'));
@@ -104,13 +102,24 @@ class ModerationMigrationsTest extends TestCase
 
     public function test_is_reported_column_defaults_to_false(): void
     {
-        // Run the migration that adds is_reported column
-        $this->artisan('migrate', ['--database' => 'testing']);
+        // Create parent records so FK constraints are satisfied
+        $roleId = DB::table('roles')->insertGetId(['role_name' => 'Student', 'description' => 'Student', 'created_at' => now(), 'updated_at' => now()]);
+        $groupId = DB::table('groups')->insertGetId(['group_name' => 'Test Group', 'description' => 'Test', 'created_at' => now(), 'updated_at' => now()]);
+        $userId = DB::table('users')->insertGetId([
+            'full_name' => 'Test User', 'email' => 'test_defaults_'.uniqid().'@test.com',
+            'password' => bcrypt('password'), 'role_id' => $roleId, 'group_id' => $groupId,
+            'account_status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $topicId = DB::table('topics')->insertGetId([
+            'group_id' => $groupId, 'created_by' => $userId, 'title' => 'Test',
+            'description' => 'Test', 'status' => 'active', 'post_type' => 'discussion',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
 
-        // Create a new post without specifying is_reported
-        $post = DB::table('posts')->insert([
-            'topic_id' => 1,
-            'user_id' => 1,
+        // Insert a post without specifying is_reported
+        DB::table('posts')->insert([
+            'topic_id' => $topicId,
+            'user_id' => $userId,
             'content' => 'Test content',
         ]);
 
@@ -123,13 +132,28 @@ class ModerationMigrationsTest extends TestCase
 
     public function test_moderation_logs_table_accepts_data_after_migration(): void
     {
-        // Run the migration that creates moderation_logs table
-        $this->artisan('migrate', ['--database' => 'testing']);
+        // Create parent records so FK constraints are satisfied
+        $roleId = DB::table('roles')->insertGetId(['role_name' => 'Admin', 'description' => 'Admin', 'created_at' => now(), 'updated_at' => now()]);
+        $groupId = DB::table('groups')->insertGetId(['group_name' => 'Test Group ML', 'description' => 'Test', 'created_at' => now(), 'updated_at' => now()]);
+        $userId = DB::table('users')->insertGetId([
+            'full_name' => 'Test User', 'email' => 'test_ml_'.uniqid().'@test.com',
+            'password' => bcrypt('password'), 'role_id' => $roleId, 'group_id' => $groupId,
+            'account_status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $topicId = DB::table('topics')->insertGetId([
+            'group_id' => $groupId, 'created_by' => $userId, 'title' => 'Test',
+            'description' => 'Test', 'status' => 'active', 'post_type' => 'discussion',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $postId = DB::table('posts')->insertGetId([
+            'topic_id' => $topicId, 'user_id' => $userId, 'content' => 'Test post',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
 
         // Insert a record into the moderation_logs table
         $result = DB::table('moderation_logs')->insert([
-            'post_id' => 1,
-            'admin_id' => 1,
+            'post_id' => $postId,
+            'admin_id' => $userId,
             'action' => 'removed',
             'reason' => 'Test reason',
             'created_at' => now(),

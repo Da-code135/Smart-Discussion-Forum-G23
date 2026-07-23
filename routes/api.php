@@ -454,6 +454,7 @@ Route::prefix($API_VERSION)->group(function () {
 
             Route::post('/messages/{id}/deliver', [MessageStatusController::class, 'deliver']);
             Route::post('/conversations/{id}/read', [MessageStatusController::class, 'markConversationRead']);
+            Route::get('/conversations/{id}/statuses', [MessageStatusController::class, 'statuses']);
             Route::get('/me/unread-counts', [MessageStatusController::class, 'unreadCounts']);
 
             // ============================================

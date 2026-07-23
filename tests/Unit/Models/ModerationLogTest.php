@@ -15,9 +15,12 @@ class ModerationLogTest extends TestCase
 
     public function test_fillable_attributes(): void
     {
+        $post = Post::factory()->create();
+        $admin = User::factory()->create();
+
         $attributes = [
-            'post_id' => 1,
-            'admin_id' => 2,
+            'post_id' => $post->id,
+            'admin_id' => $admin->id,
             'action' => 'removed',
             'reason' => 'Violates community guidelines',
         ];
