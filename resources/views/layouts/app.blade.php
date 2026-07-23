@@ -71,11 +71,17 @@
             if (toggle) {
                 toggle.addEventListener('click', function (e) {
                     e.stopPropagation();
-                    sidebar.classList.toggle('is-collapsed');
-                    // Save preference
-                    try {
-                        localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('is-collapsed') ? '1' : '0');
-                    } catch (e) {}
+                    if (window.innerWidth <= 768) {
+                        // Mobile: toggle is-open to slide sidebar in/out
+                        sidebar.classList.toggle('is-open');
+                        if (overlay) overlay.classList.toggle('is-visible');
+                    } else {
+                        // Desktop: toggle is-collapsed to shrink/expand
+                        sidebar.classList.toggle('is-collapsed');
+                        try {
+                            localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('is-collapsed') ? '1' : '0');
+                        } catch (e) {}
+                    }
                 });
             }
 
