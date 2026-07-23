@@ -130,10 +130,8 @@ nul
 # Docker production demo config
 .env.docker
 docker-compose.yml
-Dockerfile
 Caddyfile
 /docker/
-.dockerignore
 # Bwat per-workspace permission allowlist
 .bwat/
 .kilo/
