@@ -78,33 +78,29 @@
 
 	                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
 	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-	                                    <input type="hidden" name="lock_screen_on_start" value="0">
-	                                    <input type="checkbox" name="lock_screen_on_start" value="1" {{ $quiz->configuration?->lock_screen_on_start ? 'checked' : '' }}>
+	                                    <input type="checkbox" name="lock_screen_on_start" value="1" {{ old('lock_screen_on_start', $quiz->configuration?->lock_screen_on_start) ? 'checked' : '' }}>
 	                                    <span>Lock screen during quiz (prevent cheating)</span>
 	                                </label>
 
 	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-	                                    <input type="hidden" name="show_results_after_close" value="0">
-	                                    <input type="checkbox" name="show_results_after_close" value="1" {{ $quiz->configuration?->show_results_after_close ? 'checked' : '' }}>
+	                                    <input type="checkbox" name="show_results_after_close" value="1" {{ old('show_results_after_close', $quiz->configuration?->show_results_after_close) ? 'checked' : '' }}>
 	                                    <span>Show results after quiz closes</span>
 	                                </label>
 
 	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-	                                    <input type="hidden" name="show_correct_answers" value="0">
-	                                    <input type="checkbox" name="show_correct_answers" value="1" {{ $quiz->configuration?->show_correct_answers ? 'checked' : '' }}>
+	                                    <input type="checkbox" name="show_correct_answers" value="1" {{ old('show_correct_answers', $quiz->configuration?->show_correct_answers) ? 'checked' : '' }}>
 	                                    <span>Show correct answers with results</span>
 	                                </label>
 
 	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-	                                    <input type="hidden" name="allow_late_join" value="0">
-	                                    <input type="checkbox" name="allow_late_join" value="1" {{ $quiz->configuration?->allow_late_join ? 'checked' : '' }}>
+	                                    <input type="checkbox" name="allow_late_join" value="1" {{ old('allow_late_join', $quiz->configuration?->allow_late_join) ? 'checked' : '' }}>
 	                                    <span>Allow late joiners (but no extra time)</span>
 	                                </label>
 	                            </div>
 
                             <div class="form-group" style="margin-top: 1rem;">
                                 <label for="participation_criteria" class="form-label">How to award participation marks?</label>
-                                <textarea id="participation_criteria" name="participation_criteria" rows="2" class="form-input" placeholder="E.g., Full marks if attempted and score >= 50%">{{ $quiz->configuration?->participation_criteria }}</textarea>
+                                <textarea id="participation_criteria" name="participation_criteria" rows="2" class="form-input" placeholder="E.g., Full marks if attempted and score >= 50%">{{ old('participation_criteria', $quiz->configuration?->participation_criteria) }}</textarea>
                             </div>
                         </div>
 
