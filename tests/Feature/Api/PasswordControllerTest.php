@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Api;
 
+use App\Mail\PasswordResetOtpMailable;
+use App\Models\ApiPasswordResetOtp;
 use App\Models\Group;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
 
@@ -39,9 +42,7 @@ class PasswordControllerTest extends TestCase
 
     public function test_user_can_request_password_reset_link(): void
     {
-        Password::shouldReceive('sendResetLink')
-            ->once()
-            ->andReturn(Password::RESET_LINK_SENT);
+        Mail::fake();
 
         $response = $this->postJson('/api/v1/password/forgot', [
             'email' => $this->user->email,
@@ -49,8 +50,10 @@ class PasswordControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'message' => 'Password reset link sent to your email',
+                'message' => 'A 6-digit reset code has been sent to your email. It expires in 10 minutes.',
             ]);
+
+        Mail::assertQueued(PasswordResetOtpMailable::class);
     }
 
     public function test_forgot_password_fails_with_nonexistent_email(): void
@@ -83,39 +86,42 @@ class PasswordControllerTest extends TestCase
 
     public function test_user_can_reset_password_with_valid_token(): void
     {
-        Password::shouldReceive('reset')
-            ->once()
-            ->andReturn(Password::PASSWORD_RESET);
+        $plainOtp = '123456';
+
+        ApiPasswordResetOtp::create([
+            'email' => $this->user->email,
+            'otp' => Hash::make($plainOtp),
+            'expires_at' => now()->addMinutes(10),
+        ]);
 
         $response = $this->postJson('/api/v1/password/reset', [
-            'token' => 'valid-reset-token',
             'email' => $this->user->email,
+            'otp' => $plainOtp,
             'password' => 'NewPassword123',
             'password_confirmation' => 'NewPassword123',
         ]);
 
         $response->assertStatus(200)
             ->assertJson([
-                'message' => 'Password reset successfully',
+                'message' => 'Password reset successfully. Please log in with your new password.',
             ]);
+
+        $this->user->refresh();
+        $this->assertTrue(Hash::check('NewPassword123', $this->user->password));
     }
 
     public function test_reset_password_fails_with_invalid_token(): void
     {
-        Password::shouldReceive('reset')
-            ->once()
-            ->andReturn(Password::INVALID_TOKEN);
-
         $response = $this->postJson('/api/v1/password/reset', [
-            'token' => 'invalid-token',
             'email' => $this->user->email,
+            'otp' => '000000',
             'password' => 'NewPassword123',
             'password_confirmation' => 'NewPassword123',
         ]);
 
         $response->assertStatus(400)
             ->assertJson([
-                'message' => 'Unable to reset password',
+                'message' => 'Invalid reset code. Please check the code and try again.',
             ]);
     }
 
@@ -128,7 +134,7 @@ class PasswordControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['token']);
+            ->assertJsonValidationErrors(['otp']);
     }
 
     public function test_reset_password_requires_email(): void
@@ -181,7 +187,7 @@ class PasswordControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'message' => 'Password changed successfully',
+                'message' => 'Password changed successfully.',
             ]);
 
         // Verify password was actually changed
@@ -201,7 +207,7 @@ class PasswordControllerTest extends TestCase
 
         $response->assertStatus(403)
             ->assertJson([
-                'message' => 'Current password is incorrect',
+                'message' => 'Current password is incorrect.',
             ]);
 
         // Verify password was not changed

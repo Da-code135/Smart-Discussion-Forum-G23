@@ -162,19 +162,17 @@ class SyncTest extends TestCase
 
     public function test_pull_returns_status_updates()
     {
-        // Create a message first
+        // Create a message first (Message::booted auto-creates 'sent' status for recipients)
         $message = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
             'sender_id' => $this->otherUser->id,
             'body' => 'Message with status tracking',
         ]);
 
-        // Create a status update for our user
-        MessageStatus::create([
-            'message_id' => $message->id,
-            'user_id' => $this->user->id,
-            'status' => 'delivered',
-        ]);
+        // Update the auto-created status to 'delivered' (avoids unique constraint violation)
+        MessageStatus::where('message_id', $message->id)
+            ->where('user_id', $this->user->id)
+            ->update(['status' => 'delivered']);
 
         $this->actingAs($this->user);
 

@@ -208,7 +208,7 @@ class ForumExportAndShareTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Share', false);
-        $response->assertSee('id="share-menu"', false);
+        $response->assertSee('id="share-menu-', false);
     }
 
     public function test_topic_detail_page_contains_whatsapp_share_link()
@@ -259,7 +259,7 @@ class ForumExportAndShareTest extends TestCase
             ->get(route('forum.show', $topic->id));
 
         $response->assertOk();
-        $response->assertSee('Copy Link', false);
+        $response->assertSee('Copy link', false);
         $response->assertSee('copyToClipboard', false);
     }
 
