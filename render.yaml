@@ -1,17 +1,17 @@
 services:
   - type: web
-    name: studdit-app
+    name: smart-discussion-forum
     env: docker
     plan: free
     envVars:
       - key: APP_NAME
-        value: Studdit
+        value: Smart Discussion Forum
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
         value: false
       - key: APP_URL
-        value: https://studdit-app.onrender.com
+        value: https://smart-discussion-forum.onrender.com
       - key: APP_KEY
         sync: false
       - key: DB_CONNECTION
