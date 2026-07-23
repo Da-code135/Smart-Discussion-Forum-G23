@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: studdit-app
+    env: php
+    plan: free
+    buildCommand: "composer install --no-dev --optimize-autoloader && php artisan config:clear && php artisan migrate --force && php artisan db:seed --force"
+    startCommand: "php artisan serve --host=0.0.0.0 --port=8080"
+    envVars:
+      - key: APP_NAME
+        value: Studdit
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_URL
+        value: https://studdit-app.onrender.com
+      - key: APP_KEY
+        sync: false
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DATABASE_URL
+        fromDatabase:
+          name: studdit-db
+          property: connectionString
+      - key: SESSION_DRIVER
+        value: database
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: CACHE_STORE
+        value: database
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: error
+
+databases:
+  - name: studdit-db
+    databaseName: studdit
+    user: studdit
+    plan: free
