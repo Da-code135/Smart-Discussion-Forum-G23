@@ -23,12 +23,33 @@ class TopicController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $sort = $request->query('sort', 'new');
 
-        $query = Topic::with('creator')->withCount('posts')->latest();
+        $query = Topic::with('creator')->withCount('posts');
 
         // System admins see all topics; others see only accessible groups
         if (! $user->isSystemAdmin()) {
             $query->whereIn('group_id', $user->accessibleGroupIds());
+        }
+
+        // Apply sorting based on the selected tab
+        switch ($sort) {
+            case 'hot':
+                // Hot = most recent activity (latest reply)
+                $query->withMax('posts', 'created_at')
+                    ->orderByDesc('posts_max_created_at');
+                break;
+
+            case 'top':
+                // Top = most popular by reply count
+                $query->orderByDesc('posts_count');
+                break;
+
+            case 'new':
+            default:
+                // New = most recently created topics first
+                $query->latest();
+                break;
         }
 
         $topics = $query->active()->paginate(20);

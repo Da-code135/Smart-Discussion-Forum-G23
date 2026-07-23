@@ -16,14 +16,14 @@ class FlagPostCommandTest extends TestCase
         $post = Post::factory()->create(['is_reported' => false]);
 
         // Execute the command
-        $result = $this->artisan('posts:flag', ['post' => $post->id]);
+        $this->artisan('posts:flag', ['post' => $post->id])
+            ->assertExitCode(0);
 
-        // Assert the command succeeded
-        $result->assertExitCode(0);
-
-        // Refresh the post and assert it's flagged
-        $post->refresh();
-        $this->assertTrue($post->is_reported);
+        // Assert the post is flagged in the database
+        $this->assertDatabaseHas('posts', [
+            'id' => $post->id,
+            'is_reported' => true,
+        ]);
     }
 
     public function test_flag_command_shows_error_for_nonexistent_post(): void

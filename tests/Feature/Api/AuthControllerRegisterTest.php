@@ -23,7 +23,7 @@ class AuthControllerRegisterTest extends TestCase
         Role::create(['role_name' => 'Student', 'description' => 'Student role']);
         Role::create(['role_name' => 'Member', 'description' => 'Member role']);
 
-        Group::create(['group_name' => 'Default Group', 'description' => 'Default group']);
+        Group::create(['group_name' => 'General', 'description' => 'Default group']);
     }
 
     public function test_user_can_register_via_api(): void
@@ -56,7 +56,7 @@ class AuthControllerRegisterTest extends TestCase
                     'full_name' => 'John Doe',
                     'email' => 'john@example.com',
                     'role' => 'Member',
-                    'group' => 'Default Group',
+                    'group' => 'General',
                 ],
             ]);
 
@@ -103,7 +103,7 @@ class AuthControllerRegisterTest extends TestCase
             'email' => 'existing@example.com',
             'password' => Hash::make('Password123'),
             'role_id' => Role::where('role_name', 'Student')->first()->id,
-            'group_id' => Group::where('group_name', 'Default Group')->first()->id,
+            'group_id' => Group::where('group_name', 'General')->first()->id,
         ]);
 
         // Try to register with same email
@@ -173,7 +173,7 @@ class AuthControllerRegisterTest extends TestCase
         $response->assertStatus(201);
 
         $user = User::where('email', 'john@example.com')->first();
-        $defaultGroup = Group::where('group_name', 'Default Group')->first();
+        $defaultGroup = Group::where('group_name', 'General')->first();
 
         $this->assertEquals($defaultGroup->id, $user->group_id);
     }
@@ -214,7 +214,7 @@ class AuthControllerRegisterTest extends TestCase
     public function test_registration_fails_without_required_group(): void
     {
         // Delete Default Group
-        Group::where('group_name', 'Default Group')->delete();
+        Group::where('group_name', 'General')->delete();
 
         $response = $this->postJson('/api/v1/register', [
             'full_name' => 'John Doe',
