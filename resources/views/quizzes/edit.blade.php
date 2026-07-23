@@ -43,6 +43,20 @@
                             <input type="text" id="title" name="title" class="form-input" value="{{ $quiz->title }}" required>
                         </div>
 
+                        <div class="form-group">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea id="description" name="description" class="form-input" rows="2">{{ $quiz->description }}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="target_category" class="form-label">Who takes this quiz?</label>
+                            <select id="target_category" name="target_category" class="form-input" required>
+                                <option value="Student" {{ $quiz->target_category === 'Student' ? 'selected' : '' }}>Students Only</option>
+                                <option value="Lecturer" {{ $quiz->target_category === 'Lecturer' ? 'selected' : '' }}>Lecturers Only</option>
+                                <option value="Member" {{ $quiz->target_category === 'Member' ? 'selected' : '' }}>All Members</option>
+                            </select>
+                        </div>
+
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
                             <div class="form-group">
                                 <label for="scheduled_date" class="form-label">Date</label>
@@ -50,7 +64,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="start_time" class="form-label">Start Time</label>
-                                <input type="time" id="start_time" name="start_time" class="form-input" value="{{ $quiz->start_time }}" required>
+                                <input type="time" id="start_time" name="start_time" class="form-input" value="{{ $quiz->start_time instanceof \Carbon\Carbon ? $quiz->start_time->format('H:i') : substr($quiz->start_time, 0, 5) }}" required>
                             </div>
                             <div class="form-group">
                                 <label for="duration_minutes" class="form-label">Duration (min)</label>
@@ -62,31 +76,31 @@
                         <div class="card" style="background: var(--bg-muted, #f8f9fa); padding: 1rem;">
                             <h3 style="margin-top: 0;">Quiz Settings</h3>
 
-                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <input type="checkbox" name="lock_screen_on_start" value="1" {{ $quiz->configuration?->lock_screen_on_start ? 'checked' : '' }}>
-                                    <span>Lock screen during quiz (prevent cheating)</span>
-                                </label>
+	                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+	                                    <input type="checkbox" name="lock_screen_on_start" value="1" {{ old('lock_screen_on_start', $quiz->configuration?->lock_screen_on_start) ? 'checked' : '' }}>
+	                                    <span>Lock screen during quiz (prevent cheating)</span>
+	                                </label>
 
-                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <input type="checkbox" name="show_results_after_close" value="1" {{ $quiz->configuration?->show_results_after_close ? 'checked' : '' }}>
-                                    <span>Show results after quiz closes</span>
-                                </label>
+	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+	                                    <input type="checkbox" name="show_results_after_close" value="1" {{ old('show_results_after_close', $quiz->configuration?->show_results_after_close) ? 'checked' : '' }}>
+	                                    <span>Show results after quiz closes</span>
+	                                </label>
 
-                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <input type="checkbox" name="show_correct_answers" value="1" {{ $quiz->configuration?->show_correct_answers ? 'checked' : '' }}>
-                                    <span>Show correct answers with results</span>
-                                </label>
+	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+	                                    <input type="checkbox" name="show_correct_answers" value="1" {{ old('show_correct_answers', $quiz->configuration?->show_correct_answers) ? 'checked' : '' }}>
+	                                    <span>Show correct answers with results</span>
+	                                </label>
 
-                                <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <input type="checkbox" name="allow_late_join" value="1" {{ $quiz->configuration?->allow_late_join ? 'checked' : '' }}>
-                                    <span>Allow late joiners (but no extra time)</span>
-                                </label>
-                            </div>
+	                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+	                                    <input type="checkbox" name="allow_late_join" value="1" {{ old('allow_late_join', $quiz->configuration?->allow_late_join) ? 'checked' : '' }}>
+	                                    <span>Allow late joiners (but no extra time)</span>
+	                                </label>
+	                            </div>
 
                             <div class="form-group" style="margin-top: 1rem;">
                                 <label for="participation_criteria" class="form-label">How to award participation marks?</label>
-                                <textarea id="participation_criteria" name="participation_criteria" rows="2" class="form-input" placeholder="E.g., Full marks if attempted and score >= 50%">{{ $quiz->configuration?->participation_criteria }}</textarea>
+                                <textarea id="participation_criteria" name="participation_criteria" rows="2" class="form-input" placeholder="E.g., Full marks if attempted and score >= 50%">{{ old('participation_criteria', $quiz->configuration?->participation_criteria) }}</textarea>
                             </div>
                         </div>
 
@@ -199,7 +213,7 @@
                 <div class="card-body page-stack" style="font-size: 0.9rem;">
                     <div>
                         <strong>Scheduled:</strong><br>
-                        {{ $quiz->scheduled_date->format('M d, Y') }} @ {{ $quiz->start_time }}
+                        {{ $quiz->scheduled_date instanceof \Carbon\Carbon ? $quiz->scheduled_date->format('M d, Y') : \Carbon\Carbon::parse($quiz->scheduled_date)->format('M d, Y') }} @ {{ $quiz->start_time instanceof \Carbon\Carbon ? $quiz->start_time->format('H:i') : substr($quiz->start_time, 0, 5) }}
                     </div>
 
                     <div>
@@ -223,7 +237,7 @@
                         @endif
                     </div>
 
-                    {{-- Publish Button --}}
+                    {{-- Publish / Unpublish Button --}}
                     @if (!$quiz->published_at && $quiz->questions->count() > 0)
                         <form action="{{ route('quizzes.publish', $quiz->quiz_id) }}" method="POST">
                             @csrf
@@ -232,6 +246,14 @@
                             </button>
                         </form>
                         <small style="color: var(--text-muted);">Students will be notified</small>
+                    @elseif ($quiz->published_at && !$quiz->is_active)
+                        <form action="{{ route('quizzes.unpublish', $quiz->quiz_id) }}" method="POST" onsubmit="return confirm('Unpublish this quiz? It will revert to a draft.');">
+                            @csrf
+                            <button type="submit" class="btn btn-secondary" style="width: 100%;">
+                                Unpublish (Revert to Draft)
+                            </button>
+                        </form>
+                        <small style="color: var(--text-muted);">Reverts to draft — students will no longer see it</small>
                     @elseif ($quiz->published_at)
                         <p style="font-size: 0.8rem; color: var(--text-muted);">Already announced to {{ $quiz->target_category }}s</p>
                     @else
@@ -239,7 +261,7 @@
                     @endif
 
                     {{-- Delete Button --}}
-                    @if (!$quiz->published_at)
+                    @if (!$quiz->is_active)
                         <form action="{{ route('quizzes.destroy', $quiz->quiz_id) }}" method="POST" onsubmit="return confirm('Delete this quiz? All questions and answers will be lost.');">
                             @csrf
                             @method('DELETE')

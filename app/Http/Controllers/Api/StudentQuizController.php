@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\QuizWentLive;
 use App\Http\Controllers\Controller;
 use App\Models\Grade;
 use App\Models\Quiz;
@@ -13,6 +14,63 @@ use Illuminate\Support\Facades\DB;
 
 class StudentQuizController extends Controller
 {
+    /**
+     * GET /api/v1/my-quizzes
+     * List all available quizzes for the authenticated student.
+     */
+    public function index()
+    {
+        $user = Auth::user();
+
+        $quizzes = Quiz::where('published_at', '!=', null)
+            ->where(function ($q) use ($user) {
+                if (! $user->isSystemAdmin()) {
+                    $q->where('group_id', $user->group_id)
+                        ->orWhereNull('group_id');
+                }
+            })
+            ->where('target_category', $user->role->role_name)
+            ->with('lecturer:id,full_name', 'configuration')
+            ->withCount('questions')
+            ->orderBy('scheduled_date')
+            ->orderBy('start_time')
+            ->get()
+            ->map(function ($quiz) use ($user) {
+                $scheduled = $quiz->getScheduledDateTime();
+                $attempt = StudentAttempt::where('quiz_id', $quiz->quiz_id)
+                    ->where('student_id', $user->id)
+                    ->with('grade')
+                    ->first();
+
+                $timePassed = now()->isAfter($scheduled);
+
+                return [
+                    'quiz' => $quiz,
+                    'scheduled' => $scheduled->toIso8601String(),
+                    'has_started' => $timePassed,
+                    'is_live' => $quiz->is_active && ! $attempt,
+                    'attempt' => $attempt ? [
+                        'id' => $attempt->id,
+                        'is_submitted' => $attempt->is_submitted,
+                    ] : null,
+                    'grade' => $attempt?->grade ? [
+                        'total_score' => $attempt->grade->total_score,
+                        'max_score' => $attempt->grade->max_score,
+                        'percentage' => $attempt->grade->percentage,
+                    ] : null,
+                    'is_submitted' => $attempt && $attempt->is_submitted,
+                    'result_available' => $attempt && $attempt->is_submitted && $quiz->configuration?->show_results_after_close,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'quizzes' => $quizzes,
+            ],
+        ]);
+    }
+
     /**
      * GET /api/v1/quizzes/{quiz}/announcement
      * Show quiz announcement with timing info (pre-quiz landing).
@@ -92,11 +150,37 @@ class StudentQuizController extends Controller
             ], 403);
         }
 
-        // Quiz must be active
+        // === On-demand activation ===
+        // If the quiz is not yet active but the scheduled time has arrived,
+        // activate it immediately instead of waiting for the scheduler.
+        $scheduledTime = $quiz->getScheduledDateTime();
+        $now = now();
+
         if (! $quiz->is_active) {
+            if ($now->isBefore($scheduledTime)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Quiz has not started yet.',
+                ], 403);
+            }
+
+            // Scheduled time arrived — activate on demand
+            $quiz->update(['is_active' => true]);
+            QuizWentLive::dispatch($quiz);
+        }
+
+        // === Late-join check with grace period ===
+        // A student is considered "late" only if they join more than 5 minutes
+        // after the scheduled start. This prevents blocking users who click
+        // "Join" a second after the quiz goes live.
+        $gracePeriodMinutes = 5;
+        $minutesLate = $scheduledTime->diffInMinutes($now, false);
+        $isSignificantlyLate = $minutesLate > $gracePeriodMinutes;
+
+        if ($isSignificantlyLate && ! $quiz->configuration?->allow_late_join) {
             return response()->json([
                 'success' => false,
-                'message' => 'Quiz is not currently active.',
+                'message' => 'Late joining is not allowed for this quiz.',
             ], 403);
         }
 
@@ -112,8 +196,7 @@ class StudentQuizController extends Controller
             ], 409);
         }
 
-        $scheduledTime = $quiz->getScheduledDateTime();
-        $isLate = now()->isAfter($scheduledTime);
+        $isLate = $minutesLate > 0;
 
         // Create attempt
         $attempt = StudentAttempt::create([

@@ -139,3 +139,13 @@ nul
 /docs/CHAT_AND_SYNC_SYSTEM.md
 /docker-compose.yml
 /Dockerfile
+
+# Docker production demo config
+.env.docker
+docker-compose.yml
+Caddyfile
+/docker/
+# Bwat per-workspace permission allowlist
+.bwat/
+.kilo/
+docs/CHAT_AND_SYNC_SYSTEM.md

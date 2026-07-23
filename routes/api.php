@@ -18,7 +18,9 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\GroupBrowseController;
+use App\Http\Controllers\Api\MessageStatusController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\PasswordController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\PostVisibilityController;
@@ -31,7 +33,11 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\StudentQuizController;
 use App\Http\Controllers\Api\TopicController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\UserSearchController;
 use App\Http\Controllers\Api\WarningAcknowledgementController;
+use App\Http\Controllers\ConversationController;
+use App\Http\Controllers\MessageController;
+use App\Http\Controllers\SyncController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -275,6 +281,19 @@ Route::prefix($API_VERSION)->group(function () {
             ]); // N5: Delete a notification
 
             // ============================================
+            // ONBOARDING API (User-facing)
+            // ============================================
+
+            Route::post('/onboarding/agree', [OnboardingController::class, 'agree']);
+            Route::get('/onboarding/status', [OnboardingController::class, 'status']);
+
+            // ============================================
+            // USER SEARCH API (User-facing)
+            // ============================================
+
+            Route::post('/search/topics', [UserSearchController::class, 'searchTopics']);
+
+            // ============================================
             // RECOMMENDATIONS API (User-facing, authentication required)
             // ============================================
 
@@ -349,6 +368,7 @@ Route::prefix($API_VERSION)->group(function () {
             // ============================================
             // STUDENT QUIZ ROUTES (Quiz execution & timer)
             // ============================================
+            Route::get('/my-quizzes', [StudentQuizController::class, 'index']);
             Route::prefix('quizzes')->group(function () {
                 Route::get('/{quiz}/announcement', [StudentQuizController::class, 'announcement']);
                 Route::get('/{quiz}/status', [StudentQuizController::class, 'status']);
@@ -364,9 +384,9 @@ Route::prefix($API_VERSION)->group(function () {
             // RESULTS & REPORTS API (Person 3 — Lecturer grades + export)
             // ============================================
 
-            // Lecturer grade management — admin-scoped, uses "lecturer" prefix
+            // Lecturer grade management — uses "lecturer" prefix
             // for semantic clarity (these are the lecturer-facing grade endpoints)
-            Route::middleware('admin')->prefix('lecturer')->group(function () {
+            Route::prefix('lecturer')->group(function () {
                 Route::get('/quizzes/{quiz}/grades', [GradeController::class, 'index']);
                 Route::get('/quizzes/{quiz}/grades/export', [GradeController::class, 'exportCsv']);
                 Route::get('/grades/{grade}', [GradeController::class, 'show']);
@@ -386,28 +406,62 @@ Route::prefix($API_VERSION)->group(function () {
             // ============================================
             // QUIZ API (Lecturer/Admin — Quiz CRUD + Questions + Answers)
             // ============================================
-            Route::middleware('admin')->group(function () {
-                Route::prefix('quizzes')->name('quizzes.')->group(function () {
-                    Route::get('/', [QuizController::class, 'index']);
-                    Route::post('/', [QuizController::class, 'store']);
-                    Route::get('/{quiz}', [QuizController::class, 'show']);
-                    Route::put('/{quiz}', [QuizController::class, 'update']);
-                    Route::delete('/{quiz}', [QuizController::class, 'destroy']);
-                    Route::post('/{quiz}/publish', [QuizController::class, 'publish']);
-                    Route::get('/{quiz}/report', [QuizController::class, 'report']);
-                    // Questions (nested under quizzes)
-                    Route::get('/{quiz}/questions', [QuestionController::class, 'index']);
-                    Route::post('/{quiz}/questions', [QuestionController::class, 'store']);
-                    Route::put('/{quiz}/questions/{question}', [QuestionController::class, 'update']);
-                    Route::delete('/{quiz}/questions/{question}', [QuestionController::class, 'destroy']);
-                    Route::put('/{quiz}/questions/reorder', [QuestionController::class, 'reorder']);
-                });
-                // Answers (not nested — uses explicit question binding)
-                Route::get('/questions/{question}/answers', [AnswerController::class, 'index']);
-                Route::post('/questions/{question}/answers', [AnswerController::class, 'store']);
-                Route::put('/answers/{answer}', [AnswerController::class, 'update']);
-                Route::delete('/answers/{answer}', [AnswerController::class, 'destroy']);
+            Route::prefix('quizzes')->name('quizzes.')->group(function () {
+                Route::get('/', [QuizController::class, 'index']);
+                Route::post('/', [QuizController::class, 'store']);
+                Route::get('/{quiz}', [QuizController::class, 'show']);
+                Route::put('/{quiz}', [QuizController::class, 'update']);
+                Route::delete('/{quiz}', [QuizController::class, 'destroy']);
+                Route::post('/{quiz}/publish', [QuizController::class, 'publish']);
+                Route::post('/{quiz}/unpublish', [QuizController::class, 'unpublish']);
+                Route::get('/{quiz}/report', [QuizController::class, 'report']);
+                // Questions (nested under quizzes)
+                Route::get('/{quiz}/questions', [QuestionController::class, 'index']);
+                Route::post('/{quiz}/questions', [QuestionController::class, 'store']);
+                Route::put('/{quiz}/questions/{question}', [QuestionController::class, 'update']);
+                Route::delete('/{quiz}/questions/{question}', [QuestionController::class, 'destroy']);
+                Route::put('/{quiz}/questions/reorder', [QuestionController::class, 'reorder']);
             });
+            // Answers (not nested — uses explicit question binding)
+            Route::get('/questions/{question}/answers', [AnswerController::class, 'index']);
+            Route::post('/questions/{question}/answers', [AnswerController::class, 'store']);
+            Route::put('/answers/{answer}', [AnswerController::class, 'update']);
+            Route::delete('/answers/{answer}', [AnswerController::class, 'destroy']);
+
+            // ============================================
+            // CONVERSATION ROUTES (Person 2 — Conversation Management)
+            // ============================================
+
+            Route::get('/conversations', [ConversationController::class, 'index']);
+            Route::get('/conversations/{id}', [ConversationController::class, 'show']);
+            Route::post('/conversations', [ConversationController::class, 'store']);
+            Route::delete('/conversations/{id}', [ConversationController::class, 'destroy']);
+            Route::post('/conversations/{id}/participants', [ConversationController::class, 'addParticipant']);
+            Route::delete('/conversations/{id}/participants/{userId}', [ConversationController::class, 'removeParticipant']);
+
+            // ============================================
+            // MESSAGE ROUTES (Person 3 — Real-Time Messaging)
+            // ============================================
+
+            Route::get('/conversations/{id}/messages', [MessageController::class, 'index']);
+            Route::post('/conversations/{id}/messages', [MessageController::class, 'store']);
+            Route::put('/messages/{id}', [MessageController::class, 'update']);
+            Route::delete('/messages/{id}', [MessageController::class, 'destroy']);
+
+            // ============================================
+            // MESSAGE STATUS ROUTES (Person 4 — Status & Notifications)
+            // ============================================
+
+            Route::post('/messages/{id}/deliver', [MessageStatusController::class, 'deliver']);
+            Route::post('/conversations/{id}/read', [MessageStatusController::class, 'markConversationRead']);
+            Route::get('/me/unread-counts', [MessageStatusController::class, 'unreadCounts']);
+
+            // ============================================
+            // SYNC ROUTES (Person 5 — Offline Sync for Desktop Client)
+            // ============================================
+
+            Route::get('/sync/pull', [SyncController::class, 'pull']);
+            Route::post('/sync/push', [SyncController::class, 'push']);
 
             // ============================================
             // ADMIN ROUTES (Admin access required)
@@ -498,6 +552,14 @@ Route::prefix($API_VERSION)->group(function () {
                     Route::get('/groups', [
                         AdminGroupController::class,
                         'index',
+                    ]);
+                    Route::get('/groups/trashed', [
+                        AdminGroupController::class,
+                        'trashed',
+                    ]);
+                    Route::post('/groups/{groupId}/restore', [
+                        AdminGroupController::class,
+                        'restore',
                     ]);
                     Route::get('/groups/{groupId}', [
                         AdminGroupController::class,

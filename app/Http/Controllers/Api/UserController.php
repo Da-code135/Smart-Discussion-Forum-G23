@@ -27,14 +27,8 @@ class UserController extends Controller
                 'full_name' => $user->full_name,
                 'email' => $user->email,
                 'account_status' => $user->account_status,
-                'role' => $user->role ? [
-                    'id' => $user->role->id,
-                    'name' => $user->role->role_name,
-                ] : null,
-                'group' => $user->group ? [
-                    'id' => $user->group->id,
-                    'name' => $user->group->group_name,
-                ] : null,
+                'role' => $user->role ? $user->role->role_name : null,
+                'group' => $user->group ? $user->group->group_name : null,
                 'email_verified_at' => $user->email_verified_at,
                 'last_active_at' => $user->last_active_at,
                 'profile_picture' => $user->profile_picture,

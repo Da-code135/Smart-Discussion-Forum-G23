@@ -48,38 +48,93 @@
                 <p class="text-sm text-gray-500 text-center">Quiz is live. Click above to enter.</p>
 
             @elseif ($quizStatus['time_until_start_seconds'] > 0)
-                {{-- Quiz hasn't started — show live countdown --}}
+                {{-- Quiz hasn't started — show countdown or human-readable time --}}
                 <div class="text-center mb-4">
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Quiz starts in</div>
-                    <div style="font-size: 40px; font-weight: 700; color: #2563eb; font-variant-numeric: tabular-nums;" id="countdown">
-                        {{ $quizStatus['time_until_start_display'] }}
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">
+                        @if ($quizStatus['time_until_start_seconds'] > 3600)
+                            Quiz starts
+                        @else
+                            Quiz starts in
+                        @endif
                     </div>
+
+                    @if ($quizStatus['time_until_start_seconds'] > 3600)
+                        {{-- More than 1 hour away: show human-readable time --}}
+                        <div style="font-size: 20px; font-weight: 600; color: #2563eb;">
+                            {{ $quizStatus['scheduled_time']->format('l, M j \a\t g:ia') }}
+                        </div>
+                        <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">
+                            @if ($quizStatus['time_until_start_seconds'] > 86400)
+                                {{ floor($quizStatus['time_until_start_seconds'] / 86400) }} day(s) away
+                            @else
+                                {{ ceil($quizStatus['time_until_start_seconds'] / 3600) }} hour(s) away
+                            @endif
+                        </div>
+                    @else
+                        {{-- Within 1 hour: show ticking countdown --}}
+                        @php
+                            $cdSecs = max(0, $quizStatus['time_until_start_seconds']);
+                            $cdH = intdiv($cdSecs, 3600);
+                            $cdM = intdiv($cdSecs % 3600, 60);
+                            $cdS = $cdSecs % 60;
+                        @endphp
+                        <div style="font-size: 40px; font-weight: 700; color: #2563eb; font-variant-numeric: tabular-nums;" id="countdown">
+                            {{ sprintf('%02d:%02d:%02d', $cdH, $cdM, $cdS) }}
+                        </div>
+                    @endif
                 </div>
 
-                <script>
-                    let secondsRemaining = {{ $quizStatus['time_until_start_seconds'] }};
+                @if ($quizStatus['time_until_start_seconds'] <= 3600)
+                    <script>
+                        let secondsRemaining = {{ $quizStatus['time_until_start_seconds'] }};
+                        let expired = false;
+                        const pollUrl = '{{ route("quizzes.status", $quiz->quiz_id) }}';
 
-                    function updateCountdown() {
-                        if (secondsRemaining <= 0) {
-                            location.reload();
-                            return;
+                        async function checkServerStatus() {
+                            try {
+                                const res = await fetch(pollUrl);
+                                const data = await res.json();
+                                if (data.has_started) {
+                                    clearInterval(timerInterval);
+                                    location.reload();
+                                } else if (data.time_until_start > 0) {
+                                    // Server says more time remains than our local countdown
+                                    // (clock drift or scheduler delay) — resync
+                                    expired = false;
+                                    secondsRemaining = Math.max(secondsRemaining, data.time_until_start);
+                                }
+                            } catch {
+                                // Network error — reload and let the server handle it
+                                clearInterval(timerInterval);
+                                location.reload();
+                            }
                         }
 
-                        const hours = Math.floor(secondsRemaining / 3600);
-                        const minutes = Math.floor((secondsRemaining % 3600) / 60);
-                        const secs = secondsRemaining % 60;
+                        function updateCountdown() {
+                            if (secondsRemaining <= 0) {
+                                if (!expired) {
+                                    expired = true;
+                                    checkServerStatus();
+                                }
+                                return;
+                            }
 
-                        document.getElementById('countdown').textContent =
-                            String(hours).padStart(2, '0') + ':' +
-                            String(minutes).padStart(2, '0') + ':' +
-                            String(secs).padStart(2, '0');
+                            const hours = Math.floor(secondsRemaining / 3600);
+                            const minutes = Math.floor((secondsRemaining % 3600) / 60);
+                            const secs = secondsRemaining % 60;
 
-                        secondsRemaining--;
-                    }
+                            document.getElementById('countdown').textContent =
+                                String(hours).padStart(2, '0') + ':' +
+                                String(minutes).padStart(2, '0') + ':' +
+                                String(secs).padStart(2, '0');
 
-                    setInterval(updateCountdown, 1000);
-                    updateCountdown();
-                </script>
+                            secondsRemaining--;
+                        }
+
+                        const timerInterval = setInterval(updateCountdown, 1000);
+                        updateCountdown();
+                    </script>
+                @endif
             @else
                 {{-- Quiz time has passed --}}
                 <p class="text-center" style="color: #dc2626; font-weight: 600;">Quiz time has passed.</p>

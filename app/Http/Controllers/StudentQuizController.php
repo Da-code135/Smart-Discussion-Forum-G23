@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\QuizWentLive;
 use App\Models\Grade;
 use App\Models\Quiz;
 use App\Models\StudentAnswer;
@@ -26,8 +27,12 @@ class StudentQuizController extends Controller
         $user = Auth::user();
 
         $quizzes = Quiz::where('published_at', '!=', null)
-            ->whereHas('lecturer', function ($q) use ($user) {
-                $q->where('group_id', $user->group_id);
+            ->where(function ($q) use ($user) {
+                // System Admins see all quizzes; others see only their group's quizzes
+                if (! $user->isSystemAdmin()) {
+                    $q->where('group_id', $user->group_id)
+                        ->orWhereNull('group_id');
+                }
             })
             ->where('target_category', $user->role->role_name)
             ->with('lecturer', 'configuration')
@@ -39,14 +44,18 @@ class StudentQuizController extends Controller
                 $scheduled = $quiz->getScheduledDateTime();
                 $attempt = StudentAttempt::where('quiz_id', $quiz->quiz_id)
                     ->where('student_id', $user->id)
+                    ->with('grade')
                     ->first();
+
+                $timePassed = now()->isAfter($scheduled);
 
                 return (object) [
                     'quiz' => $quiz,
                     'scheduled' => $scheduled,
-                    'has_started' => now()->isAfter($scheduled),
+                    'has_started' => $timePassed,
                     'is_live' => $quiz->is_active && ! $attempt,
                     'attempt' => $attempt,
+                    'grade' => $attempt?->grade,
                     'is_submitted' => $attempt && $attempt->is_submitted,
                     'result_available' => $attempt && $attempt->is_submitted && $quiz->configuration?->show_results_after_close,
                 ];
@@ -144,26 +153,37 @@ class StudentQuizController extends Controller
         $scheduledTime = $quiz->getScheduledDateTime();
         $now = now();
 
-        // === Quiz not yet active ===
+        // === Quiz not yet active? Check if it should be ===
         if (! $quiz->is_active) {
             if ($now->isBefore($scheduledTime)) {
+                // Quiz is genuinely not ready yet
                 return redirect()
                     ->route('quizzes.announcement', $quiz->quiz_id)
                     ->with('error', 'Quiz has not started yet.');
             }
 
-            return redirect()
-                ->route('quizzes.announcement', $quiz->quiz_id)
-                ->with('error', 'Quiz time has passed.');
+            // Scheduled time has arrived but is_active hasn't been flipped yet
+            // (the scheduler runs every 60 seconds — activate now so the
+            //  student can enter immediately instead of waiting).
+            $quiz->update(['is_active' => true]);
+            QuizWentLive::dispatch($quiz);
         }
 
-        // === Late-join check ===
-        $isLate = $now->isAfter($scheduledTime);
-        if ($isLate && ! $quiz->configuration?->allow_late_join) {
+        // === Late-join check with grace period ===
+        // A student is "late" only if they join more than 5 minutes after
+        // the scheduled start. This prevents blocking users who click "Join"
+        // as soon as the quiz goes live but are a few seconds late.
+        $gracePeriodMinutes = 5;
+        $minutesLate = $scheduledTime->diffInMinutes($now, false);
+        $isSignificantlyLate = $minutesLate > $gracePeriodMinutes;
+
+        if ($isSignificantlyLate && ! $quiz->configuration?->allow_late_join) {
             return redirect()
                 ->route('quizzes.announcement', $quiz->quiz_id)
                 ->with('error', 'Late joining is not allowed for this quiz.');
         }
+
+        $isLate = $minutesLate > 0;
 
         // === Find or create the attempt ===
         $existingAttempt = StudentAttempt::where('quiz_id', $quiz->quiz_id)
@@ -400,7 +420,9 @@ class StudentQuizController extends Controller
 
         if (! $attempt) {
             // No attempt yet — return pre-quiz status
-            $hasStarted = $quiz->is_active && $now->isAfter($scheduledTime);
+            // Use time-only check (not is_active) so the announcement JS
+            // can detect when the quiz is scheduled to start and reload
+            $hasStarted = $now->isAfter($scheduledTime);
 
             return response()->json([
                 'has_started' => $hasStarted,

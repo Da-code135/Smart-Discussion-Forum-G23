@@ -221,7 +221,12 @@ class GroupController extends Controller
     public function updateMembers(Request $request, Group $group)
     {
         // Authorization check
-        if (! Gate::allows('manageMembers', $group)) {
+        if (! Gate::allows('manageMembers', $group)) {//Does the current user have permission to manage members of THIS specific group?"
+        /*This is Laravel's authorization gate system. You'd define the gate in app/Providers/AuthServiceProvider.php:
+phpGate::define('manageMembers', function (User $user, Group $group) {
+    return $user->isSystemAdmin() || 
+           ($user->isGroupAdmin() && $group->hasAdmin($user->id));
+});*/
             abort(403, 'You do not have permission to manage members of this group');
         }
 
@@ -238,9 +243,9 @@ class GroupController extends Controller
             ?? Group::min('id');
 
         if ($defaultGroupId != $group->id) {
-            User::where('group_id', $group->id)
-                ->whereNotIn('id', $selectedUserIds)
-                ->update(['group_id' => $defaultGroupId]);
+            User::where('group_id', $group->id)//find users in this group
+                ->whereNotIn('id', $selectedUserIds) //but not in the selected list
+                ->update(['group_id' => $defaultGroupId]);//move them to the default group
         }
 
         // Add selected users to this group
@@ -283,5 +288,46 @@ class GroupController extends Controller
         }
 
         return redirect()->back()->with('success', 'Users assigned to group successfully');
+    }
+
+    // ============================================
+    // SHOW TRASHED (SOFT-DELETED) GROUPS
+    // ============================================
+    public function trashed(Request $request)
+    {
+        $query = Group::onlyTrashed()->withCount('users')->with('createdBy');
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where('group_name', 'like', "%{$search}%");
+        }
+
+        $query->orderBy('deleted_at', 'desc');
+        $groups = $query->paginate(15);
+
+        return view('admin.groups.trashed', [
+            'groups' => $groups,
+            'search' => $request->input('search'),
+        ]);
+    }
+
+    // ============================================
+    // RESTORE SOFT-DELETED GROUP (System Admin only)
+    // ============================================
+    public function restore(Group $group)
+    {
+        // Authorization check
+        if (! Gate::allows('restore', $group)) {
+            abort(403, 'Only System Administrators can restore groups');
+        }
+
+        // Restore the group (sets deleted_at = null)
+        $group->restore();
+
+        // Audit log
+        $this->auditLogService->logGroupRestored($group);
+
+        return redirect()->route('admin.groups.trashed')
+            ->with('success', "Group '{$group->group_name}' restored successfully");
     }
 }

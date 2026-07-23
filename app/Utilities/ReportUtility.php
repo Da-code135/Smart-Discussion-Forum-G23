@@ -58,6 +58,14 @@ class ReportUtility
 
         $model->reports()->save($report);
 
+        // Flag the reported content so the moderation panel can find it.
+        // The topics status enum only allows 'active' or 'archived', so we
+        // only flag Posts here. Topics are reported via the reports table
+        // and handled by the moderation panel separately.
+        if ($model instanceof Post) {
+            $model->update(['is_reported' => true]);
+        }
+
         return $report;
     }
 

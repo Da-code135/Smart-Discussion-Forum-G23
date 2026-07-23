@@ -15,18 +15,26 @@ class QuizController extends Controller
 {
     /**
      * Show list of quizzes scoped to the lecturer's accessible groups.
+     *
+     * System Admins see all quizzes platform-wide for oversight.
      */
     public function index()
     {
         $user = Auth::user();
 
-        $accessibleGroupIds = Quiz::lecturerAccessibleGroupIds($user);
+        $query = Quiz::with('configuration', 'group', 'lecturer:id,full_name');
 
-        $quizzes = Quiz::where('lecturer_id', $user->id)
-            ->whereIn('group_id', $accessibleGroupIds)
-            ->with('configuration', 'group')  // Load config + group for each quiz
-            ->latest()
-            ->paginate(10);
+        if ($user->isSystemAdmin()) {
+            // Platform-wide oversight: every quiz, every group
+            $quizzes = $query->latest()->paginate(10);
+        } else {
+            $accessibleGroupIds = Quiz::lecturerAccessibleGroupIds($user);
+
+            $quizzes = $query->where('lecturer_id', $user->id)
+                ->whereIn('group_id', $accessibleGroupIds)
+                ->latest()
+                ->paginate(10);
+        }
 
         return view('quizzes.index', compact('quizzes'));
     }
@@ -38,7 +46,8 @@ class QuizController extends Controller
     {
         $user = Auth::user();
 
-        // Groups this lecturer can create quizzes for
+        // System Admins can create quizzes for any group; others are limited
+        // to their accessible groups (own + taught + administered).
         $accessibleGroupIds = Quiz::lecturerAccessibleGroupIds($user);
         $groups = Group::whereIn('id', $accessibleGroupIds)->orderBy('group_name')->get();
 
@@ -56,18 +65,21 @@ class QuizController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+
+        // System Admins must explicitly pick a group; others can fall back to their own
+        $groupRequired = $user->isSystemAdmin();
+
         // Validate input
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'target_category' => 'required|in:Student,Lecturer,Administrator,Member',
-            'group_id' => 'nullable|integer|exists:groups,id',
+            'group_id' => $groupRequired ? 'required|integer|exists:groups,id' : 'nullable|integer|exists:groups,id',
             'scheduled_date' => 'required|date|after_or_equal:today',  // Can't schedule in past
             'start_time' => 'required|date_format:H:i',  // Format: 10:30
             'duration_minutes' => 'required|integer|min:1|max:480',  // Max 8 hours
         ]);
-
-        $user = Auth::user();
 
         // Determine the group for this quiz
         $group = null;
@@ -76,7 +88,7 @@ class QuizController extends Controller
             if (! $user->canTeachGroup($group)) {
                 abort(403, 'You cannot create quizzes for this group.');
             }
-        } elseif ($user->group_id) {
+        } elseif ($user->group_id !== null) {
             $group = Group::find($user->group_id);
         }
 
@@ -150,7 +162,7 @@ class QuizController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'target_category' => 'required|in:Student,Lecturer,Administrator,Member',
-            'scheduled_date' => 'required|date|after_or_equal:today',
+            'scheduled_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'duration_minutes' => 'required|integer|min:1|max:480',
             'allow_late_join' => 'boolean',
@@ -174,8 +186,8 @@ class QuizController extends Controller
         if ($quiz->configuration) {
             $quiz->configuration->update([
                 'allow_late_join' => $validated['allow_late_join'] ?? false,
-                'lock_screen_on_start' => $validated['lock_screen_on_start'] ?? true,
-                'show_results_after_close' => $validated['show_results_after_close'] ?? true,
+                'lock_screen_on_start' => $validated['lock_screen_on_start'] ?? false,
+                'show_results_after_close' => $validated['show_results_after_close'] ?? false,
                 'show_correct_answers' => $validated['show_correct_answers'] ?? false,
                 'participation_criteria' => $validated['participation_criteria'],
             ]);
@@ -194,8 +206,9 @@ class QuizController extends Controller
             abort(403, 'You can only delete your own quizzes.');
         }
 
-        if ($quiz->published_at) {
-            return back()->with('error', 'Cannot delete a published quiz.');
+        // Can't delete a quiz that is currently live
+        if ($quiz->is_active) {
+            return back()->with('error', 'Cannot delete a quiz that is currently live.');
         }
 
         $quiz->delete();  // Cascades to questions, answers, etc.
@@ -250,6 +263,33 @@ class QuizController extends Controller
     }
 
     /**
+     * Unpublish a quiz — revert it back to draft status.
+     *
+     * Rule: Can only unpublish if quiz is not currently live (is_active).
+     * Students who already saw the announcement will see it disappear
+     * on their next page load.
+     */
+    public function unpublish(Quiz $quiz)
+    {
+        // Only quiz creator can unpublish
+        if ($quiz->lecturer_id !== Auth::id()) {
+            abort(403, 'You can only manage your own quizzes.');
+        }
+
+        if (! $quiz->published_at) {
+            return back()->with('error', 'Quiz is not published.');
+        }
+
+        if ($quiz->is_active) {
+            return back()->with('error', 'Cannot unpublish a quiz that is currently live.');
+        }
+
+        $quiz->update(['published_at' => null]);
+
+        return back()->with('success', 'Quiz unpublished. It is now a draft again.');
+    }
+
+    /**
      * Show performance report for a quiz (lecturer/admin only).
      *
      * GET /quizzes/{quiz}/report
@@ -294,5 +334,30 @@ class QuizController extends Controller
             'highest_score' => round(max($scores), 2),
             'lowest_score' => round(min($scores), 2),
         ];
+    }
+
+    /**
+     * Show an overview of all quiz results for the lecturer.
+     *
+     * GET /quizzes/results
+     *
+     * Displays every quiz the lecturer has created, with:
+     *   - Aggregate stats per quiz (attempts, avg, highest, lowest)
+     *   - A per-student breakdown for each quiz
+     *
+     * Access: Lecturers see their own quizzes; admins see all.
+     */
+    public function showResultsOverview()
+    {
+        $user = Auth::user();
+
+        // Only lecturers and admins can access this page
+        if ($user->role?->role_name !== 'Lecturer' && ! $user->isAdmin()) {
+            abort(403, 'Only lecturers and admins can view quiz results.');
+        }
+
+        $quizzes = Quiz::lecturerQuizzesWithGrades($user);
+
+        return view('quizzes.lecturer-results', compact('quizzes'));
     }
 }

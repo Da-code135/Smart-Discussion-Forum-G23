@@ -4,46 +4,81 @@
 @section('activeNav', 'topics')
 
 @section('content')
+@php
+    $user = Auth::user();
+    $userInitials = collect(explode(' ', $user->full_name))->map(fn ($w) => strtoupper(substr($w, 0, 1)))->take(2)->join('');
+    $userAvatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][$user->id % 5];
+@endphp
+
 <div class="page-shell">
     <div class="page-shell__main page-stack">
+        {{-- Community banner --}}
         <header class="page-header">
             <div class="page-header-row">
                 <div>
-                    <h1>{{ $group->group_name }} forum</h1>
-                    <p>Browse focused group discussions or start a new topic.</p>
+                    <h1>{{ $group->group_name }}</h1>
+                    <p>{{ $group->description ?: 'Browse focused group discussions or start a new topic.' }}</p>
                 </div>
-                <a href="{{ route('forum.create') }}" class="btn btn-primary">
-                    <span class="material-symbols-outlined">add</span>
-                    New topic
-                </a>
             </div>
         </header>
 
+        {{-- Sort Tabs --}}
+        <div class="sort-tabs">
+            <a href="{{ route('forum.index', ['sort' => 'hot']) }}"
+               class="sort-tab {{ $sort === 'hot' ? 'is-active' : '' }}">Hot</a>
+            <a href="{{ route('forum.index', ['sort' => 'new']) }}"
+               class="sort-tab {{ $sort === 'new' ? 'is-active' : '' }}">New</a>
+            <a href="{{ route('forum.index', ['sort' => 'top']) }}"
+               class="sort-tab {{ $sort === 'top' ? 'is-active' : '' }}">Top</a>
+        </div>
+
+        {{-- Create Post Card --}}
+        <div class="create-post-card">
+            <span class="app-topbar-avatar" style="--avatar-bg: {{ $userAvatarTone }}; width: 34px; height: 34px; font-size: 11px;">{{ $userInitials }}</span>
+            <a href="{{ route('forum.create') }}" class="create-post-input">Create a post</a>
+            <a href="{{ route('forum.create') }}" class="btn btn-primary">
+                <span class="material-symbols-outlined">edit</span>
+                <span class="hide-mobile">Create Post</span>
+            </a>
+        </div>
+
+        {{-- Post list --}}
         <section class="topic-list">
             @forelse ($topics as $topic)
                 @php
                     $initials = collect(explode(' ', optional($topic->creator)->full_name ?? 'Deleted User'))->map(fn ($word) => strtoupper(substr($word, 0, 1)))->take(2)->join('');
                     $avatarTone = ['var(--avatar-tone-1)', 'var(--avatar-tone-2)', 'var(--avatar-tone-3)', 'var(--avatar-tone-4)', 'var(--avatar-tone-5)'][($topic->creator->id ?? 0) % 5];
                 @endphp
-                <a href="{{ route('forum.show', $topic->id) }}" class="discussion-item">
-                    <div class="app-topbar-avatar" style="--avatar-bg: {{ $avatarTone }};">{{ $initials }}</div>
-                    <div class="topic-row__body">
-                        <div class="discussion-meta">
-                            <span>{{ optional($topic->creator)->full_name ?? 'Deleted User' }}</span>
-                            <span class="discussion-meta-dot"></span>
-                            <span>{{ $topic->created_at->diffForHumans() }}</span>
+                <article class="post-card">
+                    <div class="post-card__content">
+                        <div class="post-thumbnail {{ $topic->post_type === 'question' ? 'post-thumbnail--question' : '' }}" style="--avatar-bg: {{ $avatarTone }};">
                             @if ($topic->post_type === 'question')
-                                <span class="badge badge-secondary">Question</span>
+                                <span class="material-symbols-outlined">help</span>
+                            @else
+                                <span>{{ $initials }}</span>
                             @endif
                         </div>
-                        <h3>{{ $topic->title }}</h3>
-                        <p class="topic-row__excerpt">{{ Str::limit($topic->description, 150) }}</p>
-                        <div class="discussion-meta">
-                            <span>{{ $topic->posts_count }} {{ Str::plural('reply', $topic->posts_count) }}</span>
+                        <div class="post-card__body">
+                            <a href="{{ route('forum.show', $topic->id) }}" class="post-title">{{ $topic->title }}</a>
+                            <div class="post-meta">
+                                Posted by <strong>{{ optional($topic->creator)->full_name ?? 'Deleted User' }}</strong>
+                                <span class="post-meta-sep">·</span>
+                                {{ $topic->created_at->diffForHumans() }}
+                                @if ($topic->post_type === 'question')
+                                    <span class="badge badge-secondary">Question</span>
+                                @endif
+                            </div>
+                            <p class="post-excerpt">{{ Str::limit($topic->description, 150) }}</p>
+                            <div class="post-actions">
+                                <a href="{{ route('forum.show', $topic->id) }}" class="post-action-btn">
+                                    <span class="material-symbols-outlined">chat_bubble</span>
+                                    {{ $topic->posts_count }} {{ Str::plural('Comment', $topic->posts_count) }}
+                                </a>
+                                <x-share-dropdown :topic="$topic" />
+                            </div>
                         </div>
                     </div>
-                    <span class="section-link">Open <span class="material-symbols-outlined">arrow_forward</span></span>
-                </a>
+                </article>
             @empty
                 <div class="empty-state">
                     <span class="material-symbols-outlined" style="font-size: 40px;">forum</span>
@@ -62,20 +97,31 @@
     </div>
 
     <aside class="page-shell__sidebar page-stack">
-        <section class="sidebar-card page-stack">
-            <div>
-                <h2>About this group</h2>
-                <p>{{ $group->description ?: 'This academic group uses Studdit for calm, structured discussion.' }}</p>
+        <section class="sidebar-card">
+            <div class="sidebar-card__header">
+                <span class="material-symbols-outlined">folder</span>
+                <h2>{{ $user->isSystemAdmin() ? 'All Groups' : $group->group_name }}</h2>
             </div>
-            <div class="profile-summary-list">
-                <span class="badge badge-secondary">{{ $topics->total() }} topics</span>
-                <span class="badge badge-success">Active group</span>
+            <p>{{ $user->isSystemAdmin() ? 'Browse discussions across all groups on the platform.' : ($group->description ?: 'This academic group uses Studdit for calm, structured discussion.') }}</p>
+            <div class="sidebar-stats">
+                <span>{{ $topics->total() }} {{ $user->isSystemAdmin() ? 'topics across all groups' : 'topics' }}</span>
             </div>
+            <a href="{{ route('forum.create') }}" class="btn btn-primary btn-block" style="margin-top: 12px;">
+                <span class="material-symbols-outlined">add</span>
+                New Topic
+            </a>
         </section>
 
-        <section class="sidebar-card page-stack">
-            <h2>Forum rules</h2>
-            <p>Keep replies constructive, relevant, and academically respectful. There are no votes or scores here—only discussion.</p>
+        <section class="sidebar-card">
+            <div class="sidebar-card__header">
+                <span class="material-symbols-outlined">list_alt</span>
+                <h2>Rules</h2>
+            </div>
+            <ol class="sidebar-rules">
+                <li>Keep replies constructive, relevant, and academically respectful.</li>
+                <li>No spam, self-promotion, or off-topic content.</li>
+                <li>Respect all members and their perspectives.</li>
+            </ol>
         </section>
     </aside>
 </div>

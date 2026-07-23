@@ -122,6 +122,47 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    // -------------------------------------------------------------------
+    //  Chat Module Relationships
+    // -------------------------------------------------------------------
+
+    /**
+     * All conversations this user participates in.
+     */
+    public function conversations()
+    {
+        return $this->belongsToMany(
+            Conversation::class,
+            'conversation_participants',
+        )
+            ->withPivot('role', 'joined_at')
+            ->withTimestamps();
+    }
+
+    /**
+     * Messages this user has sent (chat messages, not forum posts).
+     */
+    public function chatMessages()
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
+    /**
+     * Grades for this student.
+     */
+    public function grades()
+    {
+        return $this->hasMany(Grade::class, 'student_id');
+    }
+
+    /**
+     * Quiz attempts by this student.
+     */
+    public function attempts()
+    {
+        return $this->hasMany(StudentAttempt::class, 'student_id');
+    }
+
     /**
      * Check if a lecturer can teach a specific group.
      */
@@ -129,6 +170,11 @@ class User extends Authenticatable
     {
         if ($this->isSystemAdmin()) {
             return true;
+        }
+
+        // Members cannot teach quizzes in any group
+        if ($this->role && $this->role->role_name === 'Member') {
+            return false;
         }
 
         // Own group or explicitly assigned
@@ -235,15 +281,19 @@ class User extends Authenticatable
     /**
      * Get the IDs of all groups this user can access.
      *
+     * - System Admins: all groups (they transcend tenancy)
      * - Regular members: only their own group
      * - Group Admins: their own + administered groups
      * - Lecturers: their own + taught groups
-     * - System Admins: bypass this filter entirely (caller checks isSystemAdmin first)
      *
      * @return int[]
      */
     public function accessibleGroupIds(): array
     {
+        if ($this->isSystemAdmin()) {
+            return Group::pluck('id')->toArray();
+        }
+
         $ids = $this->group_id ? [$this->group_id] : [];
 
         if ($this->isGroupAdmin()) {

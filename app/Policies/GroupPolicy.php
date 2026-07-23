@@ -75,4 +75,13 @@ class GroupPolicy
     {
         return $user->isSystemAdmin();
     }
+
+    /**
+     * Determine if the given user can restore a soft-deleted group.
+     * Only System Admins can restore groups (same gate as delete).
+     */
+    public function restore(User $user, Group $group): bool
+    {
+        return $user->isSystemAdmin();
+    }
 }

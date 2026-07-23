@@ -39,13 +39,13 @@
     .quiz-timer {
         text-align: right;
     }
-    .quiz-timer__display {
-        font-size: 36px;
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-        color: #dc2626;
-        letter-spacing: 2px;
-    }
+	.quiz-timer__display {
+	        font-size: 36px;
+	        font-weight: 700;
+	        font-variant-numeric: tabular-nums;
+	        color: var(--app-accent);
+	        letter-spacing: 2px;
+	    }
     .quiz-timer__label {
         font-size: 12px;
         color: #6b7280;
@@ -460,7 +460,7 @@
     });
 
     // ============================================================
-    // INIT — mark initially answered questions on the dots
+    // INIT — mark initially answered questions and set button states
     // ============================================================
     document.addEventListener('DOMContentLoaded', () => {
         const cards = document.querySelectorAll('.question-card');
@@ -474,6 +474,9 @@
                 dots[index].classList.add('answered');
             }
         });
+
+        // Initialize button states for the first question
+        showQuestion(0);
     });
 </script>
 @endpush

@@ -50,11 +50,14 @@ class QuizController extends Controller
     {
         $user = Auth::user();
 
+        // System Admins must explicitly pick a group; others can fall back to their own
+        $groupRequired = $user->isSystemAdmin();
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'target_category' => ['required', Rule::in(['Student', 'Lecturer', 'Administrator', 'Member'])],
-            'group_id' => 'nullable|integer|exists:groups,id',
+            'group_id' => $groupRequired ? 'required|integer|exists:groups,id' : 'nullable|integer|exists:groups,id',
             'scheduled_date' => 'required|date|after_or_equal:today',
             'start_time' => 'required|date_format:H:i',
             'duration_minutes' => 'required|integer|min:1|max:480',
@@ -67,7 +70,7 @@ class QuizController extends Controller
             if (! $user->canTeachGroup($group)) {
                 return response()->json(['success' => false, 'message' => 'You cannot create quizzes for this group.'], 403);
             }
-        } elseif ($user->group_id) {
+        } elseif ($user->group_id !== null) {
             $group = Group::find($user->group_id);
         }
 
@@ -130,6 +133,13 @@ class QuizController extends Controller
      */
     public function update(Request $request, Quiz $quiz)
     {
+        $user = Auth::user();
+
+        // Only the quiz creator or an admin can update
+        if ($quiz->lecturer_id !== $user->id && ! $user->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Not authorized to update this quiz.'], 403);
+        }
+
         if ($quiz->published_at) {
             return response()->json([
                 'success' => false,
@@ -177,10 +187,17 @@ class QuizController extends Controller
      */
     public function destroy(Quiz $quiz)
     {
-        if ($quiz->published_at) {
+        $user = Auth::user();
+
+        // Only the quiz creator or an admin can delete
+        if ($quiz->lecturer_id !== $user->id && ! $user->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Not authorized to delete this quiz.'], 403);
+        }
+
+        if ($quiz->is_active) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete a published quiz',
+                'message' => 'Cannot delete a quiz that is currently live',
             ], 422);
         }
 
@@ -197,6 +214,13 @@ class QuizController extends Controller
      */
     public function publish(Request $request, Quiz $quiz)
     {
+        $user = Auth::user();
+
+        // Only the quiz creator or an admin can publish
+        if ($quiz->lecturer_id !== $user->id && ! $user->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Not authorized to publish this quiz.'], 403);
+        }
+
         if ($quiz->published_at) {
             return response()->json([
                 'success' => false,
@@ -231,6 +255,43 @@ class QuizController extends Controller
             ],
             'message' => 'Quiz published',
         ]);
+    }
+
+    /**
+     * Unpublish a quiz — revert it back to draft status.
+     */
+    public function unpublish(Quiz $quiz)
+    {
+        $user = Auth::user();
+
+        // Only the quiz creator or an admin can unpublish
+        if ($quiz->lecturer_id !== $user->id && ! $user->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Not authorized to unpublish this quiz.'], 403);
+        }
+
+        if ($quiz->published_at) {
+            if ($quiz->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot unpublish a quiz that is currently live',
+                ], 422);
+            }
+
+            $quiz->update(['published_at' => null]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'quiz' => $quiz->load('configuration', 'lecturer:id,full_name'),
+                ],
+                'message' => 'Quiz unpublished',
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Quiz is not published',
+        ], 422);
     }
 
     /**

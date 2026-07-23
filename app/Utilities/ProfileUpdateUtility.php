@@ -77,7 +77,7 @@ class ProfileUpdateUtility
     {
         // Delete old picture if exists
         if ($user->profile_picture) {
-            Storage::disk('public')->delete($user->profile_picture);
+            Storage::disk('public')->delete($user->profile_picture);//this deletes the old profile picture from the public disk if it exists, ensuring that we don't leave orphaned files in storage.
         }
 
         // Store new picture

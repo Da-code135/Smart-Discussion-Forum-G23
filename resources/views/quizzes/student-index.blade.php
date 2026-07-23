@@ -25,17 +25,25 @@
                     $actionLabel = '';
                     $actionRoute = '';
 
+                    $quizEnded = $item->scheduled->copy()->addMinutes($quiz->duration_minutes)->isPast();
+
                     if ($item->is_submitted) {
                         $badge = 'Completed';
                         $badgeClass = 'badge-success';
                         $actionLabel = 'View result';
                         $actionRoute = route('quizzes.result', $quiz);
-                    } elseif ($item->is_live) {
+                        $score = $item->grade;
+                    } elseif ($item->attempt && !$item->is_submitted) {
+                        $badge = 'In progress';
+                        $badgeClass = 'badge-warning';
+                        $actionLabel = 'Resume quiz';
+                        $actionRoute = route('quizzes.attempt', $quiz);
+                    } elseif ($item->is_live && !$quizEnded) {
                         $badge = 'Live now';
                         $badgeClass = 'badge-danger';
                         $actionLabel = 'Join quiz';
                         $actionRoute = route('quizzes.attempt', $quiz);
-                    } elseif ($item->has_started && !$item->attempt) {
+                    } elseif ($quizEnded && !$item->attempt) {
                         $badge = 'Missed';
                         $badgeClass = 'badge-secondary';
                         $actionLabel = 'View';
@@ -63,6 +71,20 @@
                             <span><strong>Questions:</strong> {{ $quiz->questions_count }}</span>
                             <span><strong>Scheduled:</strong> {{ $item->scheduled->format('M d, Y \a\t H:i') }}</span>
                         </div>
+                        @if ($item->is_submitted && isset($score))
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color, #e5e7eb);">
+                                <span class="material-symbols-outlined" style="font-size: 18px; color: #16a34a; vertical-align: middle;">check_circle</span>
+                                <strong style="color: #16a34a;">Done!</strong>
+                                @if ($score)
+                                    <span style="margin-left: 8px; font-size: 0.9rem; color: var(--text-muted);">
+                                        Score: <strong style="color: #2563eb;">{{ number_format($score->total_score, 1) }}/{{ number_format($score->max_score, 1) }}</strong>
+                                        ({{ number_format($score->percentage, 1) }}%)
+                                    </span>
+                                @else
+                                    <span style="margin-left: 8px; font-size: 0.85rem; color: var(--text-muted);">Grading in progress</span>
+                                @endif
+                            </div>
+                        @endif
                     </div>
                     <div class="card-footer">
                         <a href="{{ $actionRoute }}" class="btn btn-primary">{{ $actionLabel }}</a>
