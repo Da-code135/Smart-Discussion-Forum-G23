@@ -106,6 +106,38 @@
         </div>
     </div>
 
+    {{-- Issue Warning Form --}}
+    @can('create', \App\Models\Warning::class)
+        @if(auth()->user()->canAdminUser($user))
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">Issue Warning</div>
+                <div class="card-body">
+                    <form method="POST" action="{{ route('admin.warnings.store') }}">
+                        @csrf
+                        <input type="hidden" name="user_id" value="{{ $user->id }}">
+                        <div class="form-group">
+                            <label for="reason" class="form-label">Warning Reason</label>
+                            <textarea 
+                                name="reason" 
+                                id="reason" 
+                                class="form-control @error('reason') is-invalid @enderror" 
+                                rows="3" 
+                                placeholder="Enter reason for warning..."
+                                required
+                            >{{ old('reason') }}</textarea>
+                            @error('reason')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <button type="submit" class="btn btn-warning" onclick="return confirm('Are you sure you want to issue a warning to this user?')">
+                            Issue Warning
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @endif
+    @endcan
+
     {{-- Warning History --}}
     <div class="card" style="margin-bottom: 1.5rem;">
         <div class="card-header">Warning History ({{ $warnings->count() }})</div>

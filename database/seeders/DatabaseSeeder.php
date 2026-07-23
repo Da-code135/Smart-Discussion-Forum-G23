@@ -21,8 +21,5 @@ class DatabaseSeeder extends Seeder
             TopicCategorySeeder::class,
             QuizSeeder::class,
         ]);
-
-        // Comprehensive demo data for testing every feature
-        $this->call(DemoDataSeeder::class);
     }
 }

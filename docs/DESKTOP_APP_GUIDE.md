@@ -14,15 +14,18 @@
 3. [Phase 0 — Project Setup (ALL 5 TOGETHER)](#3-phase-0--project-setup-all-5-together)
 4. [Phase 1 — API Communication Layer (Person 1)](#4-phase-1--api-communication-layer-person-1)
 5. [Phase 2 — Login Screen (Person 1)](#5-phase-2--login-screen-person-1)
-6. [Phase 3 — Dashboard Shell (Person 1, others extend)](#6-phase-3--dashboard-shell-person-1-others-extend)
-7. [Work Split — Who Builds What](#7-work-split--who-builds-what)
-8. [Phase 4 — Person 1: Notifications & Profile](#8-phase-4--person-1-notifications--profile)
-9. [Phase 5 — Person 2: Forum + Conversations](#9-phase-5--person-2-forum--conversations)
-10. [Phase 6 — Person 3: Quizzes](#10-phase-6--person-3-quizzes)
-11. [Phase 7 — Person 4: Groups + Sync + Recommendations](#11-phase-7--person-4-groups--sync--recommendations)
-12. [Phase 8 — Person 5: Admin Features](#12-phase-8--person-5-admin-features)
-13. [API Response Reference](#13-api-response-reference)
-14. [Common Gotchas](#14-common-gotchas)
+6. [Phase 3 — Dashboard Shell (Person 1, Others Extend)](#6-phase-3--dashboard-shell-person-1-others-extend)
+7. [Code Deep Dive — How Each File Connects to the Backend](#7-code-deep-dive--how-each-file-connects-to-the-backend)
+8. [Person 1 — Notifications, Profile, Password](#8-person-1--remaining-screens-notifications-profile-password)
+9. [Person 2 — Forum Topics, Posts, Conversations, Messages](#9-person-2--forum-topics-posts-conversations-messages)
+10. [Person 3 — Quizzes (Lecturer + Student)](#10-person-3--quizzes-lecturer--student)
+11. [Person 4 — Groups, Sync Engine, Recommendations](#11-person-4--groups-sync-engine-recommendations)
+12. [Person 5 — Admin Features](#12-person-5--admin-features)
+13. [Testing Your Feature](#13-testing-your-feature)
+14. [Final Verification](#14-final-verification)
+15. [Common Gotchas](#15-common-gotchas-read-this-before-starting)
+16. [Quick Reference: Pattern for Every Screen](#16-quick-reference-pattern-for-every-screen)
+17. [API Response Reference](#17-api-response-reference)
 
 ---
 
@@ -653,6 +656,11 @@ public class ApiClient {
 
         this.gson = new Gson();
     }
+    /*What it is: The actual HTTP tool that sends requests
+Configuration explained:
+SettingWhat It DoesWhy?connectTimeout(30, SECONDS)Waits max 30 seconds to connect to serverIf server is down, don't wait forever 
+readTimeout(60, SECONDS)Waits max 60 seconds for responseIf response is slow/large, don't wait forever
+followRedirects(true)Automatically follow HTTP redirectsIf server redirects (301, 302), follow it*/
 
     /**
      * Get the singleton instance.
@@ -708,7 +716,7 @@ public class ApiClient {
         attachToken(requestBuilder);
 
         // Execute and parse
-        return execute(requestBuilder.build());
+        return execute(requestBuilder.build());//Sends the request to the server and returns the JSON response.
     }
 
     /**
@@ -725,18 +733,18 @@ public class ApiClient {
         String jsonBody = gson.toJson(body);
 
         // Create the request body with JSON content type
-        RequestBody requestBody = RequestBody.create(
-                jsonBody,
-                MediaType.parse("application/json; charset=utf-8")
+        RequestBody requestBody = RequestBody.create(//package the data for sending
+                jsonBody,//the actual data
+                MediaType.parse("application/json; charset=utf-8")// tells server "this is JSON, use UTF-8 encoding"
         );
 
         Request.Builder requestBuilder = new Request.Builder()
                 .url(url)
-                .post(requestBody);
+                .post(requestBody);//This is a POST request (sending data to create/change something)
 
         attachToken(requestBuilder);
 
-        return execute(requestBuilder.build());
+        return execute(requestBuilder.build());//Sends the request and returns the JSON response from server.
     }
 
     /**
@@ -1047,6 +1055,10 @@ public class AuthManager {
     // The currently logged-in user (null if not logged in)
     private User currentUser = null;
 
+    /*"Get THE ONLY AuthManager instance
+If it doesn't exist yet, create it
+If it already exists, return the existing one"
+Key word: synchronized means only one thread can access this at a time (thread-safe).*/
     private AuthManager() {
         this.apiClient = ApiClient.getInstance();
     }
@@ -1095,7 +1107,7 @@ public class AuthManager {
             apiClient.setAuthToken(token);
 
             // Parse the user from the response
-            User user = User.fromLoginJson(userJson);
+            User user = User.fromLoginJson(userJson);//Converts the JSON user data into a User Java object
             this.currentUser = user;
 
             return new LoginResponse(token, user);
@@ -1723,6 +1735,7 @@ public class LoginView {
             // Task runs on a background thread. On success/failure,
             // the setOnSucceeded/setOnFailed callbacks run back on
             // the JavaFX thread (so we can update the UI safely).
+            //What is a Task? A Task is JavaFX's way of running code on a background thread
             javafx.concurrent.Task<LoginResponse> loginTask =
                     new javafx.concurrent.Task<>() {
                 @Override
@@ -2222,7 +2235,11 @@ import javafx.stage.Stage;
 public class DashboardView {
 
     // The content area — this is what sidebar buttons swap out
+    /*StackPane is a layout that stacks things on top of each other. We use it as a "slot" — when you click a sidebar button, we clear the slot and put a new screen in it.
+
+Why static: Every screen needs to replace the content area. If a view is deep inside a topic, and the user clicks "Notifications" in the sidebar, the notification screen needs to replace whatever is currently showing. Since contentArea is static, any code anywhere can call DashboardView.getContentArea().clear() and add their own content.*/
     private static StackPane contentArea;
+
 
     /**
      * Build the dashboard layout.
@@ -2426,407 +2443,2266 @@ The entire app works this way. Each person builds their feature as a `create()` 
 
 ---
 
-## 7. Work Split — Who Builds What
+## 7. Code Deep Dive — How Each File Connects to the Backend
 
-**Read this section together and assign work.**
+Before splitting up, the whole team needs to understand how the existing Person 1 code works. Read this section together.
 
-### Person 1 — Auth + Core + Profile + Notifications
+### 7.1 ApiClient.java — The HTTP Engine
 
-**Files to create (already started above):**
-- ✅ `ApiClient.java` — already written
-- ✅ `ApiException.java` — already written
-- ✅ `AuthManager.java` — already written
-- ✅ `WarnedException.java` — already written
-- ✅ `TokenStorage.java` — already written
-- ✅ `LoginView.java` — already written
-- ✅ `RegisterView.java` — already written
-- ✅ `DashboardView.java` — already written
-- ✅ `AlertHelper.java` — already written
-- ✅ `User.java`, `LoginResponse.java` — already written
+**File location:** `api/ApiClient.java`
+**What it does:** Every single HTTP request to the Laravel server goes through this class.
 
-**Now build:**
-- `NotificationListView.java` — fetch from `/me/notifications`, `/me/notifications/unread-count`
-- `ProfileView.java` — show/edit profile via `/me`, `POST /profile`, upload picture
-- `ChangePasswordView.java` — call `POST /password/change`
+**How it connects to the backend:**
 
-**API endpoints to use:**
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/login` | Login |
-| POST | `/register` | Register |
-| POST | `/logout` | Logout |
-| GET | `/me` | Get current user profile |
-| POST | `/profile` | Update profile |
-| POST | `/profile/picture` | Upload profile picture |
-| POST | `/password/change` | Change password |
-| GET | `/me/notifications` | List notifications |
-| GET | `/me/notifications/unread-count` | Unread count |
-| POST | `/notifications/read-all` | Mark all read |
-| POST | `/notifications/{id}/read` | Mark one read |
-| GET | `/warnings/unacknowledged` | Check warnings |
-| POST | `/warnings/acknowledge` | Acknowledge warning |
-
-### Person 2 — Forum Topics + Posts + Conversations + Messages
-
-**Files to create:**
-- `TopicListView.java` — list all topics
-- `TopicDetailView.java` — view topic + replies
-- `CreateTopicView.java` — new topic form
-- `PostView.java` — inline reply component
-- `PostVisibilityView.java` — exclude/include users from a post
-- `ShareView.java` — generate share link (social media forward)
-- `ConversationListView.java` — list conversations
-- `ConversationDetailView.java` — view conversation + messages
-- `CreateConversationView.java` — start new conversation
-- `ReportView.java` — report a topic/post
-
-**API endpoints to use:**
-
-Topics:
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/topics` | List topics |
-| GET | `/topics/{id}` | Topic detail |
-| POST | `/topics` | Create topic |
-| PUT | `/topics/{id}` | Update topic |
-| DELETE | `/topics/{id}` | Archive topic |
-| GET | `/topics/type/{type}` | Filter by type |
-| POST | `/topics/{id}/toggle-answered` | Mark answered |
-| POST | `/topics/{id}/toggle-pinned` | Pin/unpin |
-
-Posts:
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/topics/{id}/posts` | List posts in topic |
-| POST | `/topics/{id}/posts` | Create post |
-| PUT | `/posts/{id}` | Update post |
-| DELETE | `/posts/{id}` | Delete post |
-| GET | `/posts/{id}/visibility` | List excluded users |
-| POST | `/posts/{id}/visibility/exclude` | Exclude user |
-| DELETE | `/posts/{id}/visibility/{userId}` | Remove exclusion |
-| GET | `/topics/{id}/export/pdf` | Export to PDF |
-| POST | `/topics/{id}/share` | Generate share link |
-
-Conversations:
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/conversations` | List conversations |
-| GET | `/conversations/{id}` | Conversation detail |
-| POST | `/conversations` | Create conversation |
-| POST | `/conversations/{id}/participants` | Add participant |
-| DELETE | `/conversations/{id}/participants/{userId}` | Remove participant |
-| GET | `/conversations/{id}/messages` | List messages |
-| POST | `/conversations/{id}/messages` | Send message |
-| POST | `/messages/{id}/deliver` | Mark delivered |
-| POST | `/conversations/{id}/read` | Mark read |
-| GET | `/me/unread-counts` | Unread counts |
-
-Reports:
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/reports` | Report content |
-| GET | `/me/reports` | My reports |
-
-**Key tip for Person 2:** Topics and Conversations follow the SAME CRUD pattern. Once you've coded Topics CRUD, Conversations CRUD is just copy-paste with different field names.
-
-### Person 3 — Quizzes (Lecturer + Student)
-
-**Files to create:**
-- `QuizListView.java` — list all quizzes (lecturer: manage own, student: upcoming/live/history)
-- `CreateQuizView.java` — lecturer creates a quiz
-- `QuizDetailView.java` — quiz details + edit
-- `QuestionEditorView.java` — add/edit questions with answers
-- `QuizAnnouncementView.java` — show quiz announcement to students
-- `QuizAttemptView.java` — the actual quiz-taking screen (with TIMER)
-- `QuizResultView.java` — show attempt results
-
-**CRITICAL:** Quiz model uses `quiz_id` as the primary key, NOT `id`. All your Java model classes must use `@SerializedName("quiz_id")`.
-
-**API endpoints to use:**
-
-Quiz Management (Lecturer/Admin):
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/admin/quizzes` | List all quizzes |
-| POST | `/admin/quizzes` | Create quiz |
-| GET | `/admin/quizzes/{quiz}` | Quiz detail |
-| PUT | `/admin/quizzes/{quiz}` | Update quiz |
-| DELETE | `/admin/quizzes/{quiz}` | Delete quiz |
-| POST | `/admin/quizzes/{quiz}/publish` | Publish quiz |
-| POST | `/admin/quizzes/{quiz}/unpublish` | Unpublish |
-| GET | `/admin/quizzes/{quiz}/report` | Quiz report |
-| GET | `/admin/quizzes/{quiz}/questions` | List questions |
-| POST | `/admin/quizzes/{quiz}/questions` | Add question |
-| PUT | `/admin/quizzes/{quiz}/questions/{question}` | Update question |
-| DELETE | `/admin/quizzes/{quiz}/questions/{question}` | Delete question |
-| PUT | `/admin/quizzes/{quiz}/questions/reorder` | Reorder questions |
-| GET | `/admin/questions/{question}/answers` | List answers |
-| POST | `/admin/questions/{question}/answers` | Add answer |
-| PUT | `/admin/answers/{answer}` | Update answer |
-| DELETE | `/admin/answers/{answer}` | Delete answer |
-
-Quiz Taking (Student):
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/quizzes/upcoming` | Upcoming quizzes |
-| GET | `/quizzes/live` | Live quizzes now |
-| GET | `/quizzes/{quiz}/announcement` | Quiz announcement |
-| GET | `/quizzes/{quiz}/status` | Quiz status |
-| POST | `/quizzes/{quiz}/attempt` | Start attempt |
-| GET | `/quizzes/{quiz}/attempt` | Show current attempt |
-| POST | `/quizzes/{quiz}/answer` | Save single answer |
-| POST | `/quizzes/{quiz}/answers/batch` | Save batch answers |
-| POST | `/quizzes/{quiz}/submit` | Submit attempt |
-| POST | `/quizzes/{quiz}/auto-submit` | Auto-submit on timeout |
-| GET | `/quizzes/{quiz}/result` | My result for this quiz |
-| GET | `/me/quiz-history` | Past quiz history |
-| GET | `/me/quiz-notifications` | Quiz notifications |
-
-Lecturer Grading:
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/lecturer/quizzes/{quiz}/grades` | All grades for a quiz |
-| GET | `/lecturer/quizzes/{quiz}/grades/export` | Export CSV |
-| GET | `/lecturer/grades/{grade}` | Single grade detail |
-
-**The Timer (most complex part):**
-
-In `QuizAttemptView.java`, use `javafx.animation.Timeline` to count down:
-
-```java
-// Pseudocode for the quiz timer:
-int totalSeconds = quiz.getDurationMinutes() * 60;
-Label timerLabel = new Label(formatTime(totalSeconds));
-
-javafx.animation.Timeline timer = new javafx.animation.Timeline(
-    new javafx.animation.KeyFrame(
-        javafx.util.Duration.seconds(1),
-        event -> {
-            totalSeconds--;
-            timerLabel.setText(formatTime(totalSeconds));
-            if (totalSeconds <= 0) {
-                timer.stop();
-                autoSubmitQuiz();
-            }
-        }
-    )
-);
-timer.setCycleCount(totalSeconds);
-timer.play();
+```
+User clicks button
+    → View calls ApiClient.get("/topics")
+    → ApiClient builds: GET http://localhost:8000/api/v1/topics
+    → Adds header: Authorization: Bearer 1|abc123...
+    → Sends request via OkHttp library
+    → Laravel processes it and returns JSON
+    → ApiClient returns the JSON as a Java JsonObject
 ```
 
-### Person 4 — Groups Browsing + Sync Engine + Recommendations
-
-**Files to create:**
-- `GroupListView.java` — list groups the user belongs to
-- `GroupDetailView.java` — group details + members
-- `RecommendationView.java` — personalized topic recommendations
-- `SyncEngine.java` — pulls/pushes data when offline
-
-**API endpoints:**
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/groups` | List my groups |
-| GET | `/groups/{id}` | Group detail |
-| GET | `/groups/{id}/topics` | Topics in group |
-| GET | `/groups/{id}/members` | Group members |
-| GET | `/recommendations?limit=10` | Recommendations |
-| GET | `/sync/pull?device_id=X` | Pull changes (offline sync) |
-| POST | `/sync/push` | Push offline messages |
-
-**SyncEngine.java — The offline sync brain:**
-
-The SyncEngine runs in the background on a timer (every 30 seconds). It:
-
-1. Checks if there are unsent messages (stored locally)
-2. Pushes them via `POST /sync/push`
-3. Pulls new data via `GET /sync/pull?device_id=XXX`
-4. Updates the local UI
+**Key sections explained:**
 
 ```java
-// Pseudocode for SyncEngine:
-public class SyncEngine {
-    private final ScheduledService<Void> syncService;
+private static ApiClient instance;
+```
+This is the singleton instance. Only ONE ApiClient exists for the whole app. Everyone shares it. That means everyone shares the same auth token, the same server URL, and the same HTTP settings. If you change the token (login/logout), every screen sees the change immediately.
 
-    public SyncEngine() {
+```java
+private static final String BASE_URL = "http://localhost:8000/api/v1";
+```
+This is where all requests go. Change this if your server runs on a different port or you deploy to production. For example, if you deploy to `https://forum.example.com`, change this to `https://forum.example.com/api/v1`.
+
+```java
+private String authToken = null;
+```
+The Bearer token. Set after login, cleared on logout. Every request checks this and adds `Authorization: Bearer <token>` to the header. This is how the Laravel server knows who you are.
+
+```java
+public JsonObject get(String endpoint) throws ApiException
+```
+The GET method. You pass it the endpoint path like `"/topics"` and it:
+1. Builds the full URL: `http://localhost:8000/api/v1/topics`
+2. Calls `attachToken()` which adds the Bearer header
+3. Calls `execute()` which sends the request and handles errors
+
+The `post()`, `put()`, and `delete()` methods work the same way but with different HTTP methods.
+
+```java
+private JsonObject execute(Request request) throws ApiException
+```
+This is where the actual network call happens. It:
+1. Calls `client.newCall(request).execute()` — this sends the HTTP request and waits for the response
+2. Checks `response.isSuccessful()` — if the HTTP status is 200-299, it's success; 400-599 means an error
+3. If error: reads the `message` field from the JSON body and throws an `ApiException`
+4. If success: parses the JSON body and returns it as a `JsonObject`
+
+**How Person 2 calls it:**
+```java
+// In TopicListView.java — this is how everyone fetches data:
+JsonObject response = ApiClient.getInstance().get("/topics");
+JsonArray topicsArray = response.getAsJsonArray("data");
+// Now parse each topic...
+```
+
+### 7.2 AuthManager.java — The Login Brain
+
+**File location:** `api/AuthManager.java`
+**What it does:** Handles the entire login/logout workflow. This is the most complex piece because the login endpoint can return 4 different outcomes.
+
+**How it connects to the backend:**
+
+**Login flow (normal case):**
+```
+LoginView.java calls: AuthManager.login("john@email.com", "password123")
+
+AuthManager builds JSON: {"email": "john@email.com", "password": "password123"}
+AuthManager calls: ApiClient.post("/login", body)
+
+Laravel receives POST /api/v1/login
+    → Validates email + password
+    → Checks if blacklisted → returns 403
+    → Checks if warned → returns 403 with user data
+    → Checks credentials → wrong = 401, correct = 200
+    → If 200: creates Sanctum token, returns:
+      {
+        "message": "Login successful",
+        "token": "1|abc123...",
+        "user": {
+          "id": 1,
+          "full_name": "John Doe",
+          "email": "john@email.com",
+          "account_status": "active",
+          "role": "Student",      ← Note: STRING, not object
+          "group": "Group A"       ← Note: STRING, not object
+        }
+      }
+
+AuthManager receives the response:
+    → Saves token to TokenStorage (Preferences API)
+    → Sets token in ApiClient (so all future requests use it)
+    → Parses user from JSON using User.fromLoginJson()
+    → Returns LoginResponse(token, user)
+```
+
+**Why the warned account flow is special:**
+
+When a user has an unacknowledged warning, the Laravel API returns HTTP 403 (not 200) but still includes user data:
+```json
+{
+  "message": "Your account is warned...",
+  "requires_warning_acknowledgement": true,
+  "user": { "id": 1, "full_name": "John Doe", ... }
+}
+```
+
+AuthManager catches this specific case:
+```java
+if (e.getStatusCode() == 403 && errorJson.has("requires_warning_acknowledgement")) {
+    User warnedUser = User.fromLoginJson(userJson);
+    throw new WarnedException(e.getMessage(), warnedUser);
+}
+```
+
+Then `LoginView` catches the `WarnedException` and shows a confirmation dialog asking the user to acknowledge the warning. If they click OK, it calls `AuthManager.acknowledgeWarningAndLogin()` which:
+1. Calls `POST /api/v1/warnings/acknowledge` first
+2. Then calls `POST /api/v1/login` again — this time it succeeds
+
+### 7.3 User.java — Handling Two Different API Shapes
+
+**File location:** `models/User.java`
+**What it does:** Represents a forum user. But there's a catch — the login endpoint and the `/me` endpoint return `role` and `group` in DIFFERENT shapes.
+
+**The problem:**
+```
+Login returns:     "role": "Student"              (a plain string)
+                    "group": "General"             (a plain string)
+
+/me returns:       "role": {"id": 3, "name": "Student"}    (an object)
+                    "group": {"id": 1, "name": "General"}   (an object)
+```
+
+**How the code handles this:**
+
+```java
+@SerializedName("role")
+private Object role;  // Can be EITHER a String OR a JsonObject
+```
+
+The `Object` type means Java doesn't care what shape it is. Then we provide a helper method that checks the actual type at runtime:
+
+```java
+public String getRoleName() {
+    if (role instanceof String) {
+        return (String) role;  // It's from login — just return it
+    }
+    if (role instanceof JsonObject) {
+        JsonObject roleObj = (JsonObject) role;
+        return roleObj.get("name").getAsString();  // It's from /me — extract name
+    }
+    return null;
+}
+```
+
+**Two factory methods handle the two JSON shapes:**
+
+```java
+// Call this when parsing login response:
+User user = User.fromLoginJson(loginJson);
+
+// Call this when parsing /me response:
+User user = User.fromMeJson(meJson);
+```
+
+The `fromLoginJson()` stores `role` as a String. The `fromMeJson()` stores `role` as a JsonObject. Both work with `getRoleName()`.
+
+### 7.4 LoginView.java — The Login Screen
+
+**File location:** `views/LoginView.java`
+**What it does:** Builds the login form and handles the login button click.
+
+**How it connects to the backend:**
+
+The login button has an `setOnAction` handler. When clicked, it:
+
+1. Reads email and password from the text fields
+2. Validates they're not empty
+3. Creates a **Task** (background thread) — this prevents the UI from freezing during the network call
+4. Inside the Task, calls `AuthManager.getInstance().login(email, password)`
+5. When the Task succeeds (`setOnSucceeded`), switches the window to the Dashboard
+6. When the Task fails (`setOnFailed`), checks what kind of error it was and shows the right message
+
+**Why a Task (background thread) is necessary:**
+```java
+javafx.concurrent.Task<LoginResponse> loginTask = new javafx.concurrent.Task<>() {
+    @Override
+    protected LoginResponse call() throws Exception {
+        // This runs on a BACKGROUND thread
+        // Network calls can take 1-30 seconds
+        // If we ran this on the main thread, the whole app would freeze
+        return AuthManager.getInstance().login(email, password);
+    }
+};
+
+loginTask.setOnSucceeded(e -> {
+    // This runs on the JavaFX thread — safe to update UI here
+    stage.setScene(new Scene(DashboardView.create(stage), 1024, 768));
+});
+
+loginTask.setOnFailed(e -> {
+    // Also runs on JavaFX thread
+    Throwable ex = loginTask.getException();
+    if (ex instanceof WarnedException) {
+        // Show acknowledge warning dialog
+    } else if (ex instanceof ApiException) {
+        // Show error message
+    }
+});
+
+new Thread(loginTask).start();  // Start the background thread
+```
+
+**Every screen in the app follows this same Task pattern** for network calls.
+
+### 7.5 DashboardView.java — The App Shell
+
+**File location:** `views/DashboardView.java`
+**What it does:** The main window after login. Has a sidebar with navigation buttons and a content area.
+
+**How it works:**
+
+The layout is a `BorderPane` with:
+- **Left:** `VBox` containing sidebar buttons
+- **Center:** `StackPane` that gets swapped out when you click a button
+
+When a sidebar button is clicked:
+```java
+topicsBtn.setOnAction(e -> {
+    contentArea.getChildren().clear();       // Remove whatever's there
+    contentArea.getChildren().add(TopicListView.create());  // Add the new screen
+});
+```
+
+The `contentArea` is a `static` field so ANY view can replace it:
+```java
+// From any view file, you can do:
+DashboardView.getContentArea().getChildren().clear();
+DashboardView.getContentArea().getChildren().add(MyNewScreen.create());
+```
+
+### 7.6 TokenStorage.java — Remembering Login
+
+**File location:** `utils/TokenStorage.java`
+**What it does:** Saves the auth token so the user doesn't have to log in every time they open the app.
+
+**How it connects to the backend (indirectly):**
+
+```java
+// After successful login:
+TokenStorage.saveToken("1|abc123...");
+// This stores the token in Windows Registry (or a file on Linux/Mac)
+
+// When app starts next time:
+String savedToken = TokenStorage.loadToken();  // Retrieves the token
+ApiClient.getInstance().setAuthToken(savedToken);  // Sets it
+// Now try fetching /me — if it works, session is valid
+// If it fails with 401, token expired — show login screen
+```
+
+This is checked in `App.java` when the app starts:
+```java
+boolean sessionRestored = AuthManager.getInstance().restoreSession();
+if (sessionRestored) {
+    // Go straight to dashboard
+} else {
+    // Show login screen
+}
+```
+
+### 7.7 AlertHelper.java — Popup Dialogs
+
+**File location:** `utils/AlertHelper.java`
+**What it does:** Shows error, info, warning, and confirmation popup dialogs. Every team member uses this.
+
+**How it's used:**
+```java
+// Show error:
+AlertHelper.showError("Login Failed", "Invalid email or password.");
+
+// Ask user to confirm:
+boolean confirmed = AlertHelper.showConfirmation("Delete", "Are you sure?");
+if (confirmed) {
+    // Delete the item
+}
+```
+
+---
+
+## 8. Person 1 — Remaining Screens: Notifications, Profile, Password
+
+Person 1 already built: ApiClient, AuthManager, TokenStorage, User, LoginView, RegisterView, DashboardView, AlertHelper.
+
+Now build these three remaining screens:
+
+### 8.1 NotificationListView.java
+
+**File:** `views/NotificationListView.java`
+**What it does:** Shows a list of notifications for the logged-in user.
+**Backend endpoints:** `GET /api/v1/me/notifications`, `GET /api/v1/me/notifications/unread-count`
+**Response shape:**
+```json
+{
+    "data": [
+        {
+            "id": 1,
+            "type": "topic_reply",
+            "data": { "topic_id": 5, "post_id": 12 },
+            "read_at": null,
+            "created_at": "2025-01-15T10:30:00"
+        }
+    ]
+}
+```
+
+```java
+package com.yourforum.views;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.yourforum.api.ApiClient;
+import com.yourforum.api.ApiException;
+import com.yourforum.utils.AlertHelper;
+import javafx.geometry.Insets;
+import javafx.scene.Parent;
+import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
+
+/**
+ * NotificationListView — shows the user's notifications.
+ *
+ * CONNECTS TO BACKEND:
+ *   GET /api/v1/me/notifications          → list all notifications
+ *   GET /api/v1/me/notifications/unread-count → badge count in sidebar
+ *   POST /api/v1/notifications/{id}/read  → mark single as read
+ *   POST /api/v1/notifications/read-all   → mark all as read
+ *
+ * HOW DATA FLOWS:
+ *   Laravel DB → NotificationController → JSON → ApiClient → JsonArray → ListView
+ */
+public class NotificationListView {
+
+    public static Parent create() {
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(20));
+
+        Label titleLabel = new Label("Notifications");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        // Mark all read button — sends POST to backend
+        Button markAllReadBtn = new Button("Mark All as Read");
+        markAllReadBtn.setOnAction(e -> markAllRead());
+
+        // ListView shows notifications as rows.
+        // Each row shows the notification type and creation time.
+        ListView<String> listView = new ListView<>();
+        listView.setPrefHeight(600);
+
+        // Double-click a notification to mark it as read
+        listView.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                int selectedIndex = listView.getSelectionModel().getSelectedIndex();
+                if (selectedIndex >= 0) {
+                    // We need the notification ID. We'll store notification IDs
+                    // in a separate list alongside the displayed strings.
+                }
+            }
+        });
+
+        ProgressIndicator loading = new ProgressIndicator();
+
+        // Load notifications in background thread
+        javafx.concurrent.Task<Void> loadTask = new javafx.concurrent.Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                // Step 1: Call the API
+                // ApiClient sends: GET http://localhost:8000/api/v1/me/notifications
+                // Laravel responds with JSON array of notifications
+                JsonObject response = ApiClient.getInstance().get("/me/notifications");
+                
+                // Step 2: Extract the "data" array from the JSON
+                // The response looks like: { "data": [ {...}, {...} ] }
+                JsonArray dataArray = response.getAsJsonArray("data");
+                
+                // Step 3: Convert each notification JSON to a display string
+                // And store IDs in a parallel list so we can mark them as read later
+                java.util.List<String> displayItems = new java.util.ArrayList<>();
+                for (JsonElement element : dataArray) {
+                    JsonObject notif = element.getAsJsonObject();
+                    String type = notif.get("type").getAsString();
+                    String readAt = notif.has("read_at") && !notif.get("read_at").isJsonNull()
+                            ? notif.get("read_at").getAsString()
+                            : "Unread";
+                    String createdAt = notif.get("created_at").getAsString();
+                    
+                    displayItems.add("[" + readAt + "] " + type + " — " + createdAt);
+                }
+                
+                // Step 4: Update the ListView on the JavaFX thread
+                javafx.application.Platform.runLater(() -> {
+                    listView.getItems().setAll(displayItems);
+                });
+                
+                return null;
+            }
+        };
+
+        loadTask.setOnSucceeded(e -> loading.setVisible(false));
+        loadTask.setOnFailed(e -> {
+            loading.setVisible(false);
+            AlertHelper.showError("Error", "Failed to load notifications.");
+        });
+
+        root.getChildren().addAll(titleLabel, markAllReadBtn, loading, listView);
+
+        // Start loading
+        loading.setVisible(true);
+        new Thread(loadTask).start();
+
+        return root;
+    }
+
+    private static void markAllRead() {
+        javafx.concurrent.Task<Void> task = new javafx.concurrent.Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                // POST /api/v1/notifications/read-all — marks everything read
+                // Empty JSON body because the endpoint doesn't need parameters
+                ApiClient.getInstance().post("/notifications/read-all", new JsonObject());
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> AlertHelper.showInfo("Done", "All notifications marked as read."));
+        task.setOnFailed(e -> AlertHelper.showError("Error", "Failed to mark as read."));
+        new Thread(task).start();
+    }
+}
+```
+
+**Key concept — how data flows from Laravel to the ListView:**
+
+```
+1. User opens Notifications screen
+2. Task runs in background thread
+3. ApiClient.get("/me/notifications") sends HTTP request
+4. Laravel's NotificationController queries the database
+5. Laravel returns JSON: { "data": [ { "id": 1, "type": "reply", ... } ] }
+6. The Task parses the JSON array: response.getAsJsonArray("data")
+7. The Task converts each JSON object to a display string
+8. Platform.runLater() updates the ListView on the JavaFX thread
+9. User sees their notifications
+```
+
+### 8.2 ProfileView.java
+
+**File:** `views/ProfileView.java`
+**What it does:** Shows the current user's profile and lets them edit their name/email.
+**Backend endpoints:** `GET /api/v1/me`, `POST /api/v1/profile`
+**Response shapes:**
+```json
+// GET /me:  { "user": { "id": 1, "full_name": "John", "email": "john@...", ... } }
+// POST /profile body: { "full_name": "John Updated", "email": "john@newemail.com" }
+```
+
+```java
+package com.yourforum.views;
+
+import com.google.gson.JsonObject;
+import com.yourforum.api.ApiClient;
+import com.yourforum.api.ApiException;
+import com.yourforum.models.User;
+import com.yourforum.utils.AlertHelper;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Parent;
+import javafx.scene.control.*;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
+
+/**
+ * ProfileView — view and edit profile.
+ *
+ * CONNECTS TO BACKEND:
+ *   GET /api/v1/me        → loads current profile
+ *   POST /api/v1/profile  → saves changes
+ *
+ * The profile picture upload (POST /api/v1/profile/picture) is more complex
+ * because it uses multipart/form-data instead of JSON. See Gotcha #5.
+ */
+public class ProfileView {
+
+    public static Parent create() {
+        VBox root = new VBox(20);
+        root.setPadding(new Insets(20));
+        root.setAlignment(Pos.TOP_CENTER);
+
+        Label titleLabel = new Label("My Profile");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        // Form fields
+        GridPane form = new GridPane();
+        form.setHgap(10);
+        form.setVgap(10);
+        form.setAlignment(Pos.CENTER);
+
+        Label nameLabel = new Label("Full Name:");
+        TextField nameField = new TextField();
+        nameField.setPrefWidth(300);
+
+        Label emailLabel = new Label("Email:");
+        TextField emailField = new TextField();
+        emailField.setPrefWidth(300);
+
+        Label roleLabel = new Label("Role:");
+        Label roleValue = new Label();
+
+        Label statusLabel = new Label("Status:");
+        Label statusValue = new Label();
+
+        form.add(nameLabel, 0, 0);
+        form.add(nameField, 1, 0);
+        form.add(emailLabel, 0, 1);
+        form.add(emailField, 1, 1);
+        form.add(roleLabel, 0, 2);
+        form.add(roleValue, 1, 2);
+        form.add(statusLabel, 0, 3);
+        form.add(statusValue, 1, 3);
+
+        // Save button
+        Button saveBtn = new Button("Save Changes");
+        saveBtn.setOnAction(e -> {
+            // Build the JSON body matching what ProfileController@update expects
+            JsonObject body = new JsonObject();
+            body.addProperty("full_name", nameField.getText().trim());
+            body.addProperty("email", emailField.getText().trim());
+
+            javafx.concurrent.Task<Void> task = new javafx.concurrent.Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    // POST /api/v1/profile with the updated fields
+                    ApiClient.getInstance().post("/profile", body);
+                    return null;
+                }
+            };
+            task.setOnSucceeded(ev -> AlertHelper.showInfo("Success", "Profile updated."));
+            task.setOnFailed(ev -> AlertHelper.showError("Error", task.getException().getMessage()));
+            new Thread(task).start();
+        });
+
+        ProgressIndicator loading = new ProgressIndicator();
+        loading.setVisible(true);
+
+        root.getChildren().addAll(titleLabel, loading, form, saveBtn);
+
+        // Load current profile in background
+        javafx.concurrent.Task<User> loadTask = new javafx.concurrent.Task<>() {
+            @Override
+            protected User call() throws Exception {
+                // GET /api/v1/me — returns { "user": { ... } }
+                JsonObject response = ApiClient.getInstance().get("/me");
+                JsonObject userJson = response.getAsJsonObject("user");
+                return User.fromMeJson(userJson);
+            }
+        };
+        loadTask.setOnSucceeded(e -> {
+            loading.setVisible(false);
+            User user = loadTask.getValue();
+            // Fill the form with current values
+            nameField.setText(user.getFullName());
+            emailField.setText(user.getEmail());
+            roleValue.setText(user.getRoleName());
+            statusValue.setText(user.getAccountStatus());
+        });
+        loadTask.setOnFailed(e -> {
+            loading.setVisible(false);
+            AlertHelper.showError("Error", "Failed to load profile.");
+        });
+        new Thread(loadTask).start();
+
+        return root;
+    }
+}
+```
+
+---
+
+## 9. Person 2 — Forum Topics, Posts, Conversations, Messages
+
+Person 2 builds all the discussion features: topics, replies, conversations, messages, and sharing.
+
+### 9.1 Topic Model
+
+**File:** `models/Topic.java`
+**What it does:** Maps a forum topic from the API JSON into a Java object.
+
+**Backend shape (from `GET /api/v1/topics`):**
+```json
+{
+    "data": [
+        {
+            "id": 1,
+            "title": "Welcome to the forum",
+            "description": "Introduce yourself here",
+            "status": "active",
+            "post_type": "discussion",
+            "is_pinned": false,
+            "is_answered": false,
+            "created_by": 1,
+            "group_id": 1,
+            "created_at": "2025-01-15T10:00:00",
+            "updated_at": "2025-01-15T10:00:00",
+            "creator": { "id": 1, "full_name": "John Doe" },
+            "posts_count": 5
+        }
+    ]
+}
+```
+
+Notice the JSON uses `snake_case` (e.g. `post_type`, `is_pinned`). Java uses `camelCase` (e.g. `postType`, `isPinned`). The `@SerializedName` annotation tells Gson how to translate between them.
+
+```java
+package com.yourforum.models;
+
+import com.google.gson.annotations.SerializedName;
+
+/**
+ * Topic — a discussion topic in the forum.
+ *
+ * JSON field → Java field mapping (via @SerializedName):
+ *   "post_type"   → postType
+ *   "is_pinned"   → isPinned
+ *   "is_answered" → isAnswered
+ *   "created_by"  → createdBy
+ *   "group_id"    → groupId
+ *   "posts_count" → postsCount
+ */
+public class Topic {
+
+    @SerializedName("id")
+    private int id;
+
+    @SerializedName("title")
+    private String title;
+
+    @SerializedName("description")
+    private String description;
+
+    @SerializedName("status")
+    private String status;    // "active" or "archived"
+
+    @SerializedName("post_type")
+    private String postType;  // "discussion" or "question"
+
+    @SerializedName("is_pinned")
+    private boolean isPinned;
+
+    @SerializedName("is_answered")
+    private boolean isAnswered;
+
+    @SerializedName("created_by")
+    private int createdBy;
+
+    @SerializedName("group_id")
+    private int groupId;
+
+    @SerializedName("created_at")
+    private String createdAt;
+
+    @SerializedName("updated_at")
+    private String updatedAt;
+
+    // Nested objects need special handling.
+    // "creator" is an object: { "id": 1, "full_name": "John" }
+    // We can store it as a String (just the name) or create a Creator class.
+    @SerializedName("posts_count")
+    private int postsCount;
+
+    // ── Getters ──
+    public int getId() { return id; }
+    public String getTitle() { return title; }
+    public String getDescription() { return description; }
+    public String getStatus() { return status; }
+    public String getPostType() { return postType; }
+    public boolean isPinned() { return isPinned; }
+    public boolean isAnswered() { return isAnswered; }
+    public int getCreatedBy() { return createdBy; }
+    public int getGroupId() { return groupId; }
+    public String getCreatedAt() { return createdAt; }
+    public String getUpdatedAt() { return updatedAt; }
+    public int getPostsCount() { return postsCount; }
+
+    /**
+     * Parse a list of topics from a JSON response.
+     * The API returns { "data": [ topic1, topic2, ... ] }
+     */
+    public static java.util.List<Topic> fromJsonArray(com.google.gson.JsonArray array) {
+        com.google.gson.Gson gson = new com.google.gson.Gson();
+        java.util.List<Topic> topics = new java.util.ArrayList<>();
+        for (com.google.gson.JsonElement element : array) {
+            topics.add(gson.fromJson(element, Topic.class));
+        }
+        return topics;
+    }
+}
+```
+
+### 9.2 TopicListView.java — List All Topics
+
+**File:** `views/TopicListView.java`
+**What it does:** Shows all topics in a table. User can click a topic to view its replies.
+**Backend endpoint:** `GET /api/v1/topics`
+**How data flows:**
+```
+User opens Topics
+    → TopicListView.create()
+    → Background Task: ApiClient.get("/topics")
+    → Laravel's TopicController: queries topics table, returns JSON
+    → Task parses JSON array into List<Topic>
+    → Platform.runLater() populates TableView
+    → User sees topics in rows
+```
+
+```java
+package com.yourforum.views;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.yourforum.api.ApiClient;
+import com.yourforum.api.ApiException;
+import com.yourforum.models.Topic;
+import com.yourforum.utils.AlertHelper;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.geometry.Insets;
+import javafx.scene.Parent;
+import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+
+/**
+ * TopicListView — shows all topics in a table.
+ *
+ * CONNECTS TO BACKEND:
+ *   GET /api/v1/topics  →  returns { "data": [ { "id": 1, "title": "...", ... } ] }
+ *
+ * COLUMNS DISPLAYED:
+ *   Title, Type (discussion/question), Status, Replies, Created
+ *
+ * Double-click a topic → opens TopicDetailView with its posts.
+ * "New Topic" button → opens CreateTopicView form.
+ */
+public class TopicListView {
+
+    public static Parent create() {
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(20));
+
+        // ── Title ──
+        Label titleLabel = new Label("Topics");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        // ── Toolbar (New Topic + Refresh) ──
+        HBox toolbar = new HBox(10);
+        Button newTopicBtn = new Button("+ New Topic");
+        Button refreshBtn = new Button("Refresh");
+
+        toolbar.getChildren().addAll(newTopicBtn, refreshBtn);
+
+        // ── Table ──
+        // TableView<Topic> means each row represents one Topic object.
+        // The columns read properties from the Topic object.
+        TableView<Topic> table = new TableView<>();
+
+        // Title column: displays topic.getTitle() in each cell
+        TableColumn<Topic, String> titleCol = new TableColumn<>("Title");
+        titleCol.setCellValueFactory(data ->
+                new SimpleStringProperty(data.getValue().getTitle()));
+        titleCol.setPrefWidth(300);
+
+        // Type column: displays "Discussion" or "Question"
+        TableColumn<Topic, String> typeCol = new TableColumn<>("Type");
+        typeCol.setCellValueFactory(data ->
+                new SimpleStringProperty(data.getValue().getPostType()));
+        typeCol.setPrefWidth(100);
+
+        // Status column
+        TableColumn<Topic, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(data ->
+                new SimpleStringProperty(data.getValue().getStatus()));
+        statusCol.setPrefWidth(80);
+
+        // Replies count
+        TableColumn<Topic, String> repliesCol = new TableColumn<>("Replies");
+        repliesCol.setCellValueFactory(data ->
+                new SimpleStringProperty(String.valueOf(data.getValue().getPostsCount())));
+        repliesCol.setPrefWidth(80);
+
+        table.getColumns().addAll(titleCol, typeCol, statusCol, repliesCol);
+        table.setPrefHeight(500);
+
+        // Double-click opens the topic
+        table.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                Topic selected = table.getSelectionModel().getSelectedItem();
+                if (selected != null) {
+                    // Replace content area with TopicDetailView
+                    DashboardView.getContentArea().getChildren().clear();
+                    DashboardView.getContentArea().getChildren().add(
+                            TopicDetailView.create(selected.getId())
+                    );
+                }
+            }
+        });
+
+        // ── Loading indicator ──
+        ProgressIndicator loading = new ProgressIndicator();
+        loading.setVisible(false);
+
+        // ── New Topic button → switch to create form ──
+        newTopicBtn.setOnAction(e -> {
+            DashboardView.getContentArea().getChildren().clear();
+            DashboardView.getContentArea().getChildren().add(CreateTopicView.create());
+        });
+
+        // ── Refresh button → reload data from API ──
+        refreshBtn.setOnAction(e -> loadTopics(table, loading));
+
+        root.getChildren().addAll(titleLabel, toolbar, loading, table);
+
+        // Load data when screen opens
+        loadTopics(table, loading);
+
+        return root;
+    }
+
+    /**
+     * Fetch topics from the API and populate the table.
+     *
+     * EXPLANATION:
+     * 1. ApiClient sends GET /api/v1/topics to the Laravel server
+     * 2. Laravel queries the topics table, returns JSON:
+     *    { "data": [ { "id": 1, "title": "My Topic", ... }, ... ] }
+     * 3. We extract the "data" array from the JSON response
+     * 4. We convert each JSON object into a Topic Java object
+     * 5. We put the Topic objects into the TableView
+     */
+    private static void loadTopics(TableView<Topic> table, ProgressIndicator loading) {
+        loading.setVisible(true);
+
+        javafx.concurrent.Task<java.util.List<Topic>> task = new javafx.concurrent.Task<>() {
+            @Override
+            protected java.util.List<Topic> call() throws Exception {
+                // Step 1: Call the API
+                JsonObject response = ApiClient.getInstance().get("/topics");
+
+                // Step 2: The paginated response has "data" as an array
+                // Note: Laravel returns paginated data as:
+                // { "data": [...], "links": {...}, "meta": {...} }
+                // The "data" key at the top level is the array of topics
+                JsonArray dataArray = response.getAsJsonArray("data");
+
+                // Step 3: Convert JSON array to List<Topic>
+                return Topic.fromJsonArray(dataArray);
+            }
+        };
+
+        task.setOnSucceeded(e -> {
+            loading.setVisible(false);
+            table.getItems().setAll(task.getValue());
+        });
+
+        task.setOnFailed(e -> {
+            loading.setVisible(false);
+            AlertHelper.showError("Error", "Failed to load topics: " +
+                    task.getException().getMessage());
+        });
+
+        new Thread(task).start();
+    }
+}
+```
+
+### 9.3 TopicDetailView.java — View Topic + Posts
+
+**File:** `views/TopicDetailView.java`
+**What it does:** Shows a single topic and its replies (posts). Includes a reply form.
+**Backend endpoints:**
+- `GET /api/v1/topics/{id}` → returns topic + posts
+- `POST /api/v1/topics/{id}/posts` → creates a reply
+
+**Response shape:**
+```json
+{
+    "data": {
+        "topic": {
+            "id": 1,
+            "title": "Welcome",
+            "description": "Say hello",
+            "creator": { "id": 1, "full_name": "John" }
+        },
+        "posts": {
+            "data": [
+                {
+                    "id": 10,
+                    "body": "Hello everyone!",
+                    "user": { "id": 2, "full_name": "Jane" },
+                    "created_at": "2025-01-15T11:00:00"
+                }
+            ]
+        }
+    }
+}
+```
+
+```java
+package com.yourforum.views;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.yourforum.api.ApiClient;
+import com.yourforum.api.ApiException;
+import com.yourforum.utils.AlertHelper;
+import javafx.geometry.Insets;
+import javafx.scene.Parent;
+import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
+
+/**
+ * TopicDetailView — view a topic and its replies.
+ *
+ * HOW IT CONNECTS TO BACKEND:
+ *   On load: GET /api/v1/topics/{topicId}
+ *     → Laravel returns { "data": { "topic": {...}, "posts": { "data": [...] } } }
+ *   On reply: POST /api/v1/topics/{topicId}/posts
+ *     → Sends JSON: { "body": "My reply" }
+ *     → Laravel saves and returns the new post
+ *
+ * LAYOUT:
+ *   ┌─────────────────────────────────┐
+ *   │  ← Back to Topics              │
+ *   │                                 │
+ *   │  Topic Title                    │
+ *   │  Topic Description              │
+ *   │  Posted by John                 │
+ *   │  ─────────────────────────────  │
+ *   │  Replies:                       │
+ *   │  ┌─────────────────────────┐   │
+ *   │  │ Jane: Hello everyone!   │   │
+ *   │  └─────────────────────────┘   │
+ *   │  ┌─────────────────────────┐   │
+ *   │  │ Mike: Welcome Jane!     │   │
+ *   │  └─────────────────────────┘   │
+ *   │                                 │
+ *   │  Reply: [________________] [Send]│
+ *   └─────────────────────────────────┘
+ */
+public class TopicDetailView {
+
+    public static Parent create(int topicId) {
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(20));
+
+        // ── Back button ──
+        Button backBtn = new Button("← Back to Topics");
+        backBtn.setOnAction(e -> {
+            DashboardView.getContentArea().getChildren().clear();
+            DashboardView.getContentArea().getChildren().add(TopicListView.create());
+        });
+
+        // ── Topic details ──
+        Label titleLabel = new Label();
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        TextFlow descriptionArea = new TextFlow();
+        Label creatorLabel = new Label();
+        creatorLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #7f8c8d;");
+
+        // ── Replies list ──
+        VBox repliesBox = new VBox(5);
+        ScrollPane scrollPane = new ScrollPane(repliesBox);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(400);
+
+        // ── Reply form ──
+        Label replyLabel = new Label("Write a reply:");
+        TextArea replyInput = new TextArea();
+        replyInput.setPrefHeight(100);
+        replyInput.setPromptText("Type your reply here...");
+
+        Button sendBtn = new Button("Send Reply");
+        sendBtn.setOnAction(e -> {
+            String body = replyInput.getText().trim();
+            if (body.isEmpty()) {
+                AlertHelper.showWarning("Warning", "Reply cannot be empty.");
+                return;
+            }
+
+            sendBtn.setDisable(true);
+
+            javafx.concurrent.Task<Void> task = new javafx.concurrent.Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    // POST /api/v1/topics/{topicId}/posts
+                    JsonObject requestBody = new JsonObject();
+                    requestBody.addProperty("body", body);
+                    ApiClient.getInstance().post("/topics/" + topicId + "/posts", requestBody);
+                    return null;
+                }
+            };
+
+            task.setOnSucceeded(ev -> {
+                sendBtn.setDisable(false);
+                replyInput.clear();
+                // Reload the posts to show the new reply
+                loadPosts(topicId, repliesBox);
+                AlertHelper.showInfo("Success", "Reply posted.");
+            });
+
+            task.setOnFailed(ev -> {
+                sendBtn.setDisable(false);
+                AlertHelper.showError("Error", task.getException().getMessage());
+            });
+
+            new Thread(task).start();
+        });
+
+        ProgressIndicator loading = new ProgressIndicator();
+        loading.setVisible(true);
+
+        root.getChildren().addAll(
+                backBtn, titleLabel, creatorLabel, descriptionArea,
+                new Label("Replies:"), loading, scrollPane,
+                replyLabel, replyInput, sendBtn
+        );
+
+        // ── Load topic details and posts ──
+        javafx.concurrent.Task<Void> loadTask = new javafx.concurrent.Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                // GET /api/v1/topics/{topicId}
+                // Returns: { "data": { "topic": {...}, "posts": {...} } }
+                JsonObject response = ApiClient.getInstance().get("/topics/" + topicId);
+                JsonObject data = response.getAsJsonObject("data");
+
+                // Extract topic info
+                JsonObject topicJson = data.getAsJsonObject("topic");
+                String title = topicJson.get("title").getAsString();
+                String description = topicJson.has("description")
+                        ? topicJson.get("description").getAsString()
+                        : "";
+                String creatorName = topicJson.has("creator")
+                        ? topicJson.getAsJsonObject("creator").get("full_name").getAsString()
+                        : "Unknown";
+
+                // Extract posts
+                JsonObject postsWrapper = data.getAsJsonObject("posts");
+                JsonArray postsArray = postsWrapper.getAsJsonArray("data");
+
+                // Update UI on JavaFX thread
+                javafx.application.Platform.runLater(() -> {
+                    titleLabel.setText(title);
+                    Text descText = new Text(description);
+                    descriptionArea.getChildren().setAll(descText);
+                    creatorLabel.setText("Posted by " + creatorName);
+                    loading.setVisible(false);
+
+                    // Add each post to the replies box
+                    for (com.google.gson.JsonElement elem : postsArray) {
+                        JsonObject post = elem.getAsJsonObject();
+                        String author = post.getAsJsonObject("user").get("full_name").getAsString();
+                        String body = post.get("body").getAsString();
+                        String date = post.get("created_at").getAsString();
+
+                        VBox postCard = new VBox(3);
+                        postCard.setStyle("-fx-border-color: #ecf0f1; -fx-border-radius: 5; "
+                                + "-fx-padding: 10; -fx-background-color: white;");
+                        Label authorLabel = new Label(author + " — " + date);
+                        authorLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+                        Label bodyLabel = new Label(body);
+                        bodyLabel.setWrapText(true);
+                        postCard.getChildren().addAll(authorLabel, bodyLabel);
+                        repliesBox.getChildren().add(postCard);
+                    }
+                });
+                return null;
+            }
+        };
+
+        loadTask.setOnFailed(e -> {
+            loading.setVisible(false);
+            AlertHelper.showError("Error", "Failed to load topic.");
+        });
+
+        new Thread(loadTask).start();
+
+        return root;
+    }
+
+    private static void loadPosts(int topicId, VBox repliesBox) {
+        // Same loading logic as above but only refreshes the posts section
+        // (called after posting a reply)
+        javafx.concurrent.Task<Void> task = new javafx.concurrent.Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                JsonObject response = ApiClient.getInstance().get("/topics/" + topicId);
+                JsonObject data = response.getAsJsonObject("data");
+                JsonObject postsWrapper = data.getAsJsonObject("posts");
+                JsonArray postsArray = postsWrapper.getAsJsonArray("data");
+
+                javafx.application.Platform.runLater(() -> {
+                    repliesBox.getChildren().clear();
+                    for (com.google.gson.JsonElement elem : postsArray) {
+                        JsonObject post = elem.getAsJsonObject();
+                        String author = post.getAsJsonObject("user").get("full_name").getAsString();
+                        String body = post.get("body").getAsString();
+                        String date = post.get("created_at").getAsString();
+
+                        VBox postCard = new VBox(3);
+                        postCard.setStyle("-fx-border-color: #ecf0f1; -fx-border-radius: 5; "
+                                + "-fx-padding: 10; -fx-background-color: white;");
+                        postCard.getChildren().addAll(
+                                new Label(author + " — " + date),
+                                new Label(body)
+                        );
+                        repliesBox.getChildren().add(postCard);
+                    }
+                });
+                return null;
+            }
+        };
+        new Thread(task).start();
+    }
+}
+```
+
+### 9.4 CreateTopicView.java — New Topic Form
+
+**File:** `views/CreateTopicView.java`
+**What it does:** A form to create a new forum topic.
+**Backend endpoint:** `POST /api/v1/topics`
+**Request body:**
+```json
+{ "title": "My Topic", "description": "Topic content here", "post_type": "discussion" }
+```
+
+```java
+package com.yourforum.views;
+
+import com.google.gson.JsonObject;
+import com.yourforum.api.ApiClient;
+import com.yourforum.api.ApiException;
+import com.yourforum.utils.AlertHelper;
+import javafx.geometry.Insets;
+import javafx.scene.Parent;
+import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
+
+/**
+ * CreateTopicView — form to create a new topic.
+ *
+ * CONNECTS TO BACKEND:
+ *   POST /api/v1/topics
+ *   Body: { "title": "...", "description": "...", "post_type": "discussion|question" }
+ *
+ * The "post_type" field determines whether the topic is a discussion or a question.
+ * Questions can be marked as "answered" later.
+ */
+public class CreateTopicView {
+
+    public static Parent create() {
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(20));
+
+        Button backBtn = new Button("← Back to Topics");
+
+        Label titleLabel = new Label("Create New Topic");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        // Title input
+        TextField titleField = new TextField();
+        titleField.setPromptText("Topic title");
+
+        // Type selector (RadioButtons: Discussion or Question)
+        Label typeLabel = new Label("Type:");
+        ToggleGroup typeGroup = new ToggleGroup();
+        RadioButton discussionRadio = new RadioButton("Discussion");
+        discussionRadio.setToggleGroup(typeGroup);
+        discussionRadio.setSelected(true);
+        RadioButton questionRadio = new RadioButton("Question");
+        questionRadio.setToggleGroup(typeGroup);
+
+        // Description input (larger text area)
+        Label descLabel = new Label("Description:");
+        TextArea descArea = new TextArea();
+        descArea.setPrefHeight(200);
+        descArea.setPromptText("Write your topic content here...");
+
+        // Error label
+        Label errorLabel = new Label();
+        errorLabel.setStyle("-fx-text-fill: red;");
+        errorLabel.setVisible(false);
+
+        // Submit button
+        Button submitBtn = new Button("Create Topic");
+
+        ProgressIndicator loading = new ProgressIndicator();
+        loading.setVisible(false);
+
+        submitBtn.setOnAction(e -> {
+            String title = titleField.getText().trim();
+            String description = descArea.getText().trim();
+
+            if (title.isEmpty()) {
+                errorLabel.setText("Title is required.");
+                errorLabel.setVisible(true);
+                return;
+            }
+
+            errorLabel.setVisible(false);
+            loading.setVisible(true);
+            submitBtn.setDisable(true);
+
+            // Determine post_type from the selected radio button
+            String postType = questionRadio.isSelected() ? "question" : "discussion";
+
+            // Build the JSON body matching TopicController@store validation
+            JsonObject body = new JsonObject();
+            body.addProperty("title", title);
+            body.addProperty("description", description);
+            body.addProperty("post_type", postType);
+
+            javafx.concurrent.Task<Void> task = new javafx.concurrent.Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    // POST /api/v1/topics
+                    // Laravel's TopicController creates the topic in the database
+                    // and returns: { "message": "Topic created.", "data": { "topic": {...} } }
+                    ApiClient.getInstance().post("/topics", body);
+                    return null;
+                }
+            };
+
+            task.setOnSucceeded(ev -> {
+                loading.setVisible(false);
+                submitBtn.setDisable(false);
+                AlertHelper.showInfo("Success", "Topic created!");
+                // Go back to topics list
+                DashboardView.getContentArea().getChildren().clear();
+                DashboardView.getContentArea().getChildren().add(TopicListView.create());
+            });
+
+            task.setOnFailed(ev -> {
+                loading.setVisible(false);
+                submitBtn.setDisable(false);
+                errorLabel.setText(task.getException().getMessage());
+                errorLabel.setVisible(true);
+            });
+
+            new Thread(task).start();
+        });
+
+        root.getChildren().addAll(
+                backBtn, titleLabel, titleField,
+                typeLabel, discussionRadio, questionRadio,
+                descLabel, descArea,
+                errorLabel, submitBtn, loading
+        );
+
+        return root;
+    }
+}
+```
+
+### 9.5 Person 2 — Remaining Screens (Pattern Summary)
+
+The remaining screens for Person 2 follow the exact same pattern:
+
+| Screen | Backend Endpoint | What It Does |
+|--------|-----------------|--------------|
+| `ConversationListView.java` | `GET /api/v1/conversations` | Shows a TableView of conversations (same as TopicListView) |
+| `ConversationDetailView.java` | `GET /api/v1/conversations/{id}`, `POST /api/v1/conversations/{id}/messages` | Shows messages + send form (same as TopicDetailView) |
+| `CreateConversationView.java` | `POST /api/v1/conversations` | Form with type (direct/group), participant selection, name |
+| `PostVisibilityView.java` | `GET/POST/DELETE /api/v1/posts/{id}/visibility` | Shows excluded users for a post, lets you add/remove |
+| `ShareView.java` | `POST /api/v1/topics/{id}/share` | Generates a shareable link, shows it in a text field |
+| `ReportView.java` | `POST /api/v1/reports` | Form with reason, content type, and content ID |
+
+**They all follow this 3-step pattern:**
+1. **On screen open:** Background Task → `ApiClient.get(url)` → parse JSON → populate UI
+2. **On button click:** Background Task → `ApiClient.post(url, body)` → show success/error
+3. **On delete:** Background Task → `ApiClient.delete(url)` → show success/error
+
+---
+
+## 10. Person 3 — Quizzes (Lecturer + Student)
+
+Person 3 builds all quiz features. This is the most complex area because of the quiz timer and auto-submit.
+
+### 10.1 Quiz Model
+
+**CRITICAL:** Quiz uses `quiz_id` as its primary key, NOT `id`.
+
+**File:** `models/Quiz.java`
+
+```java
+package com.yourforum.models;
+
+import com.google.gson.annotations.SerializedName;
+
+/**
+ * Quiz — represents a quiz created by a lecturer.
+ *
+ * CRITICAL: The Laravel model sets $primaryKey = 'quiz_id',
+ * so ALL quiz endpoints use quiz_id as the identifier, NOT id.
+ *
+ * JSON shape (from GET /api/v1/admin/quizzes):
+ * {
+ *     "quiz_id": 1,
+ *     "title": "Midterm Exam",
+ *     "description": "Covers chapters 1-5",
+ *     "target_category": "Student",
+ *     "group_id": 1,
+ *     "scheduled_date": "2025-06-15",
+ *     "start_time": "09:00",
+ *     "duration_minutes": 60,
+ *     "is_active": true,
+ *     "published_at": "2025-06-10T08:00:00",
+ *     "questions_count": 10,
+ *     "lecturer": { "id": 1, "full_name": "Dr. Smith" }
+ * }
+ */
+public class Quiz {
+
+    @SerializedName("quiz_id")
+    private int quizId;  // NOT "id" — this is the primary key in Laravel
+
+    @SerializedName("title")
+    private String title;
+
+    @SerializedName("description")
+    private String description;
+
+    @SerializedName("target_category")
+    private String targetCategory;
+
+    @SerializedName("group_id")
+    private int groupId;
+
+    @SerializedName("scheduled_date")
+    private String scheduledDate;
+
+    @SerializedName("start_time")
+    private String startTime;
+
+    @SerializedName("duration_minutes")
+    private int durationMinutes;
+
+    @SerializedName("is_active")
+    private boolean isActive;
+
+    @SerializedName("published_at")
+    private String publishedAt;
+
+    @SerializedName("questions_count")
+    private int questionsCount;
+
+    // Getters
+    public int getQuizId() { return quizId; }
+    public String getTitle() { return title; }
+    public String getDescription() { return description; }
+    public int getDurationMinutes() { return durationMinutes; }
+    public boolean isActive() { return isActive; }
+    public String getScheduledDate() { return scheduledDate; }
+    public String getStartTime() { return startTime; }
+}
+```
+
+### 10.2 QuizAttemptView.java — The Quiz Timer Screen
+
+**File:** `views/QuizAttemptView.java`
+**What it does:** The screen students see when taking a quiz. Shows one question at a time with a countdown timer.
+
+**Backend endpoints used:**
+1. `POST /api/v1/quizzes/{quiz}/attempt` — starts the attempt, returns attempt_id
+2. `GET /api/v1/quizzes/{quiz}/attempt` — loads current attempt + questions
+3. `POST /api/v1/quizzes/{quiz}/answer` — saves an answer
+4. `POST /api/v1/quizzes/{quiz}/submit` — submits the attempt
+5. `POST /api/v1/quizzes/{quiz}/auto-submit` — called when timer expires
+
+**How the timer works with the backend:**
+```
+Quiz starts → Timer begins counting down from duration_minutes
+                  │
+User answers question → POST /api/v1/quizzes/{quiz}/answer
+                  │
+Timer reaches 0 → POST /api/v1/quizzes/{quiz}/auto-submit
+                  → Laravel submits whatever answers were saved
+                  → Returns result
+                  │
+User clicks Submit → POST /api/v1/quizzes/{quiz}/submit
+                  → Laravel marks attempt as completed
+                  → Calculates grade
+```
+
+```java
+package com.yourforum.views;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.yourforum.api.ApiClient;
+import com.yourforum.api.ApiException;
+import com.yourforum.utils.AlertHelper;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.geometry.Insets;
+import javafx.scene.Parent;
+import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
+import javafx.util.Duration;
+
+/**
+ * QuizAttemptView — the quiz-taking screen with a live countdown timer.
+ *
+ * HOW IT CONNECTS TO BACKEND:
+ *
+ * 1. START: POST /api/v1/quizzes/{quiz}/attempt
+ *    → Laravel creates a StudentAttempt record
+ *    → Returns: { "attempt_id": 5, "started_at": "..." }
+ *
+ * 2. LOAD QUESTIONS: GET /api/v1/quizzes/{quiz}/attempt
+ *    → Returns the attempt with its questions and any saved answers
+ *    → Questions come in order
+ *
+ * 3. SAVE ANSWER: POST /api/v1/quizzes/{quiz}/answer
+ *    → Body: { "question_id": 10, "answer_text": "My answer" }
+ *    → Laravel saves to student_answers table
+ *
+ * 4. SUBMIT: POST /api/v1/quizzes/{quiz}/submit
+ *    → Laravel marks attempt as completed
+ *    → Calculates grade
+ *    → Returns: { "score": 8, "total": 10, "percentage": 80 }
+ *
+ * 5. AUTO-SUBMIT: POST /api/v1/quizzes/{quiz}/auto-submit
+ *    → Same as submit, but triggered by timer expiry
+ *    → Any unanswered questions are marked as 0
+ */
+public class QuizAttemptView {
+
+    private static int remainingSeconds;
+    private static Timeline timer;
+    private static Label timerLabel;
+    private static int currentQuestionIndex = 0;
+    private static JsonArray questionsArray;
+    private static int quizId;
+    private static TextArea answerArea;
+    private static Label questionLabel;
+    private static Label questionNumLabel;
+
+    public static Parent create(int quizIdParam, int durationMinutes) {
+        quizId = quizIdParam;
+        remainingSeconds = durationMinutes * 60;
+
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(20));
+
+        // ── Timer display (countdown at the top) ──
+        timerLabel = new Label(formatTime(remainingSeconds));
+        timerLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #e74c3c;");
+
+        // ── Question number ──
+        questionNumLabel = new Label("Question 1");
+        questionNumLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+
+        // ── Question text ──
+        questionLabel = new Label();
+        questionLabel.setWrapText(true);
+        questionLabel.setStyle("-fx-font-size: 16px; -fx-padding: 10 0;");
+
+        // ── Answer area ──
+        answerArea = new TextArea();
+        answerArea.setPrefHeight(150);
+        answerArea.setPromptText("Type your answer here...");
+
+        // ── Navigation buttons ──
+        Button prevBtn = new Button("← Previous");
+        Button nextBtn = new Button("Next →");
+        Button submitBtn = new Button("Submit Quiz");
+        submitBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+
+        prevBtn.setOnAction(e -> navigateQuestion(-1));
+        nextBtn.setOnAction(e -> navigateQuestion(1));
+
+        submitBtn.setOnAction(e -> {
+            boolean confirmed = AlertHelper.showConfirmation(
+                    "Submit Quiz",
+                    "Are you sure? You cannot change your answers after submission."
+            );
+            if (confirmed) {
+                submitQuiz();
+            }
+        });
+
+        ProgressIndicator loading = new ProgressIndicator();
+
+        root.getChildren().addAll(
+                timerLabel, questionNumLabel, questionLabel,
+                answerArea, prevBtn, nextBtn, submitBtn, loading
+        );
+
+        // ── Start the attempt when the screen loads ──
+        javafx.concurrent.Task<Void> startTask = new javafx.concurrent.Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                // POST /api/v1/quizzes/{quiz}/attempt
+                JsonObject response = ApiClient.getInstance().post(
+                        "/quizzes/" + quizId + "/attempt", new JsonObject()
+                );
+                // Then load the questions
+                JsonObject attemptResponse = ApiClient.getInstance().get(
+                        "/quizzes/" + quizId + "/attempt"
+                );
+                // Parse questions array (exact JSON path depends on API response)
+                // Typically: attemptResponse contains questions in its data
+                JsonObject data = attemptResponse.getAsJsonObject("data");
+                if (data.has("questions")) {
+                    questionsArray = data.getAsJsonArray("questions");
+                }
+
+                return null;
+            }
+        };
+
+        startTask.setOnSucceeded(e -> {
+            loading.setVisible(false);
+            if (questionsArray != null && questionsArray.size() > 0) {
+                showQuestion(0);
+                startTimer();
+            } else {
+                AlertHelper.showError("Error", "No questions found for this quiz.");
+            }
+        });
+
+        startTask.setOnFailed(e -> {
+            loading.setVisible(false);
+            AlertHelper.showError("Error", "Failed to start quiz: "
+                    + startTask.getException().getMessage());
+        });
+
+        loading.setVisible(true);
+        new Thread(startTask).start();
+
+        return root;
+    }
+
+    /**
+     * Display the question at the given index.
+     */
+    private static void showQuestion(int index) {
+        if (questionsArray == null || index < 0 || index >= questionsArray.size()) return;
+
+        currentQuestionIndex = index;
+        JsonObject question = questionsArray.get(index).getAsJsonObject();
+
+        questionNumLabel.setText("Question " + (index + 1) + " of " + questionsArray.size());
+        questionLabel.setText(question.get("question_text").getAsString());
+
+        // Clear answer area for the new question
+        answerArea.clear();
+
+        // If this question already has a saved answer, load it
+        if (question.has("student_answer") && !question.get("student_answer").isJsonNull()) {
+            answerArea.setText(question.get("student_answer").getAsString());
+        }
+    }
+
+    /**
+     * Navigate to the previous or next question.
+     * Saves the current answer before switching.
+     */
+    private static void navigateQuestion(int delta) {
+        // Save current answer before moving
+        saveCurrentAnswer();
+
+        int newIndex = currentQuestionIndex + delta;
+        if (newIndex >= 0 && newIndex < questionsArray.size()) {
+            showQuestion(newIndex);
+        }
+    }
+
+    /**
+     * Save the current answer to the backend.
+     */
+    private static void saveCurrentAnswer() {
+        String answerText = answerArea.getText().trim();
+        if (answerText.isEmpty()) return;
+
+        JsonObject question = questionsArray.get(currentQuestionIndex).getAsJsonObject();
+        int questionId = question.get("id").getAsInt();
+
+        JsonObject body = new JsonObject();
+        body.addProperty("question_id", questionId);
+        body.addProperty("answer_text", answerText);
+
+        // Fire-and-forget: save answer in background
+        javafx.concurrent.Task<Void> task = new javafx.concurrent.Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                ApiClient.getInstance().post("/quizzes/" + quizId + "/answer", body);
+                return null;
+            }
+        };
+        new Thread(task).start();
+    }
+
+    /**
+     * Submit the quiz to the backend.
+     */
+    private static void submitQuiz() {
+        timer.stop();
+
+        // Save the last answer first
+        saveCurrentAnswer();
+
+        javafx.concurrent.Task<Void> task = new javafx.concurrent.Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                // POST /api/v1/quizzes/{quiz}/submit
+                ApiClient.getInstance().post("/quizzes/" + quizId + "/submit", new JsonObject());
+                return null;
+            }
+        };
+
+        task.setOnSucceeded(e -> {
+            AlertHelper.showInfo("Quiz Submitted", "Your quiz has been submitted.");
+            // Show the result screen
+            DashboardView.getContentArea().getChildren().clear();
+            DashboardView.getContentArea().getChildren().add(
+                    QuizResultView.create(quizId)
+            );
+        });
+
+        task.setOnFailed(e -> {
+            AlertHelper.showError("Error", "Failed to submit: "
+                    + task.getException().getMessage());
+        });
+
+        new Thread(task).start();
+    }
+
+    /**
+     * Start the countdown timer.
+     * When it reaches 0, auto-submit the quiz.
+     */
+    private static void startTimer() {
+        timer = new Timeline(
+                new KeyFrame(Duration.seconds(1), e -> {
+                    remainingSeconds--;
+
+                    // Update the timer display
+                    timerLabel.setText(formatTime(remainingSeconds));
+
+                    // Change color when time is low
+                    if (remainingSeconds < 60) {
+                        timerLabel.setStyle(
+                                "-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: red;"
+                        );
+                    }
+
+                    // Auto-submit when time runs out
+                    if (remainingSeconds <= 0) {
+                        timer.stop();
+                        autoSubmitQuiz();
+                    }
+                })
+        );
+        timer.setCycleCount(Timeline.INDEFINITE);
+        timer.play();
+    }
+
+    /**
+     * Auto-submit when the timer expires.
+     * Any unanswered questions are submitted as-is (blank).
+     */
+    private static void autoSubmitQuiz() {
+        AlertHelper.showInfo("Time's Up!",
+                "Your quiz has been auto-submitted.");
+
+        javafx.concurrent.Task<Void> task = new javafx.concurrent.Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                ApiClient.getInstance().post(
+                        "/quizzes/" + quizId + "/auto-submit", new JsonObject()
+                );
+                return null;
+            }
+        };
+
+        task.setOnSucceeded(e -> {
+            DashboardView.getContentArea().getChildren().clear();
+            DashboardView.getContentArea().getChildren().add(QuizResultView.create(quizId));
+        });
+
+        new Thread(task).start();
+    }
+
+    /**
+     * Format seconds as MM:SS.
+     */
+    private static String formatTime(int totalSeconds) {
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        return String.format("%02d:%02d", minutes, seconds);
+    }
+}
+```
+
+### 10.3 Person 3 — Remaining Quiz Screens
+
+The other quiz screens follow the same Task + ApiClient pattern:
+
+- **`QuizListView.java`** — Shows three tabs: Upcoming, Live, History. Each tab loads from a different endpoint (`/quizzes/upcoming`, `/quizzes/live`, `/me/quiz-history`). Students click a quiz to see the announcement or start it.
+- **`CreateQuizView.java`** (Lecturer only) — A form with title, description, target category, group, scheduled date, start time, duration. POST to `/admin/quizzes`. This uses the admin prefix because quiz creation requires the `admin` middleware.
+- **`QuestionEditorView.java`** (Lecturer only) — Shows all questions for a quiz in a ListView. Each question has "Add", "Edit", "Delete" buttons. Calls `/admin/quizzes/{quiz}/questions` CRUD endpoints.
+- **`QuizResultView.java`** — Fetches `GET /api/v1/quizzes/{quiz}/result` and displays the score, total, percentage, and per-question breakdown.
+
+---
+
+## 11. Person 4 — Groups, Sync Engine, Recommendations
+
+### 11.1 GroupListView.java
+
+**File:** `views/GroupListView.java`
+**What it does:** Shows groups the user belongs to.
+**Backend endpoint:** `GET /api/v1/groups`
+**Response shape:** `{ "data": [ { "id": 1, "group_name": "Class A", "description": "...", "users_count": 25 } ] }`
+
+```java
+package com.yourforum.views;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.yourforum.api.ApiClient;
+import com.yourforum.api.ApiException;
+import com.yourforum.utils.AlertHelper;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.geometry.Insets;
+import javafx.scene.Parent;
+import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
+
+/**
+ * GroupListView — shows groups the user belongs to.
+ *
+ * CONNECTS TO BACKEND:
+ *   GET /api/v1/groups
+ *   → Returns: { "data": [ { "id": 1, "group_name": "Class A", ... } ] }
+ *
+ * IMPORTANT: For regular users, this returns a plain array (not paginated).
+ * For admins, it returns a paginated response with meta data.
+ * The code below handles both cases.
+ *
+ * Double-click a group → opens GroupDetailView showing members.
+ */
+public class GroupListView {
+
+    public static Parent create() {
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(20));
+
+        Label titleLabel = new Label("My Groups");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        TableView<JsonObject> table = new TableView<>();
+
+        TableColumn<JsonObject, String> nameCol = new TableColumn<>("Group Name");
+        nameCol.setCellValueFactory(data ->
+                new SimpleStringProperty(
+                        data.getValue().get("group_name").getAsString()
+                ));
+        nameCol.setPrefWidth(200);
+
+        TableColumn<JsonObject, String> descCol = new TableColumn<>("Description");
+        descCol.setCellValueFactory(data -> {
+            JsonObject obj = data.getValue();
+            String desc = obj.has("description") && !obj.get("description").isJsonNull()
+                    ? obj.get("description").getAsString()
+                    : "";
+            return new SimpleStringProperty(desc);
+        });
+        descCol.setPrefWidth(300);
+
+        TableColumn<JsonObject, String> membersCol = new TableColumn<>("Members");
+        membersCol.setCellValueFactory(data ->
+                new SimpleStringProperty(
+                        String.valueOf(data.getValue().get("users_count").getAsInt())
+                ));
+        membersCol.setPrefWidth(80);
+
+        table.getColumns().addAll(nameCol, descCol, membersCol);
+        table.setPrefHeight(500);
+
+        // Double-click to view group members
+        table.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                JsonObject selected = table.getSelectionModel().getSelectedItem();
+                if (selected != null) {
+                    int groupId = selected.get("id").getAsInt();
+                    DashboardView.getContentArea().getChildren().clear();
+                    DashboardView.getContentArea().getChildren().add(
+                            GroupDetailView.create(groupId)
+                    );
+                }
+            }
+        });
+
+        ProgressIndicator loading = new ProgressIndicator();
+
+        // Load groups
+        javafx.concurrent.Task<Void> loadTask = new javafx.concurrent.Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                JsonObject response = ApiClient.getInstance().get("/groups");
+                JsonArray dataArray = response.getAsJsonArray("data");
+
+                javafx.application.Platform.runLater(() -> {
+                    table.getItems().clear();
+                    for (com.google.gson.JsonElement elem : dataArray) {
+                        table.getItems().add(elem.getAsJsonObject());
+                    }
+                });
+                return null;
+            }
+        };
+
+        loadTask.setOnSucceeded(e -> loading.setVisible(false));
+        loadTask.setOnFailed(e -> {
+            loading.setVisible(false);
+            AlertHelper.showError("Error", "Failed to load groups.");
+        });
+
+        loading.setVisible(true);
+        new Thread(loadTask).start();
+
+        root.getChildren().addAll(titleLabel, loading, table);
+        return root;
+    }
+}
+```
+
+### 11.2 SyncEngine.java — Offline Sync
+
+**File:** `utils/SyncEngine.java` (NOT in views/ — it's a utility, not a screen)
+**What it does:** Runs in the background every 30 seconds, pushing offline messages and pulling new data from the server.
+
+**Backend endpoints:**
+- `GET /api/v1/sync/pull?device_id=X` — returns conversations, messages, status updates changed since last sync
+- `POST /api/v1/sync/push` — sends offline messages to the server
+
+**How offline sync works:**
+```
+User composes a message while offline
+    → Message is saved to a local queue (list in memory)
+    → SyncEngine runs every 30 seconds
+    → Tries to POST /sync/push with the queued messages
+    → If server is reachable: messages are sent, queue is cleared
+    → If server is down: messages stay in queue, retry next cycle
+
+SyncEngine also pulls:
+    → GET /sync/pull?device_id=DESKTOP-PC-1
+    → Server returns all conversations/messages that changed since last sync
+    → Updates local display
+```
+
+```java
+package com.yourforum.utils;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.yourforum.api.ApiClient;
+import com.yourforum.api.ApiException;
+import javafx.application.Platform;
+import javafx.concurrent.ScheduledService;
+import javafx.concurrent.Task;
+import javafx.util.Duration;
+
+import java.util.UUID;
+
+/**
+ * SyncEngine — keeps the desktop app in sync with the server
+ * by periodically pushing and pulling data.
+ *
+ * HOW IT CONNECTS TO BACKEND:
+ *
+ * PULL: GET /api/v1/sync/pull?device_id={deviceId}
+ *   Returns everything that changed since the device's last sync:
+ *   { "data": { "conversations": [...], "messages": [...], "status_updates": [...] } }
+ *
+ * PUSH: POST /api/v1/sync/push
+ *   Sends offline messages to the server:
+ *   { "messages": [ { "client_id": "abc", "conversation_id": 1, "body": "Hello" } ] }
+ */
+public class SyncEngine {
+
+    private static SyncEngine instance;
+    private final ScheduledService<Void> syncService;
+    private final String deviceId;
+
+    // Queue of offline messages waiting to be sent
+    private final java.util.List<JsonObject> offlineMessageQueue = new java.util.ArrayList<>();
+
+    /**
+     * Private constructor — use getInstance().
+     * Generates a unique device ID on creation (first time only).
+     */
+    private SyncEngine() {
+        // Generate or load a unique device ID
+        // This tells the server which data this device has already synced
+        String savedId = null;
+        try {
+            savedId = java.util.prefs.Preferences.userNodeForPackage(
+                    com.yourforum.App.class
+            ).get("device_id", null);
+        } catch (Exception e) {
+            // Ignore
+        }
+
+        if (savedId == null || savedId.isEmpty()) {
+            deviceId = "desktop-" + UUID.randomUUID().toString().substring(0, 8);
+            try {
+                java.util.prefs.Preferences.userNodeForPackage(
+                        com.yourforum.App.class
+                ).put("device_id", deviceId);
+            } catch (Exception e) {
+                // Ignore
+            }
+        } else {
+            deviceId = savedId;
+        }
+
+        // ScheduledService runs on a background thread every N seconds
+        // It automatically handles: start, stop, pause on failure, retry
         syncService = new ScheduledService<>() {
             @Override
             protected Task<Void> createTask() {
                 return new Task<>() {
                     @Override
-                    protected Void call() {
-                        // 1. Push offline messages
+                    protected Void call() throws Exception {
+                        // Step 1: Push any offline messages
                         pushOfflineMessages();
-                        // 2. Pull new data
+
+                        // Step 2: Pull new data from the server
                         pullNewData();
+
                         return null;
                     }
                 };
             }
         };
-        syncService.setPeriod(Duration.seconds(30));  // Run every 30 seconds
+
+        // Run every 30 seconds (adjust based on your needs)
+        syncService.setPeriod(Duration.seconds(30));
+
+        // If a sync fails, wait 10 seconds before retrying
+        syncService.setBackoffStrategy(new javafx.concurrent.Service.BackoffStrategy() {
+            @Override
+            public Duration computeBackoff(Duration currentDuration) {
+                return Duration.seconds(10);
+            }
+        });
     }
 
-    public void start() { syncService.start(); }
-    public void stop() { syncService.cancel(); }
+    public static synchronized SyncEngine getInstance() {
+        if (instance == null) {
+            instance = new SyncEngine();
+        }
+        return instance;
+    }
+
+    public void start() {
+        syncService.start();
+    }
+
+    public void stop() {
+        syncService.cancel();
+    }
+
+    /**
+     * Add a message to the offline queue.
+     * Called by ConversationDetailView when the server is unreachable.
+     */
+    public void queueOfflineMessage(int conversationId, String body) {
+        JsonObject msg = new JsonObject();
+        msg.addProperty("client_id", UUID.randomUUID().toString());
+        msg.addProperty("conversation_id", conversationId);
+        msg.addProperty("body", body);
+        synchronized (offlineMessageQueue) {
+            offlineMessageQueue.add(msg);
+        }
+    }
+
+    /**
+     * Push offline messages to the server.
+     * POST /api/v1/sync/push sends all queued messages.
+     */
+    private void pushOfflineMessages() {
+        java.util.List<JsonObject> batch;
+        synchronized (offlineMessageQueue) {
+            if (offlineMessageQueue.isEmpty()) return;
+            batch = new java.util.ArrayList<>(offlineMessageQueue);
+            offlineMessageQueue.clear();
+        }
+
+        try {
+            JsonObject body = new JsonObject();
+            JsonArray messagesArray = new JsonArray();
+            for (JsonObject msg : batch) {
+                messagesArray.add(msg);
+            }
+            body.add("messages", messagesArray);
+
+            ApiClient.getInstance().post("/sync/push", body);
+        } catch (Exception e) {
+            // Push failed — re-queue the messages
+            synchronized (offlineMessageQueue) {
+                offlineMessageQueue.addAll(batch);
+            }
+        }
+    }
+
+    /**
+     * Pull new data from the server.
+     * GET /api/v1/sync/pull?device_id={deviceId}
+     *
+     * The server returns everything that changed since the last sync.
+     * This includes new conversations, messages, and status updates.
+     */
+    private void pullNewData() {
+        try {
+            JsonObject response = ApiClient.getInstance().get(
+                    "/sync/pull?device_id=" + deviceId
+            );
+
+            // The response contains conversations, messages, and status updates
+            // that have changed since the last sync.
+            // For now, we just log it. In a full implementation, you would
+            // update the UI with the new data.
+            System.out.println("Sync completed at: "
+                    + response.getAsJsonObject("data").get("synced_at").getAsString());
+        } catch (Exception e) {
+            // Server might be down — that's OK, we'll retry next cycle
+        }
+    }
 }
 ```
 
-**Important:** The desktop app generates a unique `device_id` (e.g., `"desktop-john-pc"`) on first run and stores it in Preferences alongside the token. This tells the server which data this device has already synced.
+**How to wire SyncEngine into the app:**
 
-### Person 5 — Admin Features
+In `DashboardView.java`, start the sync engine when the dashboard loads:
+```java
+// In DashboardView.create(), after the layout is built:
+SyncEngine.getInstance().start();
 
-**Files to create:**
-- `AdminDashboardView.java` — admin overview (stats, quick actions)
-- `UserManagementView.java` — list/create/edit users
-- `UserDetailView.java` — single user detail with actions
-- `WarningListView.java` — view/issue warnings
-- `BlacklistView.java` — view/lift blacklist records
-- `GroupAdminView.java` — admin group management
-- `CategoryAdminView.java` — admin category management
-- `ModerationView.java` — moderate reported content
-- `StatisticsView.java` — group statistics
-- `AuditLogView.java` — audit trail
-- `SystemConfigView.java` — system settings
-- `SearchView.java` — advanced search
-
-**API endpoints:**
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/admin/dashboard` | Admin dashboard stats |
-| GET | `/admin/users` | List users |
-| GET | `/admin/users/{id}` | User detail |
-| POST | `/admin/users` | Create user |
-| PUT | `/admin/users/{id}` | Update user |
-| DELETE | `/admin/users/{id}` | Delete user |
-| POST | `/admin/users/{id}/change-role` | Change user role |
-| POST | `/admin/users/{id}/warn` | Issue warning |
-| POST | `/admin/users/{id}/blacklist` | Blacklist user |
-| POST | `/admin/users/{id}/lift-blacklist` | Lift blacklist |
-| POST | `/admin/users/{id}/reset-password` | Reset password |
-| GET | `/admin/warnings` | List warnings |
-| GET | `/admin/blacklist-records` | List blacklist records |
-| POST | `/admin/blacklist-records/{id}/lift` | Lift blacklist |
-| GET | `/admin/moderation` | Reported content |
-| POST | `/admin/moderation/{post}/remove` | Remove post |
-| POST | `/admin/moderation/{post}/ignore` | Ignore report |
-| GET | `/admin/groups` | List groups (admin) |
-| POST | `/admin/groups` | Create group |
-| PUT | `/admin/groups/{id}` | Update group |
-| DELETE | `/admin/groups/{id}` | Delete group |
-| GET | `/admin/groups/{id}/members` | Group members |
-| PUT | `/admin/groups/{id}/members` | Update members |
-| POST | `/admin/groups/{id}/admins` | Add group admin |
-| DELETE | `/admin/groups/{id}/admins/{userId}` | Remove group admin |
-| GET | `/admin/categories` | List categories |
-| POST | `/admin/categories` | Create category |
-| PUT | `/admin/categories/{id}` | Update category |
-| DELETE | `/admin/categories/{id}` | Delete category |
-| GET | `/admin/group-statistics` | Group stats |
-| GET | `/admin/group-statistics/{group}` | Single group stats |
-| GET | `/admin/audit-logs` | Audit logs |
-| GET | `/admin/system-config` | System config |
-| PUT | `/admin/system-config` | Update config |
-| POST | `/admin/bulk/change-roles` | Bulk role change |
-| POST | `/admin/bulk/change-status` | Bulk status change |
-| POST | `/admin/bulk/blacklist` | Bulk blacklist |
-| POST | `/admin/bulk/warn` | Bulk warn |
-| POST | `/admin/search/users` | Search users |
-| POST | `/admin/search/groups` | Search groups |
+// In the logout button handler:
+SyncEngine.getInstance().stop();
+```
 
 ---
 
-## 8. How Each Person Builds a Feature
+## 12. Person 5 — Admin Features
 
-Every feature across all 5 people follows the same pattern. Here's the recipe:
+Person 5 builds all admin screens. These are behind the `admin` middleware, so only users with admin roles can access them.
 
-### Step A: Create the Model
+### 12.1 AdminDashboardView.java
 
-Every API response becomes a Java class. The model mirrors the JSON shape.
-
-```java
-// Example: Topic.java
-package com.yourforum.models;
-
-import com.google.gson.annotations.SerializedName;
-
-public class Topic {
-    @SerializedName("id") private int id;
-    @SerializedName("title") private String title;
-    @SerializedName("description") private String description;
-    @SerializedName("status") private String status;
-    @SerializedName("post_type") private String postType;
-    @SerializedName("created_by") private int createdBy;
-    @SerializedName("group_id") private int groupId;
-    @SerializedName("is_pinned") private boolean isPinned;
-    @SerializedName("is_answered") private boolean isAnswered;
-    @SerializedName("created_at") private String createdAt;
-
-    // Getters...
-    public int getId() { return id; }
-    public String getTitle() { return title; }
-    // etc.
-}
-```
-
-**Key rule:** If the JSON has `"full_name"`, your Java field is `fullName` with `@SerializedName("full_name")`. Gson handles the translation.
-
-### Step B: Create the API call method in a helper or inline
-
-Each screen either calls `ApiClient` directly or has its own small helper method:
+**File:** `views/AdminDashboardView.java`
+**What it does:** Shows admin overview statistics.
+**Backend endpoint:** `GET /api/v1/admin/dashboard`
+**Response shape:** (varies based on what the admin dashboard controller returns)
+**Note:** This endpoint is behind the `admin` middleware. If a non-admin user calls it, they get a 403 error. The code handles this by showing an "Access Denied" message.
 
 ```java
-// In your controller, fetch data:
-private List<Topic> fetchTopics() {
-    JsonObject response = ApiClient.getInstance().get("/topics");
-    JsonArray dataArray = response.getAsJsonArray("data");
-    
-    List<Topic> topics = new ArrayList<>();
-    for (JsonElement element : dataArray) {
-        Topic topic = gson.fromJson(element, Topic.class);
-        topics.add(topic);
+package com.yourforum.views;
+
+import com.google.gson.JsonObject;
+import com.yourforum.api.ApiClient;
+import com.yourforum.api.ApiException;
+import com.yourforum.utils.AlertHelper;
+import javafx.geometry.Insets;
+import javafx.scene.Parent;
+import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+
+/**
+ * AdminDashboardView — admin home screen with overview statistics.
+ *
+ * CONNECTS TO BACKEND:
+ *   GET /api/v1/admin/dashboard
+ *   → Returns statistics: total users, groups, topics, posts, quizzes, etc.
+ *
+ * IMPORTANT: This endpoint requires the 'admin' middleware.
+ * If the logged-in user is NOT an admin (System Admin or Group Admin),
+ * the server returns HTTP 403. We handle this gracefully.
+ */
+public class AdminDashboardView {
+
+    public static Parent create() {
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(20));
+
+        Label titleLabel = new Label("Admin Dashboard");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        ProgressIndicator loading = new ProgressIndicator();
+
+        // Stats cards displayed in a row
+        HBox statsBox = new HBox(20);
+        statsBox.setPadding(new Insets(20, 0, 20, 0));
+
+        // Quick action buttons
+        Label actionsLabel = new Label("Quick Actions:");
+        actionsLabel.setStyle("-fx-font-weight: bold;");
+
+        Button usersBtn = new Button("Manage Users");
+        Button groupsBtn = new Button("Manage Groups");
+        Button statsBtn = new Button("View Statistics");
+
+        usersBtn.setOnAction(e -> navigateTo("users"));
+        groupsBtn.setOnAction(e -> navigateTo("groups"));
+        statsBtn.setOnAction(e -> navigateTo("statistics"));
+
+        HBox actionsBox = new HBox(10, usersBtn, groupsBtn, statsBtn);
+
+        root.getChildren().addAll(titleLabel, loading, statsBox, actionsLabel, actionsBox);
+
+        // Load dashboard stats
+        javafx.concurrent.Task<JsonObject> loadTask = new javafx.concurrent.Task<>() {
+            @Override
+            protected JsonObject call() throws Exception {
+                // GET /api/v1/admin/dashboard
+                // If the user is not an admin, this throws ApiException with 403
+                return ApiClient.getInstance().get("/admin/dashboard");
+            }
+        };
+
+        loadTask.setOnSucceeded(e -> {
+            loading.setVisible(false);
+            JsonObject response = loadTask.getValue();
+
+            // Parse stats from the response and create stat cards
+            // The exact JSON shape depends on the admin dashboard controller
+            // Typically: { "total_users": 100, "total_topics": 50, ... }
+            // or: { "data": { "users": 100, "topics": 50, ... } }
+
+            statsBox.getChildren().clear();
+
+            // Try to read stats directly from the response
+            if (response.has("data")) {
+                JsonObject data = response.getAsJsonObject("data");
+                addStatCard(statsBox, "Total Users", data.get("total_users"));
+                addStatCard(statsBox, "Active Groups", data.get("total_groups"));
+                addStatCard(statsBox, "Topics", data.get("total_topics"));
+                addStatCard(statsBox, "Posts", data.get("total_posts"));
+            } else {
+                // Fallback: show raw response
+                statsBox.getChildren().add(new Label("Stats loaded. Check raw data."));
+            }
+        });
+
+        loadTask.setOnFailed(e -> {
+            loading.setVisible(false);
+            Throwable ex = loadTask.getException();
+
+            if (ex instanceof ApiException && ((ApiException) ex).getStatusCode() == 403) {
+                // User is not an admin — show access denied
+                AlertHelper.showError("Access Denied",
+                        "You do not have admin privileges.");
+                statsBox.getChildren().add(new Label("Access Denied — Admin only."));
+            } else {
+                AlertHelper.showError("Error", "Failed to load dashboard: "
+                        + ex.getMessage());
+            }
+        });
+
+        new Thread(loadTask).start();
+
+        return root;
     }
-    return topics;
+
+    private static void addStatCard(HBox container, String label,
+                                     com.google.gson.JsonElement value) {
+        VBox card = new VBox(5);
+        card.setStyle("-fx-border-color: #bdc3c7; -fx-border-radius: 5; "
+                + "-fx-padding: 15; -fx-background-color: white;");
+        Label valueLabel = new Label(
+                value != null && !value.isJsonNull() ? value.getAsString() : "0"
+        );
+        valueLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #3498db;");
+        Label nameLabel = new Label(label);
+        card.getChildren().addAll(valueLabel, nameLabel);
+        container.getChildren().add(card);
+    }
+
+    private static void navigateTo(String section) {
+        // These will be wired to the actual admin screens
+        AlertHelper.showInfo("Coming Soon",
+                "The " + section + " management screen is being built.");
+    }
 }
 ```
 
-### Step C: Create the View
+### 12.2 Person 5 — Pattern for Admin CRUD Screens
 
-Build the JavaFX layout. Make a `create()` method that returns a `Parent`:
+All admin CRUD screens follow the same pattern as the other persons' screens but use the `/admin/` prefix in their API calls. For example:
 
 ```java
-public static Parent create() {
-    VBox root = new VBox(10);
-    root.setPadding(new Insets(20));
-    
-    Label title = new Label("Topics");
-    title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
-    
-    // TableView shows data in rows and columns
-    TableView<Topic> table = new TableView<>();
-    
-    TableColumn<Topic, String> titleCol = new TableColumn<>("Title");
-    titleCol.setCellValueFactory(data -> 
-        new javafx.beans.property.SimpleStringProperty(data.getValue().getTitle())
-    );
-    
-    TableColumn<Topic, String> statusCol = new TableColumn<>("Status");
-    statusCol.setCellValueFactory(data -> 
-        new javafx.beans.property.SimpleStringProperty(data.getValue().getStatus())
-    );
-    
-    table.getColumns().addAll(titleCol, statusCol);
-    
-    // Load data in background
-    javafx.concurrent.Task<List<Topic>> loadTask = new javafx.concurrent.Task<>() {
-        @Override
-        protected List<Topic> call() throws Exception {
-            return fetchTopics();
-        }
-    };
-    loadTask.setOnSucceeded(e -> {
+// User management — always prefix with /admin/
+ApiClient.getInstance().get("/admin/users");           // List users
+ApiClient.getInstance().post("/admin/users", body);    // Create user
+ApiClient.getInstance().put("/admin/users/" + id, body); // Update user
+ApiClient.getInstance().delete("/admin/users/" + id);    // Delete user
+```
+
+**The 403 pattern:** Always check for 403 in `setOnFailed`:
+```java
+if (ex instanceof ApiException && ((ApiException) ex).getStatusCode() == 403) {
+    AlertHelper.showError("Access Denied", "Admin privileges required.");
+}
+```
+
+All Person 5 screens follow the exact same `Task → ApiClient → parse → update UI` pattern as every other screen in the app.
+
+---
+
+## Summary: The Universal Pattern
+
+Every screen in every person's feature area follows this ONE pattern:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  1. User does something (opens screen, clicks button)   │
+│  2. Create a Task (background thread)                   │
+│  3. Inside Task: call ApiClient.get/post/put/delete     │
+│  4. ApiClient sends HTTP request to Laravel             │
+│  5. Laravel processes it, returns JSON                  │
+│  6. Task parses JSON into Java objects                  │
+│  7. Platform.runLater() updates the UI                  │
+│  8. User sees the result                                │
+└─────────────────────────────────────────────────────────┘
+```
         table.getItems().setAll(loadTask.getValue());
     });
     new Thread(loadTask).start();
@@ -2865,7 +4741,7 @@ topicsBtn.setOnAction(e -> {
 
 ---
 
-## 9. Testing Your Feature
+## 13. Testing Your Feature
 
 ### Manual Testing Checklist (everyone does this):
 
@@ -2890,7 +4766,7 @@ topicsBtn.setOnAction(e -> {
 
 ---
 
-## 10. Final Verification
+## 14. Final Verification
 
 When all 5 people have finished, verify:
 
@@ -2909,7 +4785,7 @@ When all 5 people have finished, verify:
 
 ---
 
-## 11. Common Gotchas (Read This Before Starting)
+## 15. Common Gotchas (Read This Before Starting)
 
 ### Gotcha 1: Role and group have TWO shapes
 
@@ -3022,7 +4898,7 @@ The `Task.setOnSucceeded()` callback already runs on the JavaFX thread, so you'r
 
 ---
 
-## 12. Quick Reference: Pattern for Every Screen
+## 16. Quick Reference: Pattern for Every Screen
 
 ```java
 package com.yourforum.views;
@@ -3102,7 +4978,7 @@ public class ExampleListView {
 
 ---
 
-## 13. API Response Reference
+## 17. API Response Reference
 
 ### Standard Success Response (most endpoints):
 ```json

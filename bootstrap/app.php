@@ -21,6 +21,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust all proxies — required when running behind Render's load balancer
+        $middleware->trustProxies(at: '*');
+
+        // Disable TrustHosts — not needed for single-domain deployment
+        $middleware->remove(\Illuminate\Http\Middleware\TrustHosts::class);
+
         // API rate limiting: 60 requests per minute
         $middleware->throttleApi(60, 0);
 
