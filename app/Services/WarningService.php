@@ -21,7 +21,7 @@ class WarningService
     {
         // Get the user's active warnings
         $activeWarnings = $user->warnings()
-            ->whereNull('is_resolved', true)
+            ->where('is_resolved', false)
             ->orderBy('warning_number', 'desc')
             ->get();
 
@@ -99,7 +99,7 @@ class WarningService
         if ($success) {
             // Check if all warnings are resolved
             $hasActiveWarnings = $warning->user->warnings()
-                ->whereNull('is_resolved')
+                ->where('is_resolved', false)
                 ->exists();
 
             // If no more active warnings, update user's account status

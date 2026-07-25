@@ -16,7 +16,12 @@ class WarningAcknowledgementController extends Controller
     // #80: Show warning page
     public function show()
     {
-        return view('auth.warning-acknowledgement');
+        $user = Auth::user();
+        $warning = $this->utility->getUnacknowledgedWarning($user);
+
+        return view('auth.warning-acknowledgement', [
+            'warning' => $warning,
+        ]);
     }
 
     // #80: Handle acknowledgement
@@ -35,7 +40,7 @@ class WarningAcknowledgementController extends Controller
             $this->utility->acknowledge($warning, $user);
         }
 
-        return redirect()->route('dashboard')
+        return redirect()->route('forum.index')
             ->with('success', 'Warning acknowledged successfully.');
     }
 }
