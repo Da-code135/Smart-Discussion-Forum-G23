@@ -333,7 +333,7 @@ class User extends Authenticatable
         return [
             'is_warned' => $this->is_warned,
             'warning_count' => $this->warnings()
-                ->whereNull('is_resolved')
+                ->where('is_resolved', false)
                 ->count(),
             'blacklisted_at' => $this->blacklisted_at,
         ];
