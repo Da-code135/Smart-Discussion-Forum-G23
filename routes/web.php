@@ -674,7 +674,7 @@ Route::prefix('admin')
             Route::post('/', [WarningController::class, 'store'])->name(
                 'admin.warnings.store',
             );
-            Route::post('/{warning}', [
+            Route::put('/{warning}', [
                 WarningController::class,
                 'update',
             ])->name('admin.warnings.update');
@@ -913,7 +913,7 @@ Route::prefix('admin')
             Route::post('/', [WarningController::class, 'store'])->name(
                 'admin.warnings.store',
             );
-            Route::post('/{warning}', [
+            Route::put('/{warning}', [
                 WarningController::class,
                 'update',
             ])->name('admin.warnings.update');

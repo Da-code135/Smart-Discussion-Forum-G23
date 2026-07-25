@@ -57,18 +57,11 @@ class WarningAcknowledgementUtility
             'is_acknowledged' => true,
         ]);
 
-        // Check if all warnings are resolved/acknowledged
-        $hasActiveWarnings = $user->warnings()
-            ->whereNull('is_resolved')
-            ->exists();
-
-        // If no more active warnings, restore account status to active
-        if (! $hasActiveWarnings) {
-            $user->update([
-                'account_status' => 'active',
-                'is_warned' => false,
-            ]);
-        }
+        // Always restore account to active upon acknowledgement
+        $user->update([
+            'account_status' => 'active',
+            'is_warned' => false,
+        ]);
 
         return true;
     }
