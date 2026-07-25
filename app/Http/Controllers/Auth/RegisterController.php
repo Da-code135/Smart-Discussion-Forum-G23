@@ -130,7 +130,7 @@ class RegisterController extends Controller
         ]);
 
         // Look up role by name (dynamic, not hardcoded)
-        $role = Role::where('role_name', 'Member')->first();
+        $role = Role::where('role_name', 'Member')->first();//this looks 
 
         if (! $role) {
             return redirect()->route('register')
