@@ -341,7 +341,7 @@ A: The Laravel backend is deployed on Render using Docker. We wrote a Dockerfile
 A: It stores the last sync timestamp per device per user. When the desktop app calls `GET /api/v1/sync/pull?device_id=...`, the server looks up the checkpoint for that device and returns only messages and conversations created/updated after that timestamp. After returning the data, it updates the checkpoint to now. This ensures each device only receives new data, not everything from the beginning.
 
 **Q: Why PostgreSQL on Render instead of MySQL?**
-A: Render's free database tier only supports PostgreSQL. MySQL is not available for free. Laravel supports both through its database abstraction layer (Eloquent ORM). We changed `DB_CONNECTION=pgsql` in the environment variables and fixed one MySQL-specific `DATE_FORMAT` query to use PostgreSQL's `TO_CHAR` equivalent. Everything else worked without changes.
+A: Render's free database tier only supports PostgreSQL. MySQL is not available for free. Laravel supports both through its database abstraction layer (Eloquent ORM). We changed `DB_CONNECTION=pgsql` in the environment variables and fixed one MySQL-specific `DATE_FORMAT` query to use PostgreSQL's `TO_CHAR` equivalent. Everything else worked without changes. n
 
 ---
 
