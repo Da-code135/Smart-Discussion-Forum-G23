@@ -22,7 +22,7 @@ class PasswordResetOtpMailable extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your Studdit Password Reset Code',
+            subject: 'Your Smart Discussion Forum Password Reset Code',
         );
     }
 
