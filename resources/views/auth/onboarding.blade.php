@@ -15,7 +15,11 @@
     <section class="onboarding-card">
         <div class="card-header-custom">
             <h1>Platform rules and guidelines</h1>
+<<<<<<< HEAD
             <p>Please read carefully before joining {{ config('app.name') }}.</p>
+=======
+            <p>Please read carefully before joining the forum.</p>
+>>>>>>> c0988d7fdc2db09e9adec9bbae110bc3abf1b1a1
         </div>
 
         <div class="rules-scroll" tabindex="0" aria-label="Platform rules content">

@@ -5,8 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+<<<<<<< HEAD
     <meta name="description" content="@yield('meta-description', config('app.name').' academic discussion platform')">
     <title>@yield('title', 'Dashboard') - {{ config('app.name') }}</title>
+=======
+    <meta name="description" content="@yield('meta-description', 'Smart Discussion Forum - academic discussion platform')">
+    <title>@yield('title', 'Dashboard') - Smart Discussion Forum</title>
+>>>>>>> c0988d7fdc2db09e9adec9bbae110bc3abf1b1a1
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
 </head>

@@ -15,7 +15,11 @@
 
         <div class="app-brand">
             <div class="app-brand__meta">
+<<<<<<< HEAD
                 <a href="{{ route('dashboard') }}" class="app-brand__title">{{ config('app.name') }}</a>
+=======
+                <a href="{{ route('dashboard') }}" class="app-brand__title">Smart Discussion Forum</a>
+>>>>>>> c0988d7fdc2db09e9adec9bbae110bc3abf1b1a1
                 <span class="app-brand__group">{{ $groupName }}</span>
             </div>
         </div>
@@ -23,7 +27,11 @@
         {{-- Search bar --}}
         <form method="GET" action="{{ route('forum.search') }}" class="topbar-search">
             <span class="material-symbols-outlined">search</span>
+<<<<<<< HEAD
             <input type="text" name="q" placeholder="Search {{ config('app.name') }}..." aria-label="Search topics">
+=======
+            <input type="text" name="q" placeholder="Search topics..." aria-label="Search topics">
+>>>>>>> c0988d7fdc2db09e9adec9bbae110bc3abf1b1a1
         </form>
 
         <div class="app-topbar-actions">
