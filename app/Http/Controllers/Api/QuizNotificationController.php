@@ -26,9 +26,15 @@ class QuizNotificationController extends Controller
             ->whereDate('scheduled_date', '>=', today())
             ->with('lecturer:id,full_name');
 
-        // System admins see all upcoming quizzes; others see only their accessible groups
+        // System admins see all upcoming quizzes; others see quizzes for their
+        // role in their accessible groups (or general quizzes with no group) —
+        // matching the web student quiz index filtering.
         if (! $user->isSystemAdmin()) {
-            $query->whereIn('group_id', $user->accessibleGroupIds());
+            $query->where('target_category', $user->role->role_name)
+                ->where(function ($q) use ($user) {
+                    $q->whereIn('group_id', $user->accessibleGroupIds())
+                        ->orWhereNull('group_id');
+                });
         }
 
         $quizzes = $query->orderBy('scheduled_date')
@@ -72,11 +78,18 @@ class QuizNotificationController extends Controller
 
         // Scope quizzes to the user's accessible groups (multi-tenant isolation)
         $query = Quiz::where('is_active', true)
+            ->where('published_at', '!=', null)
             ->with('lecturer:id,full_name');
 
-        // System admins see all live quizzes; others see only their accessible groups
+        // System admins see all live quizzes; others see quizzes for their
+        // role in their accessible groups (or general quizzes with no group) —
+        // matching the web student quiz index filtering.
         if (! $user->isSystemAdmin()) {
-            $query->whereIn('group_id', $user->accessibleGroupIds());
+            $query->where('target_category', $user->role->role_name)
+                ->where(function ($q) use ($user) {
+                    $q->whereIn('group_id', $user->accessibleGroupIds())
+                        ->orWhereNull('group_id');
+                });
         }
 
         $quizzes = $query->get()
@@ -117,7 +130,7 @@ class QuizNotificationController extends Controller
         $user = Auth::user();
 
         $attempts = StudentAttempt::where('student_id', $user->id)
-            ->with('quiz:id,title', 'grade')
+            ->with('quiz:quiz_id,title', 'grade')
             ->latest()
             ->paginate(20);
 

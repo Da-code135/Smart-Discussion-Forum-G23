@@ -21,10 +21,12 @@ class QuizController extends Controller
         $user = Auth::user();
         $query = Quiz::withCount('questions')->with('configuration', 'lecturer:id,full_name', 'group')->latest();
 
-        // System admins see all quizzes.
-        // Others (Group Admins, Lecturers, Members) see only accessible groups.
+        // System admins see all quizzes platform-wide for oversight.
+        // Others manage only their own quizzes in accessible groups —
+        // matching the web quizzes index (QuizController::index).
         if (! $user->isSystemAdmin()) {
-            $query->whereIn('group_id', $user->accessibleGroupIds());
+            $query->where('lecturer_id', $user->id)
+                ->whereIn('group_id', $user->accessibleGroupIds());
         }
 
         $quizzes = $query->paginate(20);
