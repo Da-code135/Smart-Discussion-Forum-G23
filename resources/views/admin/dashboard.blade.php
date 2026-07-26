@@ -31,26 +31,13 @@
         </div>
     </section>
 
-    <section class="card page-stack">
-        <div>
-            <h2>Management tools</h2>
-            <p>Administrative pages remain table-oriented for faster scanning and bulk work.</p>
+    <section class="page-stack">
+        <div class="page-header">
+            <h2>Platform statistics</h2>
+            <p>Group engagement metrics visualized &mdash; click <strong>Recalculate</strong> on any group to pull live data.</p>
         </div>
-        <div class="links-grid">
-            <a href="{{ route('admin.users.index') }}" class="link-btn">User management</a>
-            <a href="{{ route('admin.groups.index') }}" class="link-btn">Group management</a>
-            <a href="{{ route('admin.warnings.index') }}" class="link-btn">Warnings</a>
-            <a href="{{ route('admin.blacklist.index') }}" class="link-btn">Blacklist</a>
-            <a href="{{ route('admin.audit-logs.index') }}" class="link-btn">Audit logs</a>
-            @if (auth()->user()->isSystemAdmin())
-                <a href="{{ route('admin.statistics.index') }}" class="link-btn">Platform statistics</a>
-                <a href="{{ route('admin.group-statistics.index') }}" class="link-btn">Group statistics</a>
-                <a href="{{ route('admin.system-config.index') }}" class="link-btn">System config</a>
-                <a href="{{ route('admin.ip-whitelist.index') }}" class="link-btn">IP whitelist</a>
-            @else
-                <a href="{{ route('admin.statistics.index') }}" class="link-btn">Platform statistics</a>
-            @endif
-        </div>
+
+        @include('admin.statistics.partials.stats-content')
     </section>
 </div>
 @endsection

@@ -64,7 +64,11 @@
 <body>
     <div class="container">
         <div class="header">
+<<<<<<< HEAD
+            <h1>{{ config('app.name') }} — Password Reset</h1>
+=======
             <h1>Smart Discussion Forum — Password Reset</h1>
+>>>>>>> c0988d7fdc2db09e9adec9bbae110bc3abf1b1a1
         </div>
 
         <div class="body">
@@ -86,7 +90,11 @@
         </div>
 
         <div class="footer">
+<<<<<<< HEAD
+            &copy; {{ date('Y') }} {{ config('app.name') }}. This is an automated message — please do not reply.
+=======
             &copy; {{ date('Y') }} Smart Discussion Forum. This is an automated message — please do not reply.
+>>>>>>> c0988d7fdc2db09e9adec9bbae110bc3abf1b1a1
         </div>
     </div>
 </body>

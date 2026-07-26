@@ -9,22 +9,25 @@ class GroupSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * Uses firstOrCreate keyed by group_type so re-running the seeder
+     * (e.g. on every container boot) never duplicates the base groups.
      */
     public function run(): void
     {
-        Group::create([
-            'group_name' => 'Platform Administrators',
-            'group_type' => 'sysadmin',
-        ]);
+        Group::firstOrCreate(
+            ['group_type' => 'sysadmin'],
+            ['group_name' => 'Platform Administrators'],
+        );
 
-        Group::create([
-            'group_name' => 'Faculty',
-            'group_type' => 'lecturer',
-        ]);
+        Group::firstOrCreate(
+            ['group_type' => 'lecturer'],
+            ['group_name' => 'Faculty'],
+        );
 
-        Group::create([
-            'group_name' => 'Students',
-            'group_type' => 'student',
-        ]);
+        Group::firstOrCreate(
+            ['group_type' => 'student'],
+            ['group_name' => 'Students'],
+        );
     }
 }

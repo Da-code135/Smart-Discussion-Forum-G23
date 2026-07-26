@@ -52,7 +52,11 @@
 <body>
     <div class="container">
         <div class="header">
+<<<<<<< HEAD
+            <h1>Welcome to {{ config('app.name') }}!</h1>
+=======
             <h1>Welcome to Smart Discussion Forum!</h1>
+>>>>>>> c0988d7fdc2db09e9adec9bbae110bc3abf1b1a1
         </div>
 
         <div class="content">
@@ -74,11 +78,19 @@
                 If you didn't create this account, you can safely ignore this email.
             </div>
 
+<<<<<<< HEAD
+            <p>Best regards,<br>The {{ config('app.name') }} Team</p>
+        </div>
+
+        <div class="footer">
+            <p>&copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.</p>
+=======
             <p>Best regards,<br>The Smart Discussion Forum Team</p>
         </div>
 
         <div class="footer">
             <p>&copy; 2026 Smart Discussion Forum. All rights reserved.</p>
+>>>>>>> c0988d7fdc2db09e9adec9bbae110bc3abf1b1a1
         </div>
     </div>
 </body>

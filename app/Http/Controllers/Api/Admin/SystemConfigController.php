@@ -62,7 +62,12 @@ class SystemConfigController extends Controller
             'max_login_attempts' => 'sometimes|required|integer|min:1',
             'lockout_minutes' => 'sometimes|required|integer|min:1',
             'inactivity_warning_days' => 'sometimes|required|integer|min:1',
+            'warning_response_days' => 'sometimes|required|integer|min:1',
             'blacklist_duration_days' => 'sometimes|required|integer|min:1',
+            'days_before_second_warning' => 'sometimes|required|integer|min:1',
+            'days_before_blacklist' => 'sometimes|required|integer|min:1',
+            'classification_review_threshold' => 'sometimes|required|integer|min:0|max:100',
+            'quiz_late_join_allowed' => 'sometimes|required|in:0,1',
         ]);
 
         foreach ($validated as $key => $value) {
@@ -71,6 +76,9 @@ class SystemConfigController extends Controller
                 ['config_value' => $value]
             );
         }
+
+        // Invalidate cached values so changes take effect immediately
+        SystemConfig::clearAllCaches();
 
         // Audit log
         $this->auditLogService->logSystemConfigUpdated($validated);

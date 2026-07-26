@@ -692,7 +692,7 @@ The desktop app (JavaFX/Swing) cannot run JavaScript. Instead, it connects to Re
 2. Subscribe to the private channel by calling Reverb's Pusher subscription endpoint with the token
 3. Handle JSON frames matching the Pusher protocol format
 
-This is documented in Person 5's `docs/sync-api.md`.
+This is documented from the client's perspective in `docs/DESKTOP_APP_GUIDE.md` (Section 11 — Sync Engine).
 
 ---
 
@@ -1000,11 +1000,11 @@ public function push(Request $request)
 
 **Why per-message error reporting instead of failing the whole batch:** If 5 out of 10 offline messages fail (e.g., the user was removed from a conversation), the other 5 should still be saved. The client uses the per-message `success` field to show the user which messages failed.
 
-### 7.2 API Documentation — `docs/sync-api.md`
+### 7.2 API Reference for the Desktop Client
 
-A documentation file for the desktop client developer, documenting:
+The desktop client developer needs the following to integrate (client-side usage is documented in `docs/DESKTOP_APP_GUIDE.md`, Section 11):
 
-- **Base URL:** `https://studdit.test/api/v1`
+- **Base URL:** `https://<app-host>/api/v1`
 - **Authentication:** `Authorization: Bearer <sanctum-token>` header
 - **`GET /sync/pull?device_id={deviceId}`** — Delta sync endpoint, returns conversations, messages, and status updates since the last checkpoint
 - **`POST /sync/push`** — Upload offline messages, returns per-message success/failure
@@ -1886,7 +1886,7 @@ SyncController::push()
 | `app/Services/MessageStatusService.php` | P4 | Status transition business logic |
 | `app/Events/MessagesRead.php` | P4 | Real-time read receipt broadcast |
 | `app/Http/Controllers/SyncController.php` | P5 | Offline sync pull + push |
-| `docs/sync-api.md` | P5 | API documentation for desktop client |
+| `docs/DESKTOP_APP_GUIDE.md` | P5 | Desktop client guide incl. sync API usage |
 | `tests/Feature/Chat/SyncTest.php` | P5 | 22 tests for pull + push sync endpoints |
 | `tests/Feature/Chat/MessageTest.php` | P3 | Tests for message send/fetch |
 

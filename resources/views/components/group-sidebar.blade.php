@@ -10,7 +10,11 @@
     </div>
 
     <p style="font-size: 13px; margin-top: 8px; line-height: 1.5;">
+<<<<<<< HEAD
+        {{ $group->description ?? 'This academic group uses '.config('app.name').' for calm, structured discussion.' }}
+=======
         {{ $group->description ?? 'This academic group uses Smart Discussion Forum for calm, structured discussion.' }}
+>>>>>>> c0988d7fdc2db09e9adec9bbae110bc3abf1b1a1
     </p>
 
     <div class="group-stats">

@@ -28,6 +28,31 @@ class AdminAccessControlTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_dashboard_shows_platform_statistics_without_management_tools(): void
+    {
+        $admin = $this->createSystemAdmin();
+
+        $response = $this->actingAs($admin)->get(route('admin.dashboard'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Platform statistics');
+        $response->assertSee('Total Members');
+        $response->assertSee($this->defaultGroup->group_name);
+        $response->assertDontSee('Management tools');
+    }
+
+    public function test_group_admin_dashboard_shows_stats_for_administered_groups_only(): void
+    {
+        $admin = $this->createGroupAdmin();
+        $this->defaultGroup->addAdmin($admin, $admin->id);
+
+        $response = $this->actingAs($admin)->get(route('admin.dashboard'));
+
+        $response->assertStatus(200);
+        $response->assertSee($this->defaultGroup->group_name);
+        $response->assertDontSee($this->secondGroup->group_name);
+    }
+
     public function test_group_admin_can_access_dashboard(): void
     {
         $admin = $this->createGroupAdmin();

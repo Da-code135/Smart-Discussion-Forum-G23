@@ -26,6 +26,7 @@ class RecommendationLog extends Model
         'group_id',
         'recommended_at',
         'reason',
+        'relevance_score',
     ];
 
     /**

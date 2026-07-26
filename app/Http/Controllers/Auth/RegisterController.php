@@ -130,7 +130,7 @@ class RegisterController extends Controller
         ]);
 
         // Look up role by name (dynamic, not hardcoded)
-        $role = Role::where('role_name', 'Member')->first();//this looks 
+        $role = Role::where('role_name', 'Member')->first(); // this looks
 
         if (! $role) {
             return redirect()->route('register')
@@ -181,7 +181,7 @@ class RegisterController extends Controller
 
         // Redirect to dashboard with success message
         return redirect()->route('dashboard')
-            ->with('success', 'Welcome to the Smart Discussion Forum! Your account has been created.');
+            ->with('success', 'Welcome to '.config('app.name').'! Your account has been created.');
     }
 
     /**

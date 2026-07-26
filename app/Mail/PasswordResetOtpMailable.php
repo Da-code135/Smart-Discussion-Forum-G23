@@ -22,7 +22,11 @@ class PasswordResetOtpMailable extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
+<<<<<<< HEAD
+            subject: 'Your '.config('app.name').' Password Reset Code',
+=======
             subject: 'Your Smart Discussion Forum Password Reset Code',
+>>>>>>> c0988d7fdc2db09e9adec9bbae110bc3abf1b1a1
         );
     }
 

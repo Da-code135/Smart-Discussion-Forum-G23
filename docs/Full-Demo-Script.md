@@ -250,18 +250,23 @@ The web uses sessions because browsers handle cookies natively. The desktop uses
       'Django' => ['django', 'orm', 'mvc', 'python web'],
       'JavaScript' => ['react', 'vue', 'node', 'useState', 'useEffect'],
       'Database' => ['sql', 'mysql', 'query', 'join', 'index'],
-      // ... more categories
+      // ... more categories, plus admin-defined keyword_hints per category
   ];
+  // Count keyword matches per category in the title + description
   foreach ($keywords as $category => $words) {
-      foreach ($words as $word) {
-          if (stripos($title, $word) !== false || stripos($description, $word) !== false) {
-              $topic->category_id = $categoryId;
-              $topic->save();
-              break 2;  // Stop at first match
-          }
-      }
+      $scores[$category] = countMatches($title.' '.$description, $words);
   }
+  // Winner = category with the most matches (falls back to General)
+  $best = array_key_of_max($scores);
+  // Confidence = winner's matches ÷ total matches × 100
+  $confidence = round($scores[$best] / array_sum($scores) * 100);
+  $topic->update([
+      'category_id' => $categoryId,
+      'classification_confidence' => $confidence,
+      'classification_needs_review' => $confidence < 40, // configurable threshold
+  ]);
   ```
+- The real implementation lives in `TopicClassificationService` and runs automatically when the topic is created. Admins can extend the keyword map by adding comma-separated `keyword_hints` to any category, and low-confidence topics are flagged for admin review (`classification_needs_review = true`).
 - **Anti-flood protection:** The route has `throttle.posts:topic` middleware. This is a custom rate limiter that restricts topic creation to prevent spam. It's separate from the general API rate limiter (60 requests/minute). The limit is configured in `App\Http\Kernel` or via a custom `RateLimiter` definition.
 - The response returns the created topic with its creator info: `{ "message": "Topic created successfully.", "data": { "topic": { ... } } }`.
 
@@ -395,7 +400,7 @@ The web uses sessions because browsers handle cookies natively. The desktop uses
 - It passes that data to a Blade export template such as `forum/export-pdf.blade.php`, which renders the topic thread as HTML.
 - `barryvdh/laravel-dompdf` then converts the HTML into a PDF response.
 - The response is not JSON. It is a file download with `Content-Type: application/pdf`.
-- The export is also written to the audit trail with `AuditLogService@log('topic.exported', ...)`.
+- The export is also written to the audit trail with `AuditLogService@log('topic.exported', ...)`, and a row is added to the `export_logs` table (`topic_id`, `user_id`, `file_type`) so every export is traceable.
 
 **Desktop app note:**
 - The desktop app would need a separate file-download flow to use this feature.
@@ -722,11 +727,11 @@ The web uses sessions because browsers handle cookies natively. The desktop uses
 **Desktop:** Click **Recommendations** in sidebar
 
 **What to show:**
-- Cards of recommended topics with category badges
+- Cards of recommended topics with category badges, a "% match" relevance badge, and a reason line
 - Click a card → opens the full topic
 
 **What to say:**
-> "The recommendation engine looks at which categories of topics a user has engaged with — topics they've posted in or replied to. It then finds unread topics in those same categories and recommends them. If the user has no engagement history, it falls back to the most popular topics globally. Each recommendation is logged so the same topic isn't recommended twice. The topic classification that feeds this uses keyword matching — for example, a topic with 'React' or 'useState' in the title gets classified as JavaScript."
+> "The recommendation engine looks at which categories of topics a user has engaged with — topics they've posted in or replied to. It then finds unread topics in those same categories and recommends them, each with a relevance score showing how strongly it matches the user's interests and a reason like 'Based on similar topics you engaged with'. If the user has no engagement history, it falls back to the most popular topics, capped at 50% relevance with the reason 'Popular in your group'. Each recommendation is logged with its score so the same topic isn't recommended twice. The topic classification that feeds this uses keyword matching — for example, a topic with 'React' or 'useState' in the title gets classified as JavaScript — and every classification carries a confidence score, with low-confidence topics flagged for admin review."
 
 **Behind the scenes — the recommendation algorithm (not true ML, but a rule-based system):**
 - The system looks at the kinds of topics the user has already engaged with.
@@ -761,7 +766,7 @@ $preferredCategories = $categoryCounts->sortDesc()->keys();
 ```php
 // Find topics in preferred categories that user hasn't engaged with
 $recommendations = Topic::whereIn('category_id', $preferredCategories)
-    ->whereNotIn('id', $alreadyRecommended)  // from recommendation_logs
+    ->whereNotIn('id', $alreadyRecommended)  // from recommendation_log
     ->whereNotIn('id', $alreadyEngaged)       // user hasn't posted in these
     ->orderBy('created_at', 'desc')
     ->limit($limit)
@@ -780,9 +785,12 @@ if ($recommendations->count() < $limit) {
     $recommendations = $recommendations->concat($popularTopics);
 }
 ```
+Popular fallbacks get a relevance score proportional to their reply count, capped at 50% (they can never outrank a personalised match), with the reason "Popular in your group".
 
-**Stage 4 — Log recommendations:**
-- Each recommended topic is logged in `recommendation_logs` with `user_id` and `topic_id` so the same topic is never recommended twice to the same user.
+**Stage 4 — Score and log recommendations:**
+- Personalised picks get `relevance_score` = the share of the user's engagement that falls in the topic's category (0–100) and `recommendation_reason` = "Based on similar topics you engaged with".
+- Each recommended topic is logged in `recommendation_log` with `user_id`, `topic_id`, and `relevance_score` so the same topic is never recommended twice to the same user.
+- The score and reason are shown in the UI as a "% match" badge and an italic reason line, and returned by `GET /api/v1/recommendations`.
 
 **Is this machine learning?** Technically, no — it's a rule-based recommendation system. It doesn't use neural networks or statistical models. However, it achieves the functional requirement (recommending relevant topics based on past engagement) without the complexity of training an ML model. The assessment rubric for Requirement 11 accepts this approach as "machine learning" in the broad sense of "adaptive content suggestion based on user behavior."
 

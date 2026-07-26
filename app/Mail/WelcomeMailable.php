@@ -21,7 +21,7 @@ class WelcomeMailable extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Welcome to Smart Discussion Forum!',
+            subject: 'Welcome to '.config('app.name').'!',
         );
     }
 

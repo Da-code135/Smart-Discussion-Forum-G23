@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ExportLog;
 use App\Models\Post;
 use App\Models\Topic;
 use App\Services\AuditLogService;
+use App\Services\ParticipationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -162,6 +164,9 @@ class TopicController extends Controller
             'group_id' => $groupId,
             'status' => 'active',
         ]);
+
+        // Award forum-wide participation points (once per topic)
+        app(ParticipationService::class)->recordTopicCreated($user, $topic);
 
         $topic->load('creator');
 
@@ -450,6 +455,13 @@ class TopicController extends Controller
                 $topic->title.
                 '" as PDF',
         );
+
+        // Record the export in the export log (SDD §4.2 "Export Logs")
+        ExportLog::create([
+            'topic_id' => $topic->id,
+            'user_id' => $user->id,
+            'file_type' => 'pdf',
+        ]);
 
         $pdf = Pdf::loadView('forum.export-pdf', [
             'topic' => $topic,

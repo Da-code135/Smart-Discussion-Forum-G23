@@ -7,6 +7,7 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Topic;
 use App\Services\AuditLogService;
+use App\Services\ParticipationService;
 use Illuminate\Http\Request;
 
 class PostController extends Controller
@@ -53,6 +54,9 @@ class PostController extends Controller
             'user_id' => $user->id,
             'content' => $validated['content'],
         ]);
+
+        // Award forum-wide participation points (once per reply)
+        app(ParticipationService::class)->recordReplyPosted($user, $post);
 
         // Log the reply for audit trail
         app(AuditLogService::class)->log(

@@ -42,6 +42,13 @@ class QuizSeeder extends Seeder
 
         $this->command->info("✅ Quiz lecturer created: ID {$lecturer->id} ({$lecturer->email})");
 
+        // Skip if the sample quiz already exists (keeps re-runs idempotent)
+        if (Quiz::where('title', 'Laravel Basics Quiz')->exists()) {
+            $this->command->warn('Sample quiz already seeded — skipping to avoid duplicates.');
+
+            return;
+        }
+
         // Create a sample quiz
         $quiz = Quiz::create([
             'lecturer_id' => $lecturer->id,

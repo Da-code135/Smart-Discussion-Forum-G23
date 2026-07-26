@@ -79,6 +79,8 @@ private $categoryKeywords = [
 
 **What this is:** A lookup table. Each category has a list of trigger words. When a topic is created, we count how many of those words appear in the title and description. The category with the most matches wins.
 
+**Admins can extend it without touching code:** the built-in lists above are only the starting point. At classification time the service merges in any comma-separated `keyword_hints` stored on the group's `topic_categories` rows (managed via the categories admin API). Adding a row `Mathematics → "algebra, calculus"` immediately teaches the classifier a brand-new category for that group.
+
 **Why this is the right call for an MVP:**
 
 1. **Zero training data needed** — We don't have 10,000 pre-classified topics. Without data, you cannot train an ML model.
@@ -94,7 +96,9 @@ private $categoryKeywords = [
 public function classifyTopic(Topic $topic)
 {
     // STEP 1: Combine title + description into one searchable string
-    $text = strtolower($topic->title . ' ' . $topic->description);
+    $text = strtolower($topic->title.' '.$topic->description);
+    // Built-in keywords merged with admin keyword_hints for this group
+    $keywordMap = $this->keywordMapForGroup($topic->group_id);
 ```
 
 **Why `strtolower`?** Because our keywords are all lowercase (`'django'`, `'api'`, `'rest'`). If the user writes "Django" or "DJANGO" or "dJango", we need to match it. Converting everything to lowercase first makes the matching case-insensitive. This is a simple trick — a real NLP system would use stemming or lemmatization, but for keyword counting, `strtolower` is sufficient.
@@ -102,7 +106,7 @@ public function classifyTopic(Topic $topic)
 ```php
     // STEP 2: Score every category
     $scores = [];
-    foreach ($this->categoryKeywords as $categoryName => $keywords) {
+    foreach ($keywordMap as $categoryName => $keywords) {
         $score = 0;
         foreach ($keywords as $keyword) {
             // substr_count counts EVERY occurrence, even inside other words
@@ -121,6 +125,7 @@ public function classifyTopic(Topic $topic)
     // STEP 3: Find the winner
     arsort($scores);  // Sort descending by score
     $bestCategory = array_key_first($scores);  // Get key of first element
+    $totalMatches = array_sum($scores);        // Needed for the confidence %
 ```
 
 **What `arsort` does:** The `a` stands for "associative" — it maintains the key-value association. After sorting:
@@ -140,19 +145,38 @@ After:  ['Django' => 4, 'APIs' => 3, 'CSS' => 0, 'Database' => 0, 'JavaScript' =
 **Why this check is necessary:** If the topic says "What time is lunch?", none of our keywords match. All scores are 0. `arsort` would put... well, all of them at 0, and `array_key_first` would return whichever key PHP stores first internally (probably 'Django' since it was defined first). We don't want an unrelated topic misclassified as Django. By checking if the best score is 0, we force it to 'General' instead.
 
 ```php
-    // STEP 5: Find or create the category in the database
+    // STEP 5: Confidence = winner's matches ÷ total matches (SDD Appendix A)
+    $confidence = $totalMatches > 0
+        ? (int) round($scores[$bestCategory] / $totalMatches * 100)
+        : 0;
+
+    // STEP 6: Low-confidence classifications are flagged for admin review
+    $reviewThreshold = (int) SystemConfig::getValue('classification_review_threshold', 40);
+    $needsReview = $confidence < $reviewThreshold;
+```
+
+**How confidence works:** if a topic scores Django 4 and APIs 1, the winner holds 4 of 5 total matches → 80% confidence. If the matches are split evenly across three categories (1/1/1), the winner only holds 33% → the classification is uncertain. Zero matches (General fallback) is always 0% confidence.
+
+**The review flag:** anything below the `classification_review_threshold` system config (default **40%**) gets `classification_needs_review = true` on the topic. Admins can list these with the `Topic::needsClassificationReview()` scope, correct the category, and add better `keyword_hints` so the same mistake doesn't repeat — this is the human feedback loop the SDD calls for.
+
+```php
+    // STEP 7: Find or create the category in the database
     $category = TopicCategory::firstOrCreate(
         [
             'group_id' => $topic->group_id,
             'category_name' => $bestCategory,
         ],
         [
-            'keyword_hints' => implode(',', $this->categoryKeywords[$bestCategory]),
+            'keyword_hints' => implode(',', $keywordMap[$bestCategory] ?? []),
         ]
     );
 
-    // STEP 6: Update the topic
-    $topic->update(['category_id' => $category->id]);
+    // STEP 8: Update the topic with the category and classification metadata
+    $topic->update([
+        'category_id' => $category->id,
+        'classification_confidence' => $confidence,
+        'classification_needs_review' => $needsReview,
+    ]);
 
     return $category;
 }
@@ -250,6 +274,7 @@ Schema::create('recommendation_log', function (Blueprint $table) {
     $table->foreignId('group_id')->constrained('groups')->onDelete('cascade');
     $table->timestamp('recommended_at');
     $table->string('reason', 255)->nullable();
+    $table->unsignedTinyInteger('relevance_score')->nullable(); // added later: 0–100 match %
     $table->timestamps();
     $table->unique(['user_id', 'topic_id']);
     $table->index('user_id');
@@ -263,6 +288,8 @@ The recommendation engine needs to know: "Have we already shown topic X to user 
 **The `unique(['user_id', 'topic_id'])` constraint** prevents duplicate recommendations at the database level. Even if the code has a race condition (two requests trying to recommend the same topic simultaneously), only one `INSERT` succeeds. The second one hits the unique constraint and throws an error. We use `updateOrCreate` instead of `create` to handle this gracefully — it tries to insert, and if the row already exists, it updates the `recommended_at` timestamp instead.
 
 **The `index('user_id')`** is a performance optimization. Every recommendation query starts with `WHERE user_id = ?`. Without an index, the database has to scan every row in the table to find that user's records. With an index, it jumps directly to the relevant rows. For a table that grows by thousands of rows over time, this is essential.
+
+**The `relevance_score` column** (added by `2026_07_26_022029_add_relevance_score_to_recommendation_log_table`) stores the 0–100 match percentage computed when the recommendation was made, so admins can audit *how strong* each suggestion was, not just *that* it happened.
 
 #### Adding `category_id` to Topics
 
@@ -827,29 +854,31 @@ The recommendation engine is the most algorithmically interesting piece of this 
 public function generateRecommendations(User $user, int $limit = 5)
 {
     // ─── Step 1: What does this user like? ───────────────────────
-    // Look at every topic the user has posted in, collect their category IDs
-    $userEngagedCategoryIds = Topic::whereIn('id', function ($q) use ($user) {
+    // Weight each category by how often the user has posted in it
+    $engagementByCategory = Topic::whereIn('id', function ($q) use ($user) {
         $q->select('topic_id')
             ->from('posts')
             ->where('user_id', $user->id);
     })
         ->whereNotNull('category_id')   // Skip unclassified topics
         ->pluck('category_id')
-        ->unique()
-        ->toArray();
+        ->countBy();
+
+    $totalEngagement = $engagementByCategory->sum();
+    $userEngagedCategoryIds = $engagementByCategory->keys()->toArray();
 ```
 
 **What this query does, in SQL:**
 
 ```sql
-SELECT DISTINCT category_id FROM topics
+SELECT category_id FROM topics
 WHERE id IN (
     SELECT topic_id FROM posts WHERE user_id = 5
 )
 AND category_id IS NOT NULL
 ```
 
-**Translation:** "Find all the categories of topics that user 5 has posted in. Don't include uncategorized topics."
+**Translation:** "Find the categories of every topic user 5 has posted in." The `countBy()` at the end turns the raw list into an engagement histogram — e.g. `[Django => 14, Database => 6]` — which is what powers the relevance percentage below. A user with 14 of 20 posts in Django is 70% "about" Django.
 
 ```php
     // ─── Step 2: New user with no history? Show popular topics ─────
@@ -939,21 +968,41 @@ Query 2: SELECT * FROM users WHERE id IN (?, ?, ?, ?, ?)  ← one query for all 
 This is a massive performance difference at scale.
 
 ```php
-    // ─── Step 4: Log the recommendations so they're never repeated ──
+    // ─── Step 4: Score and log each recommendation ───────────────
+    // Relevance = share of the user's engagement in the topic's category
     foreach ($recommendations as $topic) {
+        $topic->relevance_score = (int) round(
+            ($engagementByCategory[$topic->category_id] ?? 0) / max(1, $totalEngagement) * 100,
+        );
+        $topic->recommendation_reason = 'Based on similar topics you engaged with';
+
         RecommendationLog::updateOrCreate(
             ['user_id' => $user->id, 'topic_id' => $topic->id],
             [
-                'group_id' => $user->group_id,
+                'group_id' => $topic->group_id,
                 'recommended_at' => now(),
-                'reason' => 'Based on similar topics you engaged with',
+                'reason' => $topic->recommendation_reason,
+                'relevance_score' => $topic->relevance_score,
             ]
         );
+    }
+
+    // ─── Step 5: Top up with popular topics when matches run dry ───
+    if ($recommendations->count() < $limit) {
+        $fillers = $this->getPopularTopics($user, $limit)
+            ->reject(fn (Topic $topic) => $recommendations->contains('id', $topic->id))
+            ->take($limit - $recommendations->count());
+
+        $recommendations = $recommendations->concat($fillers);
     }
 
     return $recommendations;
 }
 ```
+
+**The transient attributes:** `relevance_score` and `recommendation_reason` are set on the model *in memory only* — they are not columns on `topics`. The views and the API read them straight off each topic for display (the "87% match" badge and the reason line), while the log row preserves the score permanently.
+
+**Why the Step 5 top-up exists:** an engaged user eventually runs out of fresh topics in their favourite categories (everything is either posted-in or already recommended). Without the top-up, their recommendation card would go blank forever. Popular topics fill the remaining slots so students and lecturers always see suggestions.
 
 **`updateOrCreate` is critical here.** Consider what happens if the user refreshes the page while the recommendations are being generated:
 - Without `updateOrCreate`: Two `INSERT` queries try to insert the same `(user_id, topic_id)` pair. The second one hits the unique constraint and throws a database error. The user sees a 500 error page.
@@ -974,13 +1023,25 @@ private function getPopularTopics(User $user, int $limit = 5)
         $query->forGroup($user->group_id);
     }
 
-    return $query->orderBy('posts_count', 'desc')
+    $topics = $query->orderBy('posts_count', 'desc')
         ->limit($limit)
         ->get();
+
+    // Popularity-based suggestions carry a modest relevance score
+    // (capped at 50%) since they aren't matched to the user's history
+    $maxReplies = max(1, (int) $topics->max('posts_count'));
+    foreach ($topics as $topic) {
+        $topic->relevance_score = max(10, (int) round($topic->posts_count / $maxReplies * 50));
+        $topic->recommendation_reason = 'Popular in your group';
+    }
+
+    return $topics;
 }
 ```
 
 **"Popular" = most replies.** A topic with 50 replies is clearly generating discussion and is more likely to interest a new user than a topic with 0 replies.
+
+**Why the score is capped at 50%:** a popularity suggestion says nothing about *this* user's interests, so it should never look as confident as a personalized match. The busiest topic in the group gets 50%, quieter ones scale down to a floor of 10%. The reason shown to the user is `"Popular in your group"` instead of the personalized wording.
 
 ---
 
@@ -1318,6 +1379,13 @@ $validated = $request->validate([
 - If the field is missing from the request, Laravel would fail the `required` validation
 - `nullable` tells Laravel: "it's okay if this field isn't in the request — treat it as null"
 
+Because an absent field would otherwise never overwrite a stored `'1'`, the controller normalizes the value right after validation so unchecking the box actually persists `'0'`:
+
+```php
+// Unchecked checkboxes are absent from the request; persist an explicit 0/1
+$validated['quiz_late_join_allowed'] = $request->boolean('quiz_late_join_allowed') ? '1' : '0';
+```
+
 ### 7.3 The MonitorMemberActivity Update
 
 The existing command implements a 3-step escalation:
@@ -1372,10 +1440,14 @@ Here is how everything connects, from end to end, across all five persons' work:
 4. Topic::booted() fires
 5. TopicClassificationService::classifyTopic($topic)
    ├── Lowercase title + description
+   ├── Merge built-in keywords with admin keyword_hints for the group
    ├── Count keyword matches per category
    ├── Pick highest-scoring category
+   ├── Compute confidence % (winner ÷ total matches)
+   ├── Flag for admin review if confidence < threshold (default 40%)
    ├── TopicCategory::firstOrCreate(...) ← Creates "Django" category if new
-   └── $topic->update(['category_id' => ...]) ← Links topic to category
+   └── $topic->update([category_id, classification_confidence,
+                      classification_needs_review]) ← Links topic to category
 6. User is redirected to the new topic
 ```
 
@@ -1421,12 +1493,14 @@ Here is how everything connects, from end to end, across all five persons' work:
 1. GET /dashboard
 2. DashboardController@show
 3. RecommendationService::generateRecommendations($user, 3)
-   ├── Find categories user has posted in → [1, 3, 5]
-   ├── If empty → return popular topics (fallback)
+   ├── Build engagement histogram of categories user posted in → [1 => 14, 3 => 6]
+   ├── If empty → return popular topics (fallback, reason "Popular in your group")
    ├── Find active topics in those categories
    ├── Exclude already-posted topics
    ├── Exclude already-recommended topics
-   ├── Log each recommendation in recommendation_log
+   ├── Attach relevance_score (% of engagement in that category) + reason
+   ├── Log each recommendation (incl. relevance_score) in recommendation_log
+   ├── Top up with popular topics if fewer than requested
    └── Return 3 topics
 4. Blade renders "Recommended for you" section
 ```
@@ -1464,9 +1538,9 @@ Here is how everything connects, from end to end, across all five persons' work:
 | `resources/views/admin/statistics/index.blade.php` | P1 | 6-card metric grid per group |
 | `app/Console/Commands/CalculateStatistics.php` | P2 | Scheduled: computes stats + sends warnings |
 | `app/Console/Commands/ClassifyTopics.php` | P2 | One-time: classify all unclassified topics |
-| `app/Services/TopicClassificationService.php` | P2 | Keyword-matching "ML" classifier |
-| `app/Models/Topic.php` (modified) | P2 | Added category_id + auto-classify hook |
-| `app/Services/RecommendationService.php` | P3 | Personalized recommendation engine |
+| `app/Services/TopicClassificationService.php` | P2 | Keyword-matching "ML" classifier (confidence % + review flag + admin keyword_hints) |
+| `app/Models/Topic.php` (modified) | P2 | Added category_id + auto-classify hook + classification confidence/review fields |
+| `app/Services/RecommendationService.php` | P3 | Personalized recommendation engine (relevance scores + reasons + popular top-up) |
 | `app/Http/Controllers/DashboardController.php` | P3 | Dashboard with recommendations |
 | `resources/views/recommendations/index.blade.php` | P3 | Full recommendations page |
 | `app/Services/NotificationService.php` | P4 | Central notification-sending service |
@@ -1484,8 +1558,8 @@ Here is how everything connects, from end to end, across all five persons' work:
 ### Testing Quick-Reference
 
 1. **Statistics**: Login as System Admin → `/admin/statistics` → see cards → "Recalculate"
-2. **Classification**: Create topic "How to use Django ORM" → check `topic_categories` table
-3. **Recommendations**: Login as user who posted → `/dashboard` → "Recommended for you" section
+2. **Classification**: Create topic "How to use Django ORM" → check `topic_categories` table and the topic's `classification_confidence` / `classification_needs_review` columns
+3. **Recommendations**: Login as user who posted → `/dashboard` → "Recommended for you" section; `/recommendations` shows the "% match" badge and reason per topic
 4. **Notifications**: Run `php artisan app:calculate-statistics` → login as inactive user → `/notifications`
 5. **Admin Config**: `/admin/system-config` → change value → save → run `monitor:activity --dry-run`
 

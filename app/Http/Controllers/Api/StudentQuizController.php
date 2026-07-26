@@ -8,6 +8,7 @@ use App\Models\Grade;
 use App\Models\Quiz;
 use App\Models\StudentAnswer;
 use App\Models\StudentAttempt;
+use App\Services\ParticipationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -229,7 +230,8 @@ class StudentQuizController extends Controller
                 ];
             });
 
-        $timeRemaining = max(0, ($quiz->duration_minutes * 60) - now()->diffInSeconds($attempt->start_time));
+        // Remaining time is clipped at the scheduled end so late joiners get no extra time
+        $timeRemaining = $quiz->secondsRemainingFor($attempt);
 
         return response()->json([
             'success' => true,
@@ -298,10 +300,9 @@ class StudentQuizController extends Controller
             ->pluck('selected_answer_id', 'question_id');
 
         $timeRemaining = 0;
-        if ($attempt->submit_time) {
-            $timeRemaining = 0;
-        } else {
-            $timeRemaining = max(0, ($quiz->duration_minutes * 60) - now()->diffInSeconds($attempt->start_time));
+        if (! $attempt->submit_time) {
+            // Clipped at the scheduled end so late joiners get no extra time
+            $timeRemaining = $quiz->secondsRemainingFor($attempt);
         }
 
         return response()->json([
@@ -549,7 +550,8 @@ class StudentQuizController extends Controller
             ]);
         }
 
-        $timeRemaining = max(0, ($quiz->duration_minutes * 60) - now()->diffInSeconds($attempt->start_time));
+        // Clipped at the scheduled end so late joiners get no extra time
+        $timeRemaining = $quiz->secondsRemainingFor($attempt);
 
         return response()->json([
             'success' => true,
@@ -616,6 +618,11 @@ class StudentQuizController extends Controller
                 'graded_at' => now(),
             ]
         );
+
+        // Award forum-wide participation points (once per student per quiz)
+        if ($attempt->student) {
+            app(ParticipationService::class)->recordQuizCompleted($attempt->student, $quiz);
+        }
     }
 
     /**

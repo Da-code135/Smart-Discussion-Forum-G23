@@ -28,6 +28,17 @@ class Topic extends Model
         'is_answered',
         'is_pinned',
         'category_id',
+        'classification_confidence',
+        'classification_needs_review',
+    ];
+
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'classification_needs_review' => 'boolean',
     ];
 
     /**
@@ -99,5 +110,14 @@ class Topic extends Model
     public function scopeByType($query, string $type)
     {
         return $query->where('post_type', $type);
+    }
+
+    /**
+     * Scope: topics whose ML classification was low-confidence and
+     * needs administrator review (SDD Appendix A).
+     */
+    public function scopeNeedsClassificationReview($query)
+    {
+        return $query->where('classification_needs_review', true);
     }
 }

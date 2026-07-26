@@ -35,6 +35,21 @@ class UserManagementTest extends TestCase
         $response->assertViewHas('users');
     }
 
+    public function test_users_list_shows_actions_in_dropdown_menu(): void
+    {
+        $admin = $this->createSystemAdmin();
+        $user = $this->createStudent();
+
+        $response = $this->actingAs($admin)->get(route('admin.users.index'));
+
+        $response->assertStatus(200);
+        $response->assertSee('user-actions-menu-'.$user->id, false);
+        $response->assertSee('more_horiz');
+        $response->assertSee(route('admin.users.reset-password', $user), false);
+        $response->assertSee(route('admin.users.blacklist', $user), false);
+        $response->assertDontSee('table-actions', false);
+    }
+
     public function test_admin_can_search_users(): void
     {
         $admin = $this->createSystemAdmin();

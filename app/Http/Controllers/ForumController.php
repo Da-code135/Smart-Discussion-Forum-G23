@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ExportLog;
 use App\Models\Group;
 use App\Models\Notification;
 use App\Models\Post;
@@ -9,6 +10,7 @@ use App\Models\PostVisibility;
 use App\Models\Topic;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\ParticipationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -139,7 +141,7 @@ class ForumController extends Controller
                 ->withErrors(['title' => 'A topic with this title already exists in this group.']);
         }
 
-        Topic::create([
+        $topic = Topic::create([
             'title' => $validated['title'],
             'description' => $validated['description'],
             'post_type' => $validated['post_type'] ?? 'discussion',
@@ -147,6 +149,9 @@ class ForumController extends Controller
             'group_id' => $targetGroupId,
             'status' => 'active',
         ]);
+
+        // Award participation points for creating a new topic
+        app(ParticipationService::class)->recordTopicCreated($user, $topic);
 
         return redirect()
             ->route('forum.index')
@@ -316,6 +321,9 @@ class ForumController extends Controller
             'content' => $request->content,
         ]);
 
+        // Award participation points for replying to a discussion
+        app(ParticipationService::class)->recordReplyPosted(Auth::user(), $post);
+
         // Log the reply for audit trail
         app(AuditLogService::class)->log(
             action: 'post.created',
@@ -448,6 +456,13 @@ class ForumController extends Controller
                 $topic->title.
                 '" as PDF',
         );
+
+        // Record the export in the export log (SDD §4.2 "Export Logs")
+        ExportLog::create([
+            'topic_id' => $topic->id,
+            'user_id' => Auth::id(),
+            'file_type' => 'pdf',
+        ]);
 
         $pdf = Pdf::loadView('forum.export-pdf', [
             'topic' => $topic,

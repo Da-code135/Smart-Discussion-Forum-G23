@@ -132,6 +132,26 @@
 
             <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border-color, #e5e7eb);">
 
+            <h3>Topic Classification</h3>
+
+            <!-- Classification Review Threshold -->
+            <div class="form-group">
+                <label for="classification_review_threshold" class="form-label">Classification Review Threshold (%)</label>
+                <input
+                    type="number"
+                    id="classification_review_threshold"
+                    name="classification_review_threshold"
+                    value="{{ $configs->firstWhere('config_key', 'classification_review_threshold')->config_value ?? 40 }}"
+                    min="0"
+                    max="100"
+                    class="form-control"
+                    required
+                >
+                <small class="form-text">Topics classified with confidence below this percentage are flagged for admin review</small>
+            </div>
+
+            <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border-color, #e5e7eb);">
+
             <h3>Quiz Settings</h3>
 
             <!-- Quiz Late Join Allowed -->
@@ -141,7 +161,7 @@
                         type="checkbox"
                         name="quiz_late_join_allowed"
                         value="1"
-                        {{ $configs->firstWhere('config_key', 'quiz_late_join_allowed')->config_value === '1' ? 'checked' : '' }}
+                        {{ ($configs->firstWhere('config_key', 'quiz_late_join_allowed')->config_value ?? '0') === '1' ? 'checked' : '' }}
                     >
                     Allow late joins for quizzes
                 </label>

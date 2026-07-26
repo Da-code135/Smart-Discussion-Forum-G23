@@ -470,6 +470,9 @@ Returns paginated topics for the user's accessible group(s), newest first.
         "description": "...",
         "status": "active",
         "post_type": "question",
+        "category_id": 3,
+        "classification_confidence": 100,
+        "classification_needs_review": false,
         "creator": { "id": 1, "full_name": "John Doe" },
         "posts_count": 3,
         "created_at": "2026-07-18T10:00:00.000000Z"
@@ -484,6 +487,11 @@ Returns paginated topics for the user's accessible group(s), newest first.
 ```
 
 > Laravel pagination nests a `data` array inside the payload. In Jackson, read `root.path("data").path("data")` for the list, and `root.path("data").path("current_page")` for paging.
+
+**Classification fields:** every topic is auto-classified into a category on creation by the keyword-based classifier:
+- `category_id` — the assigned `topic_categories` row (`null` only for legacy unclassified topics)
+- `classification_confidence` — 0–100 score (winner's keyword matches ÷ total keyword matches)
+- `classification_needs_review` — `true` when confidence is below the admin review threshold (`classification_review_threshold` system config, default 40%); such topics are queued for admin review
 
 **Filter by type:**
 ```http
@@ -507,6 +515,7 @@ Authorization: Bearer {token}
 - `post_type` optional: `discussion` (default) or `question`
 - Title must be unique **within the user's group**
 - Rate limited for normal users (3 topics / 60s)
+- The topic is auto-classified immediately after creation (see 7.1 classification fields)
 
 ### 7.3 Open a topic (detail)
 
@@ -547,6 +556,8 @@ Accept: application/pdf
 
 Returns **binary PDF** (`topic-{id}.pdf`). Save to disk and open with `Desktop.getDesktop().open(file)`.
 
+Each export is recorded server-side in two places: the audit trail (`topic.exported` action) and the dedicated `export_logs` table (`topic_id`, `user_id`, `file_type`).
+
 ```java
 byte[] pdf = api.getBytes("/topics/" + topicId + "/export/pdf");
 Path out = Path.of(System.getProperty("user.home"), "Downloads", "topic-" + topicId + ".pdf");
@@ -578,7 +589,44 @@ POST /api/v1/topics/{topicId}/share
 
 Show `data.url` in a text field + Copy button. Opening that URL does **not** require a token (signature authorizes access).
 
-### 7.8 Post visibility (hide reply from one user)
+### 7.9 Recommendations
+
+```http
+GET /api/v1/recommendations?limit=10
+Authorization: Bearer {token}
+```
+
+Returns personalized topic recommendations (same engine as the web `/recommendations` page). `limit` defaults to 10, max 50.
+
+**200 response:**
+```json
+{
+  "success": true,
+  "data": {
+    "recommendations": [
+      {
+        "id": 12,
+        "title": "Django views help",
+        "description": "...",
+        "creator": { "id": 4, "full_name": "Jane Doe" },
+        "category": { "id": 3, "name": "Django" },
+        "reply_count": 2,
+        "relevance_score": 100,
+        "reason": "Based on similar topics you engaged with",
+        "post_type": "discussion",
+        "is_answered": false,
+        "created_at": "2026-07-18T10:00:00.000000Z"
+      }
+    ]
+  }
+}
+```
+
+- `relevance_score` — 0–100 match percentage. Personalized matches score by the share of the user's posting activity in the topic's category; popularity-based fallback suggestions are capped at 50.
+- `reason` — why the topic was suggested: `"Based on similar topics you engaged with"` (personalized) or `"Popular in your group"` (fallback for new/inactive users, and top-up when personalized matches run dry).
+- Each recommendation is logged in `recommendation_log` (with its relevance score) so it is never repeated.
+
+### 7.10 Post visibility (hide reply from one user)
 
 ```http
 POST   /api/v1/posts/{postId}/visibility/exclude   { "user_id": 3 }
@@ -783,9 +831,10 @@ All paths below are relative to `/api/v1`.
 | POST | `/topics/{id}/posts` | Yes | Create reply |
 | PUT | `/posts/{id}` | Yes | Edit reply |
 | DELETE | `/posts/{id}` | Yes | Delete reply |
-| GET | `/topics/{id}/export/pdf` | Yes | Download PDF |
+| GET | `/topics/{id}/export/pdf` | Yes | Download PDF (logged to `export_logs`) |
 | POST | `/topics/{id}/share` | Yes | Signed share URL |
 | GET | `/topics/{id}/shared` | Signed query | Public shared access |
+| GET | `/recommendations` | Yes | Personalized recommendations (relevance score + reason) |
 | GET | `/posts/{id}/visibility` | Yes | List exclusions |
 | POST | `/posts/{id}/visibility/exclude` | Yes | Exclude user |
 | DELETE | `/posts/{id}/visibility/{userId}` | Yes | Remove exclusion |
@@ -802,7 +851,7 @@ All paths below are relative to `/api/v1`.
 
 ### Also available (build later)
 
-Notifications, recommendations, conversations/messages, quizzes/grades, offline sync, and `/admin/*` management APIs exist. Full schemas: **[`API-SPECIFICATION.md`](../API-SPECIFICATION.md)**.
+Notifications, conversations/messages, quizzes/grades, offline sync, and `/admin/*` management APIs exist. Full schemas: **[`API-SPECIFICATION.md`](../API-SPECIFICATION.md)**.
 
 ---
 
@@ -872,4 +921,4 @@ Page through with `?page=2` on list endpoints that support it.
 
 ---
 
-**Last updated:** July 2026 — aligned with Sanctum token auth, OTP password reset, topic share/export, and post visibility APIs.
+**Last updated:** July 2026 — aligned with Sanctum token auth, OTP password reset, topic share/export (with export logging), classification confidence/review fields, recommendation relevance scores, and post visibility APIs.

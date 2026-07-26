@@ -6,7 +6,11 @@
 <div class="login-card">
     <div class="card-header-custom">
         <h1>Create your account</h1>
+<<<<<<< HEAD
+        <p class="card-subtitle">Join {{ config('app.name') }} and access your academic discussion group.</p>
+=======
         <p class="card-subtitle">Create an account to access your academic discussion group.</p>
+>>>>>>> c0988d7fdc2db09e9adec9bbae110bc3abf1b1a1
     </div>
 
     <form class="login-form" method="POST" action="{{ route('register.store') }}">

@@ -47,8 +47,12 @@ class SystemConfigController extends Controller
             'blacklist_duration_days' => 'required|integer|min:1',
             'days_before_second_warning' => 'required|integer|min:1',
             'days_before_blacklist' => 'required|integer|min:1',
+            'classification_review_threshold' => 'required|integer|min:0|max:100',
             'quiz_late_join_allowed' => 'nullable|in:0,1',
         ]);
+
+        // Unchecked checkboxes are absent from the request; persist an explicit 0/1
+        $validated['quiz_late_join_allowed'] = $request->boolean('quiz_late_join_allowed') ? '1' : '0';
 
         foreach ($validated as $key => $value) {
             SystemConfig::updateOrCreate(
