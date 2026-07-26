@@ -39,6 +39,27 @@ COPY . .
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
+# Frontend build-time variables. Vite inlines these into the JS bundle during
+# `npm run build`, so they MUST be present at build time (not just runtime).
+# Render injects a service env var into the build only when a matching ARG is
+# declared here; the ENV lines then expose them to the npm build process.
+ARG VITE_BROADCASTER
+ARG VITE_PUSHER_APP_KEY
+ARG VITE_PUSHER_APP_CLUSTER
+ARG VITE_APP_NAME
+ARG VITE_REVERB_APP_KEY
+ARG VITE_REVERB_HOST
+ARG VITE_REVERB_PORT
+ARG VITE_REVERB_SCHEME
+ENV VITE_BROADCASTER=${VITE_BROADCASTER} \
+    VITE_PUSHER_APP_KEY=${VITE_PUSHER_APP_KEY} \
+    VITE_PUSHER_APP_CLUSTER=${VITE_PUSHER_APP_CLUSTER} \
+    VITE_APP_NAME=${VITE_APP_NAME} \
+    VITE_REVERB_APP_KEY=${VITE_REVERB_APP_KEY} \
+    VITE_REVERB_HOST=${VITE_REVERB_HOST} \
+    VITE_REVERB_PORT=${VITE_REVERB_PORT} \
+    VITE_REVERB_SCHEME=${VITE_REVERB_SCHEME}
+
 # Install Node dependencies and build frontend assets
 RUN npm ci && npm run build && rm -rf node_modules
 

@@ -431,11 +431,13 @@ Route::prefix($API_VERSION)->group(function () {
                 Route::post('/{quiz}/unpublish', [QuizController::class, 'unpublish']);
                 Route::get('/{quiz}/report', [QuizController::class, 'report']);
                 // Questions (nested under quizzes)
+                // "reorder" is a static segment — it must be defined BEFORE the
+                // parameterized {question} routes so it isn't mistaken for a question ID.
+                Route::put('/{quiz}/questions/reorder', [QuestionController::class, 'reorder']);
                 Route::get('/{quiz}/questions', [QuestionController::class, 'index']);
                 Route::post('/{quiz}/questions', [QuestionController::class, 'store']);
                 Route::put('/{quiz}/questions/{question}', [QuestionController::class, 'update']);
                 Route::delete('/{quiz}/questions/{question}', [QuestionController::class, 'destroy']);
-                Route::put('/{quiz}/questions/reorder', [QuestionController::class, 'reorder']);
             });
             // Answers (not nested — uses explicit question binding)
             Route::get('/questions/{question}/answers', [AnswerController::class, 'index']);
