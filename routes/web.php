@@ -32,6 +32,7 @@ use App\Models\Topic;
 use App\Utilities\StatisticsUtility;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 
 // ============================================
 // GUEST ROUTES (No authentication needed)
@@ -949,3 +950,13 @@ Route::prefix('admin')
             ])->name('admin.blacklist.update');
         });
     });
+
+    Route::get('/cron/run-scheduler/{token}', function ($token) {
+    if ($token !== env('CRON_SECRET', 'change-this')) {
+        abort(403);
+    }
+
+    Artisan::call('schedule:run');
+    return 'Scheduler ran at ' . now();
+});
+
