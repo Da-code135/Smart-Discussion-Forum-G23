@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\ParticipationService;
 use App\Utilities\ProfileUpdateUtility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,10 +16,14 @@ class ProfileController extends Controller
     ) {}
 
     // #66: Show profile editor
-    public function edit()
+    public function edit(ParticipationService $participation)
     {
+        $user = Auth::user();
+
         return view('profile.edit', [
-            'user' => Auth::user(),
+            'user' => $user,
+            'participationTotal' => $participation->totalFor($user),
+            'participationBreakdown' => $participation->breakdownFor($user),
         ]);
     }
 
@@ -32,7 +37,7 @@ class ProfileController extends Controller
             'email' => [
                 'required',
                 'email',
-                Rule::unique('users', 'email')->ignore($user->id),// Ensures the email is unique, ignoring the current user's email. users is the table name, email is the column name, and $user->id is the ID of the currently authenticated user. This prevents validation errors when a user updates their profile without changing their email address.
+                Rule::unique('users', 'email')->ignore($user->id), // Ensures the email is unique, ignoring the current user's email. users is the table name, email is the column name, and $user->id is the ID of the currently authenticated user. This prevents validation errors when a user updates their profile without changing their email address.
             ],
         ]);
 
@@ -67,7 +72,7 @@ class ProfileController extends Controller
 
         $user = Auth::user();
 
-       $path = $this->profileUtility->uploadProfilePicture(
+        $path = $this->profileUtility->uploadProfilePicture(
             $user,
             $request->file('profile_picture')
         );

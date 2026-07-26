@@ -453,10 +453,11 @@ POST   /api/v1/admin/moderation/{post}/ignore       → ModerationController@ign
 | `Api\ProfileController` | Update profile |
 | `Api\PasswordController` | Forgot/reset/change password |
 | `Api\EmailVerificationController` | Email verification |
-| `Api\TopicController` | Forum topic CRUD, export, share |
+| `Api\TopicController` | Forum topic CRUD, PDF export (logged to `export_logs`), share |
 | `Api\PostController` | Forum post CRUD |
 | `Api\PostVisibilityController` | Post visibility exclusions |
-| `Api\CategoryController` | Category listing (user + admin) |
+| `Api\CategoryController` | Category listing (user + admin, incl. `keyword_hints` for the classifier) |
+| `Api\RecommendationController` | Personalised topic recommendations (with `relevance_score` + `reason`) |
 | `Api\GroupBrowseController` | Group browsing |
 | `Api\NotificationController` | User notification listing |
 | `Api\Admin\GroupController` | Group management (admin) |

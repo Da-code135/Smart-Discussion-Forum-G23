@@ -122,6 +122,21 @@ class ForumExportAndShareTest extends TestCase
         $this->assertStringContainsString('PDF', $log->description);
     }
 
+    public function test_export_creates_export_log_entry()
+    {
+        $member = $this->createMember(['email' => 'exportlog@test.com']);
+        $topic = $this->createTopicWithReplies(['created_by' => $member->id]);
+
+        $this->actingAs($member)
+            ->get(route('forum.export-pdf', $topic->id));
+
+        $this->assertDatabaseHas('export_logs', [
+            'topic_id' => $topic->id,
+            'user_id' => $member->id,
+            'file_type' => 'pdf',
+        ]);
+    }
+
     // =======================================================
     // PDF Export — Visibility & Moderation Filtering
     // =======================================================

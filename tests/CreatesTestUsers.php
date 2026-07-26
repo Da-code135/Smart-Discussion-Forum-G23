@@ -14,6 +14,8 @@ trait CreatesTestUsers
 
     protected Role $studentRole;
 
+    protected Role $lecturerRole;
+
     protected Role $memberRole;
 
     protected Group $defaultGroup;
@@ -35,6 +37,11 @@ trait CreatesTestUsers
         $this->studentRole = Role::firstOrCreate(
             ['role_name' => 'Student'],
             ['description' => 'Student role']
+        );
+
+        $this->lecturerRole = Role::firstOrCreate(
+            ['role_name' => 'Lecturer'],
+            ['description' => 'Lecturer role']
         );
 
         $this->memberRole = Role::firstOrCreate(
@@ -84,6 +91,18 @@ trait CreatesTestUsers
             'email' => 'student-'.uniqid().'@test.com',
             'password' => 'Password123',
             'role_id' => $this->studentRole->id,
+            'group_id' => $this->defaultGroup->id,
+            'account_status' => 'active',
+        ], $attrs));
+    }
+
+    protected function createLecturer(array $attrs = []): User
+    {
+        return User::create(array_merge([
+            'full_name' => 'Test Lecturer',
+            'email' => 'lecturer-'.uniqid().'@test.com',
+            'password' => 'Password123',
+            'role_id' => $this->lecturerRole->id,
             'group_id' => $this->defaultGroup->id,
             'account_status' => 'active',
         ], $attrs));

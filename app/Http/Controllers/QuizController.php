@@ -290,19 +290,33 @@ class QuizController extends Controller
     }
 
     /**
-     * Show performance report for a quiz (lecturer/admin only).
+     * Show performance report for a quiz.
      *
      * GET /quizzes/{quiz}/report
      * Route name: quizzes.report
      *
      * Displays class performance summary, student-by-student breakdown,
      * and aggregate statistics.
+     *
+     * Access: the quiz lecturer and admins at any time; every member of
+     * the quiz's group once the quiz has closed (scheduled end passed).
      */
     public function showPerformanceReport(Quiz $quiz)
     {
-        // Security: Only the quiz lecturer or an admin can view
-        if (Auth::user()->id !== $quiz->lecturer_id && ! Auth::user()->isAdmin()) {
-            abort(403, 'Not authorized to view this report.');
+        $user = Auth::user();
+        $isOwnerOrAdmin = $user->id === $quiz->lecturer_id || $user->isAdmin();
+
+        if (! $isOwnerOrAdmin) {
+            $isGroupMember = $quiz->group_id && $user->group_id === $quiz->group_id;
+            $quizHasClosed = now()->greaterThanOrEqualTo($quiz->getScheduledEndDateTime());
+
+            if (! $isGroupMember) {
+                abort(403, 'Not authorized to view this report.');
+            }
+
+            if (! $quizHasClosed) {
+                abort(403, 'The performance report becomes available once the quiz has ended.');
+            }
         }
 
         $grades = Grade::where('quiz_id', $quiz->quiz_id)

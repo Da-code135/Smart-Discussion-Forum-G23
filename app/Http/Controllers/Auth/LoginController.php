@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BlacklistRecord;
 use App\Models\User;
 use App\Models\Warning;
+use App\Services\ParticipationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -91,6 +92,7 @@ class LoginController extends Controller
                 Auth::login($user, $request->boolean('remember'));
                 session()->regenerate();
                 $user->update(['last_active_at' => now()]);
+                app(ParticipationService::class)->recordDailyLogin($user);
 
                 // Clear rate limiter on successful login
                 RateLimiter::clear($key);
@@ -108,6 +110,9 @@ class LoginController extends Controller
 
         // #52: update last_active_at
         $user->update(['last_active_at' => now()]);
+
+        // Award the daily login participation point (once per calendar day)
+        app(ParticipationService::class)->recordDailyLogin($user);
 
         // Clear rate limiter on successful login
         RateLimiter::clear($key);

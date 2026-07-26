@@ -52,6 +52,8 @@ class RecommendationController extends Controller
                             'name' => $topic->category->category_name,
                         ] : null,
                         'reply_count' => $topic->posts_count,
+                        'relevance_score' => $topic->relevance_score,
+                        'reason' => $topic->recommendation_reason,
                         'post_type' => $topic->post_type,
                         'is_answered' => $topic->is_answered,
                         'created_at' => $topic->created_at,

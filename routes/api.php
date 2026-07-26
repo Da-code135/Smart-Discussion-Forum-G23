@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\GroupBrowseController;
+use App\Http\Controllers\Api\Internal\RunScheduleController;
 use App\Http\Controllers\Api\MessageStatusController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OnboardingController;
@@ -743,3 +744,15 @@ Route::prefix($API_VERSION)->group(function () {
         });
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Internal Routes (not versioned)
+|--------------------------------------------------------------------------
+|
+| POST /api/internal/run-schedule
+| Triggered by the external cron service (Supabase Cron) to execute any
+| due scheduled commands. Protected by the X-Cron-Secret header, which
+| must match the CRON_SECRET environment variable.
+*/
+Route::post('/internal/run-schedule', RunScheduleController::class);

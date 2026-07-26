@@ -66,7 +66,9 @@
 | `users` | Registered users with profile, status, and role/group assignments |
 | `topics` | Forum discussion threads |
 | `posts` | Replies within topics |
-| `topic_categories` | ML-classification categories (per-group) |
+| `topic_categories` | Classification categories (per-group), with admin-editable `keyword_hints` |
+| `recommendation_log` | Recommendation history per user, with `relevance_score` |
+| `export_logs` | Log of every topic PDF export (topic, user, file type) |
 | `quizzes` | Quiz metadata (title, schedule, duration) |
 | `questions` | Questions within a quiz (MCQ, True/False, Short answer) |
 | `answers` | Answer options, with `is_correct` flag |
@@ -252,10 +254,11 @@ Registration is rate-limited to **3 registrations per 60 minutes** (`throttle:3,
 - Returns HTTP 429 (Too Many Requests) with retry-after time when limit exceeded.
 
 ### Q24: What is the recommendation system?
-**A:** (`RecommendationService`): Provides personalized topic recommendations based on ML-classified categories.
-- Uses `TopicClassificationService` to auto-classify topics into categories.
-- `RecommendationService::generateRecommendations()` returns topics matching the user's preferred categories.
-- Displayed on the dashboard and a dedicated `/recommendations` page.
+**A:** (`RecommendationService`): Provides personalized topic recommendations based on keyword-classified categories.
+- `TopicClassificationService` auto-classifies every new topic into a category, storing a `classification_confidence` score (0–100) and flagging low-confidence topics (`classification_needs_review`) for admin review when confidence is below the configurable threshold (default 40%). Admins can extend the keyword map via `keyword_hints` on categories.
+- `RecommendationService::generateRecommendations()` returns topics matching the user's preferred categories, each with a `relevance_score` (share of the user's engagement in that category) and a `recommendation_reason` ("Based on similar topics you engaged with" or "Popular in your group").
+- Popular-topic fallbacks are capped at 50% relevance; every recommendation is logged to `recommendation_log` with its score so the same topic isn't recommended twice.
+- Displayed on the dashboard and a dedicated `/recommendations` page with "% match" badges.
 
 ### Q25: What is the reporting/moderation system?
 **A:** Users can report inappropriate topics or posts. Admins see reported content in the **Moderation Panel** (`/admin/moderation`):
@@ -275,6 +278,7 @@ Registration is rate-limited to **3 registrations per 60 minutes** (`throttle:3,
 - Route: `GET /forum/{topic}/export-pdf` (rate limited: 5 requests per minute to prevent DoS).
 - Uses `dompdf` to render the topic and its replies into a downloadable PDF.
 - Controller: `ForumController@exportPDF`.
+- Every export is recorded in the `export_logs` table (`topic_id`, `user_id`, `file_type`) and the audit log (`topic.exported`) for traceability.
 
 ### Q28: What is the conversation/chat system?
 **A:** A private messaging module:

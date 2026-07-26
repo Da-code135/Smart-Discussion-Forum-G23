@@ -381,7 +381,7 @@ Post::create([
 
 This inserts one row into the `posts` table. Remember — there's no separate `replies` table. Every row in `posts` with a `topic_id` IS a reply.
 
-The `is_removed` field defaults to `false` (set in the migration), and `category_id` is null (set later by the ML classifier, which is Person 5's job).
+The `is_removed` field defaults to `false` (set in the migration). On the parent **topic**, `category_id` is filled in automatically the moment the topic is created: the keyword classifier (`TopicClassificationService`) assigns a category, stores a `classification_confidence` score (0–100), and sets `classification_needs_review = true` when the confidence falls below the admin review threshold (default 40%).
 
 **Redirect behavior:**
 ```php
@@ -491,7 +491,7 @@ The `{{ old('title') }}` helper repopulates the input with the previously submit
 
 The `old('post_type', 'discussion')` means: if there was a previous submission, use that value; otherwise default to `'discussion'`. The `checked` attribute is only added if the condition matches.
 
-This distinction matters for the ML classifier (Person 5's feature) — questions can be auto-flagged for notification when answered.
+This distinction matters for the keyword classifier (`TopicClassificationService`) — questions can be auto-flagged for notification when answered.
 
 ### 5.3 forum/show.blade.php
 

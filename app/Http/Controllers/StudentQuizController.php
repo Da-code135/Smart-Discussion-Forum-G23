@@ -7,6 +7,7 @@ use App\Models\Grade;
 use App\Models\Quiz;
 use App\Models\StudentAnswer;
 use App\Models\StudentAttempt;
+use App\Services\ParticipationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -225,9 +226,8 @@ class StudentQuizController extends Controller
             ->toArray();
 
         // === Calculate remaining time ===
-        $timeLimit = $quiz->duration_minutes * 60; // seconds
-        $timeElapsed = $now->diffInSeconds($attempt->start_time);
-        $timeRemaining = $timeLimit - $timeElapsed;
+        // Clipped at the scheduled end so late joiners get no extra time.
+        $timeRemaining = $quiz->secondsRemainingFor($attempt, $now);
 
         if ($timeRemaining <= 0) {
             return $this->autoSubmit($quiz);
@@ -447,10 +447,9 @@ class StudentQuizController extends Controller
             ]);
         }
 
-        // Calculate remaining seconds
-        $timeLimit = $quiz->duration_minutes * 60;
-        $timeElapsed = $now->diffInSeconds($attempt->start_time);
-        $timeRemaining = max(0, $timeLimit - $timeElapsed);
+        // Calculate remaining seconds (clipped at the scheduled end so
+        // late joiners get no extra time)
+        $timeRemaining = $quiz->secondsRemainingFor($attempt, $now);
 
         return response()->json([
             'has_started' => true,
@@ -576,6 +575,11 @@ class StudentQuizController extends Controller
                 'graded_at' => now(),
             ]
         );
+
+        // Award forum-wide participation points (once per student per quiz)
+        if ($attempt->student) {
+            app(ParticipationService::class)->recordQuizCompleted($attempt->student, $quiz);
+        }
 
         \Log::info('Quiz graded successfully.', [
             'attempt_id' => $attempt->attempt_id,

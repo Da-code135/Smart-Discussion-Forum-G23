@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,7 +31,7 @@ class Quiz extends Model
         'published_at',
     ];
 
-    protected $casts = [//converts values into specific PHP data types
+    protected $casts = [// converts values into specific PHP data types
         'scheduled_date' => 'date',
         'start_time' => 'datetime:H:i',
         'is_active' => 'boolean',
@@ -113,6 +114,34 @@ class Quiz extends Model
     }
 
     /**
+     * Get the scheduled end of the quiz (scheduled start + duration).
+     *
+     * This is the hard close time: no attempt may run past it,
+     * regardless of when the student joined.
+     */
+    public function getScheduledEndDateTime(): Carbon
+    {
+        return $this->getScheduledDateTime()->addMinutes($this->duration_minutes);
+    }
+
+    /**
+     * Seconds remaining for an in-progress attempt.
+     *
+     * The deadline is the earlier of the student's personal deadline
+     * (attempt start + duration) and the scheduled end of the quiz,
+     * so late joiners are never given extra time.
+     */
+    public function secondsRemainingFor(StudentAttempt $attempt, ?Carbon $now = null): int
+    {
+        $now ??= now();
+
+        $personalDeadline = $attempt->start_time->copy()->addMinutes($this->duration_minutes);
+        $deadline = $personalDeadline->min($this->getScheduledEndDateTime());
+
+        return (int) max(0, $now->diffInSeconds($deadline, false));
+    }
+
+    /**
      * Get the IDs of groups this lecturer can teach.
      * Combines the lecturer's own group_id with explicit lecturer_group_access records.
      *
@@ -133,8 +162,8 @@ class Quiz extends Model
      *
      * Used by the lecturer results overview page.
      *
-     * @param  \App\Models\User  $user  The lecturer or admin
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @param  User  $user  The lecturer or admin
+     * @return Collection
      */
     public static function lecturerQuizzesWithGrades(User $user)
     {
@@ -165,13 +194,13 @@ class Quiz extends Model
 
             $quiz->stats = [
                 'total_attempts' => $quizGrades->count(),
-                'average_score'  => $quizGrades->count() > 0
+                'average_score' => $quizGrades->count() > 0
                     ? round($quizGrades->avg('percentage'), 1)
                     : 0,
-                'highest_score'  => $quizGrades->count() > 0
+                'highest_score' => $quizGrades->count() > 0
                     ? round($quizGrades->max('percentage'), 1)
                     : 0,
-                'lowest_score'   => $quizGrades->count() > 0
+                'lowest_score' => $quizGrades->count() > 0
                     ? round($quizGrades->min('percentage'), 1)
                     : 0,
             ];

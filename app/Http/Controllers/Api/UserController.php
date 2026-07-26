@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\ParticipationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,7 +17,7 @@ class UserController extends Controller
      *
      * @return JsonResponse
      */
-    public function me(Request $request)
+    public function me(Request $request, ParticipationService $participation)
     {
         // Eager load role and group relationships
         $user = $request->user()->load(['role', 'group']);
@@ -34,6 +35,10 @@ class UserController extends Controller
                 'profile_picture' => $user->profile_picture,
                 'created_at' => $user->created_at,
                 'updated_at' => $user->updated_at,
+            ],
+            'participation' => [
+                'total' => $participation->totalFor($user),
+                'breakdown' => $participation->breakdownFor($user),
             ],
         ], 200);
     }

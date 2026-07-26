@@ -8,6 +8,7 @@ use App\Models\Group;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Warning;
+use App\Services\ParticipationService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -143,6 +144,9 @@ class AuthController extends Controller
 
         // Update last active
         $user->update(['last_active_at' => now()]);
+
+        // Award daily login participation point (once per calendar day)
+        app(ParticipationService::class)->recordDailyLogin($user);
 
         // Generate API token
         $token = $user->createToken('desktop-client')->plainTextToken;

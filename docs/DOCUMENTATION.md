@@ -144,6 +144,9 @@ Thresholds are stored in the `system_configs` table and cached via the `SystemCo
 | `audit_logs` | Audit trail for admin actions |
 | `admin_ip_whitelist` | IP addresses allowed to access admin panel |
 | `system_configs` | Key-value store for runtime configuration |
+| `topic_categories` | Per-group discussion categories; `keyword_hints` lets admins extend the keyword classifier |
+| `recommendation_log` | Records which topics were recommended to which users, including the `relevance_score` |
+| `export_logs` | Audit trail of every topic PDF export (topic, user, file type) |
 
 ### Project Structure at a Glance
 
@@ -276,7 +279,7 @@ Cache invalidation happens via `clearCache()` (line 35) which calls `Cache::forg
 
 ## 1.8 Blade Layout Inheritance
 
-The application has two base layouts, both loading compiled assets through Vite via `@vite(['resources/css/app.css', 'resources/js/app.js'])` instead of static `public/css/*.css` files. `resources/views/layouts/app.blade.php` is the authenticated layout — it renders a persistent top navbar (`components/navbar.blade.php`) with the app brand, primary navigation links, a notifications icon, and a user avatar dropdown (profile link, admin shortcuts when applicable, and logout), then yields page content via `@yield('content')`. Flash messages (`success`, `error`, `warning`, `info`) are rendered automatically above the page content. `resources/views/layouts/guest.blade.php` is the unauthenticated layout — it centers a single card (login, register, onboarding, password reset) on the page, with the Studdit brand mark above it.
+The application has two base layouts, both loading compiled assets through Vite via `@vite(['resources/css/app.css', 'resources/js/app.js'])` instead of static `public/css/*.css` files. `resources/views/layouts/app.blade.php` is the authenticated layout — it renders a persistent top navbar (`components/navbar.blade.php`) with the app brand, primary navigation links, a notifications icon, and a user avatar dropdown (profile link, admin shortcuts when applicable, and logout), then yields page content via `@yield('content')`. Flash messages (`success`, `error`, `warning`, `info`) are rendered automatically above the page content. `resources/views/layouts/guest.blade.php` is the unauthenticated layout — it centers a single card (login, register, onboarding, password reset) on the page, with the app's brand mark (the configured `APP_NAME`) above it.
 
 Individual pages declare which layout they want with `@extends('layouts.guest')` or `@extends('layouts.app')` and inject their content with `@section('content')`. For example, the login page at `resources/views/auth/login.blade.php` extends `layouts.guest`, while the dashboard at `resources/views/auth/dashboard.blade.php` extends `layouts.app`.
 
@@ -308,7 +311,7 @@ The `GroupSeeder` creates a `Default Group` and a `General` group. The `SuperAdm
 
 ## 1.11 Frontend Design System (Studdit)
 
-The web UI implements a single design system, branded "Studdit," defined entirely with CSS custom properties so the whole palette, type scale, and spacing rhythm can be changed from one file.
+The web UI implements a single design system, internally code-named "Studdit," defined entirely with CSS custom properties so the whole palette, type scale, and spacing rhythm can be changed from one file. The visible application name is never hardcoded in views — layouts, the navbar brand, and emails all render `config('app.name')`, which is driven by the `APP_NAME` environment variable.
 
 **Design tokens.** All tokens live under `:root` in `resources/css/app.css`: colors (`--app-accent`, `--app-secondary`, `--app-page-bg`, `--app-card-bg`, `--app-text-primary`, `--app-success`, `--app-warning`, `--app-danger`, `--app-locked`, each with a `-soft` tinted-background variant), typography (`--font-headline` = Manrope, `--font-body` = Work Sans), corner radii (`--radius-card`, `--radius-input`, `--radius-modal`, `--radius-button`, `--radius-avatar`), an 8px spacing scale (`--space-1` … `--space-8`), and shadow tokens (`--shadow-card`, `--shadow-card-hover`, `--shadow-modal`). Views and components reference these variables (`var(--app-*)`) rather than hardcoded hex values or ad-hoc inline styles.
 
@@ -890,9 +893,9 @@ The `UserManagementController` at `app/Http/Controllers/Admin/UserManagementCont
 
 ## 5.3 System Configuration
 
-The `SystemConfigController` at `app/Http/Controllers/Admin/SystemConfigController.php` (63 lines) manages runtime-configurable system parameters. Both the `index()` and `update()` methods check `isSystemAdmin()` explicitly (lines 23 and 38) — this is in addition to the route-level `system-admin` middleware, providing defense in depth.
+The `SystemConfigController` at `app/Http/Controllers/Admin/SystemConfigController.php` manages runtime-configurable system parameters. Both the `index()` and `update()` methods check `isSystemAdmin()` explicitly — this is in addition to the route-level `system-admin` middleware, providing defense in depth.
 
-The `update()` method (lines 35–61) validates five configuration keys, all required integers with minimum value 1:
+The `update()` method validates eight configuration keys:
 
 | Key | Purpose | Default Used By |
 |-----|---------|----------------|
@@ -901,8 +904,16 @@ The `update()` method (lines 35–61) validates five configuration keys, all req
 | `inactivity_warning_days` | Days of inactivity before the monitor command triggers a warning | MonitorMemberActivity |
 | `warning_response_days` | Days a user has to respond to a warning before escalation | MonitorMemberActivity |
 | `blacklist_duration_days` | How long a blacklist lasts | MonitorMemberActivity |
+| `days_before_second_warning` | Days after Warning 1 before issuing Warning 2 | MonitorMemberActivity |
+| `days_before_blacklist` | Days after Warning 2 before automatic blacklist | MonitorMemberActivity |
+| `classification_review_threshold` | Confidence percentage (0–100, default 40) below which a topic's classification is flagged for admin review | TopicClassificationService |
+| `quiz_late_join_allowed` | Whether students can join a quiz after it has started | Quiz module |
 
-Each config value is saved via `SystemConfig::updateOrCreate()` which either inserts a new row or updates the existing one. After all values are saved, `SystemConfig::clearAllCaches()` is called to immediately invalidate the cached values so changes take effect without waiting for the TTL to expire. An audit log entry records the change.
+`quiz_late_join_allowed` is rendered as a checkbox on the settings form. Because browsers omit unchecked checkboxes from the request entirely, the controller normalizes the field with `$request->boolean('quiz_late_join_allowed')` and always persists an explicit `'0'` or `'1'` — unchecking the box genuinely turns the setting off.
+
+Each config value is saved via `SystemConfig::updateOrCreate()` which either inserts a new row or updates the existing one. After all values are saved, `SystemConfig::clearAllCaches()` is called to immediately invalidate the cached values so changes take effect without waiting for the TTL to expire. An audit log entry records the change. The same eight keys are also accepted by the API counterpart (`PUT /api/v1/admin/system-config`), which supports partial updates via `sometimes` validation and likewise clears the config cache after saving.
+
+`classification_review_threshold` is read at classification time via `SystemConfig::getValue()` by `TopicClassificationService` — topics whose classification confidence falls below this percentage are flagged with `classification_needs_review = true` so admins can review them (the `Topic::needsClassificationReview()` scope surfaces the queue). Admins can also steer the classifier itself by setting comma-separated `keyword_hints` on a group's `topic_categories` rows (managed through the categories admin API), which are merged with the built-in keyword map at classification time.
 
 ---
 
