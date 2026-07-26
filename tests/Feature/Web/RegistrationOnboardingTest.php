@@ -170,6 +170,30 @@ class RegistrationOnboardingTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_accepting_onboarding_succeeds_even_when_welcome_email_fails(): void
+    {
+        $this->post('/register', [
+            'full_name' => 'New User',
+            'email' => 'newuser@test.com',
+            'password' => 'Password123',
+            'password_confirmation' => 'Password123',
+        ]);
+
+        // Simulate the mail provider rejecting the recipient (e.g. Resend/Brevo
+        // sandbox restrictions) — registration must still complete.
+        Mail::shouldReceive('to')->once()->andThrow(new \RuntimeException('550 recipient rejected'));
+
+        $response = $this->post('/onboarding/agree', [
+            'group_id' => $this->defaultGroup->id,
+        ]);
+
+        $response->assertRedirect(route('dashboard'));
+
+        $user = User::where('email', 'newuser@test.com')->first();
+        $this->assertNotNull($user);
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_accepting_onboarding_assigns_default_role(): void
     {
         $this->post('/register', [

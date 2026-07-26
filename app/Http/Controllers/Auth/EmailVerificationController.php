@@ -8,6 +8,7 @@ use App\Models\EmailVerificationToken;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -89,8 +90,16 @@ class EmailVerificationController extends Controller
             'expires_at' => now()->addHours(24), // 24 hour expiry
         ]);
 
-        // #153: Send email via queue
-        Mail::queue(new VerifyEmailMailable($user, $token));
+        // #153: Send email via queue — fail-soft: with a sync queue a mail
+        // provider rejection would otherwise surface as a 500 to the user.
+        try {
+            Mail::queue(new VerifyEmailMailable($user, $token));
+        } catch (\Throwable $e) {
+            Log::warning('Verification email could not be sent to '.$user->email.': '.$e->getMessage());
+
+            return redirect()->back()
+                ->with('error', 'We could not send the verification email right now. Please try again later.');
+        }
 
         return redirect()->back()
             ->with('success', 'Verification email sent. Check your inbox!');
