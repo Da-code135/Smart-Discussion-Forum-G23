@@ -117,4 +117,63 @@ class ParticipationApiTest extends TestCase
             $response->json('participation.total')
         );
     }
+
+    // ============================================
+    // LECTURER / ADMIN STUDENTS OVERVIEW
+    // ============================================
+
+    public function test_lecturer_sees_participation_of_students_in_their_groups(): void
+    {
+        $lecturer = $this->createLecturer();
+        $ownStudent = $this->createStudent(['full_name' => 'Own Group Student']);
+        $this->createStudent([
+            'full_name' => 'Other Group Student',
+            'group_id' => $this->secondGroup->id,
+        ]);
+
+        app(ParticipationService::class)->recordDailyLogin($ownStudent);
+
+        $response = $this->withHeaders($this->authHeaders($lecturer))
+            ->getJson('/api/v1/participation/students');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [['id', 'full_name', 'email', 'group_name', 'counts', 'total']],
+                'weights',
+            ])
+            ->assertJsonFragment(['full_name' => 'Own Group Student'])
+            ->assertJsonMissing(['full_name' => 'Other Group Student']);
+
+        $ownRow = collect($response->json('data'))->firstWhere('id', $ownStudent->id);
+        $this->assertEquals(config('participation.weights.daily_login'), $ownRow['total']);
+        $this->assertSame(1, $ownRow['counts']['daily_login']);
+    }
+
+    public function test_system_admin_sees_all_students_in_participation_overview(): void
+    {
+        $admin = $this->createSystemAdmin();
+        $this->createStudent(['full_name' => 'Own Group Student']);
+        $this->createStudent([
+            'full_name' => 'Other Group Student',
+            'group_id' => $this->secondGroup->id,
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders($admin))
+            ->getJson('/api/v1/participation/students');
+
+        $response->assertStatus(200)
+            ->assertJsonFragment(['full_name' => 'Own Group Student'])
+            ->assertJsonFragment(['full_name' => 'Other Group Student']);
+    }
+
+    public function test_student_cannot_view_participation_overview_via_api(): void
+    {
+        $student = $this->createStudent();
+
+        $response = $this->withHeaders($this->authHeaders($student))
+            ->getJson('/api/v1/participation/students');
+
+        $response->assertStatus(403);
+    }
 }

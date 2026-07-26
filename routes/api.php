@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\Internal\RunScheduleController;
 use App\Http\Controllers\Api\MessageStatusController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OnboardingController;
+use App\Http\Controllers\Api\ParticipationController as ApiParticipationController;
 use App\Http\Controllers\Api\PasswordController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\PostVisibilityController;
@@ -304,6 +305,19 @@ Route::prefix($API_VERSION)->group(function () {
              * Optional query param: ?limit=10 (max 50)
              */
             Route::get('/recommendations', [RecommendationController::class, 'index']);
+
+            // ============================================
+            // PARTICIPATION MARKS API (lecturer/admin only — authorization in controller)
+            // ============================================
+
+            /**
+             * GET /api/v1/participation/students
+             * Participation marks overview for lecturers and administrators.
+             */
+            Route::get('/participation/students', [
+                ApiParticipationController::class,
+                'students',
+            ]);
 
             // ============================================
             // WARNING ACKNOWLEDGEMENT API (User-facing)
