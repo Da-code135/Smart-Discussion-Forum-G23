@@ -10,10 +10,17 @@
                 <h1>Performance Report: {{ $quiz->title }}</h1>
                 <p>Class performance summary and student breakdown.</p>
             </div>
-            <a href="{{ route('quizzes.edit', $quiz->quiz_id) }}" class="btn btn-secondary">
-                <span class="material-symbols-outlined">arrow_back</span>
-                Back to Quiz
-            </a>
+            @if (auth()->id() === $quiz->lecturer_id || auth()->user()->isAdmin())
+                <a href="{{ route('quizzes.edit', $quiz->quiz_id) }}" class="btn btn-secondary">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                    Back to Quiz
+                </a>
+            @else
+                <a href="{{ route('quizzes.result', $quiz->quiz_id) }}" class="btn btn-secondary">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                    Back to My Result
+                </a>
+            @endif
         </div>
     </div>
 

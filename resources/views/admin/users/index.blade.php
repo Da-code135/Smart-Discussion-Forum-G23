@@ -85,28 +85,33 @@
                         <td>{{ $user->group ? $user->group->group_name : '—' }}</td>
                         <td>{{ $user->last_active_at ? $user->last_active_at->format('M d, Y H:i') : 'Never' }}</td>
                         <td>
-                            <div class="table-actions">
-                                <a href="{{ route('admin.users.show', $user) }}" class="btn btn-secondary btn-sm">View</a>
-                                <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-primary btn-sm">Edit</a>
+                            <button type="button" class="action-menu-toggle" id="user-actions-btn-{{ $user->id }}" aria-haspopup="true" aria-expanded="false" aria-label="Actions for {{ $user->full_name }}" onclick="toggleUserActionsMenu(event, 'user-actions-menu-{{ $user->id }}')">
+                                <span class="material-symbols-outlined">more_horiz</span>
+                            </button>
+                            <div id="user-actions-menu-{{ $user->id }}" class="action-menu" role="menu" aria-labelledby="user-actions-btn-{{ $user->id }}">
+                                <a href="{{ route('admin.users.show', $user) }}" class="action-menu__item" role="menuitem">View</a>
+                                <a href="{{ route('admin.users.edit', $user) }}" class="action-menu__item" role="menuitem">Edit</a>
 
                                 @if (auth()->user()->isSystemAdmin())
-                                    <a href="{{ route('admin.users.reset-password', $user) }}" class="btn btn-secondary btn-sm">Password</a>
+                                    <a href="{{ route('admin.users.reset-password', $user) }}" class="action-menu__item" role="menuitem">Reset password</a>
                                     @if ($user->account_status !== 'blacklisted')
-                                        <a href="{{ route('admin.users.blacklist', $user) }}" class="btn btn-danger btn-sm">Blacklist</a>
+                                        <a href="{{ route('admin.users.blacklist', $user) }}" class="action-menu__item action-menu__item--danger" role="menuitem">Blacklist</a>
                                     @endif
                                 @endif
 
                                 @if ($user->account_status === 'blacklisted')
                                     <form method="POST" action="{{ route('admin.users.lift-blacklist', $user) }}">
                                         @csrf
-                                        <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Lift blacklist for this user?')">Lift blacklist</button>
+                                        <button type="submit" class="action-menu__item" role="menuitem" onclick="return confirm('Lift blacklist for this user?')">Lift blacklist</button>
                                     </form>
                                 @endif
 
                                 @if (auth()->user()->isSystemAdmin() && $user->id !== auth()->id())
-                                    <form method="POST" action="{{ route('admin.users.change-role', $user) }}" class="table-actions">
+                                    <div class="action-menu__divider"></div>
+                                    <form method="POST" action="{{ route('admin.users.change-role', $user) }}" class="action-menu__role-form">
                                         @csrf
-                                        <select name="role_id" class="form-control" style="width: auto; min-width: 140px;">
+                                        <label for="role_id_{{ $user->id }}" class="form-label">Change role</label>
+                                        <select name="role_id" id="role_id_{{ $user->id }}" class="form-control">
                                             @foreach ($roles as $r)
                                                 <option value="{{ $r->id }}" {{ $user->role_id == $r->id ? 'selected' : '' }}>{{ $r->role_name }}</option>
                                             @endforeach
@@ -131,3 +136,57 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    function toggleUserActionsMenu(event, menuId) {
+        event.stopPropagation();
+        const menu = document.getElementById(menuId);
+        const button = event.currentTarget;
+        const wasOpen = menu.classList.contains('is-open');
+
+        closeUserActionsMenus();
+
+        if (!wasOpen) {
+            menu.classList.add('is-open');
+            button.setAttribute('aria-expanded', 'true');
+
+            // Menu is position: fixed so it floats above the scrollable table container.
+            const rect = button.getBoundingClientRect();
+            const menuRect = menu.getBoundingClientRect();
+            let left = rect.right - menuRect.width;
+            left = Math.max(8, Math.min(left, window.innerWidth - menuRect.width - 8));
+            let top = rect.bottom + 6;
+            if (top + menuRect.height > window.innerHeight - 8) {
+                top = Math.max(8, rect.top - menuRect.height - 6);
+            }
+            menu.style.left = left + 'px';
+            menu.style.top = top + 'px';
+        }
+    }
+
+    function closeUserActionsMenus() {
+        document.querySelectorAll('.action-menu.is-open').forEach(function (menu) {
+            menu.classList.remove('is-open');
+            const button = document.getElementById(menu.id.replace('user-actions-menu-', 'user-actions-btn-'));
+            if (button) {
+                button.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('.action-menu') && !event.target.closest('.action-menu-toggle')) {
+            closeUserActionsMenus();
+        }
+    });
+
+    window.addEventListener('scroll', closeUserActionsMenus, true);
+    window.addEventListener('resize', closeUserActionsMenus);
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            closeUserActionsMenus();
+        }
+    });
+</script>
+@endpush

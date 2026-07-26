@@ -15,7 +15,7 @@
     <section class="onboarding-card">
         <div class="card-header-custom">
             <h1>Platform rules and guidelines</h1>
-            <p>Please read carefully before joining Studdit.</p>
+            <p>Please read carefully before joining {{ config('app.name') }}.</p>
         </div>
 
         <div class="rules-scroll" tabindex="0" aria-label="Platform rules content">

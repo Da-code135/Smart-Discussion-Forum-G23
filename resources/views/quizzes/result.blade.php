@@ -107,6 +107,12 @@
         </div>
 
         <div style="text-align: center;">
+            @if (now()->greaterThanOrEqualTo($quiz->getScheduledEndDateTime()))
+                <a href="{{ route('quizzes.report', $quiz->quiz_id) }}" class="btn btn-secondary">
+                    <span class="material-symbols-outlined">leaderboard</span>
+                    View Class Performance Report
+                </a>
+            @endif
             <a href="{{ route('dashboard') }}" class="btn btn-primary">
                 <span class="material-symbols-outlined">dashboard</span>
                 Back to Dashboard

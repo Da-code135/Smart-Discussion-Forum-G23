@@ -15,7 +15,7 @@
 
         <div class="app-brand">
             <div class="app-brand__meta">
-                <a href="{{ route('dashboard') }}" class="app-brand__title">Studdit</a>
+                <a href="{{ route('dashboard') }}" class="app-brand__title">{{ config('app.name') }}</a>
                 <span class="app-brand__group">{{ $groupName }}</span>
             </div>
         </div>
@@ -23,7 +23,7 @@
         {{-- Search bar --}}
         <form method="GET" action="{{ route('forum.search') }}" class="topbar-search">
             <span class="material-symbols-outlined">search</span>
-            <input type="text" name="q" placeholder="Search Studdit..." aria-label="Search topics">
+            <input type="text" name="q" placeholder="Search {{ config('app.name') }}..." aria-label="Search topics">
         </form>
 
         <div class="app-topbar-actions">
@@ -59,10 +59,6 @@
                         <a href="{{ route('profile.edit') }}" class="user-menu__link">
                             <span class="material-symbols-outlined">person</span>
                             <span>My profile</span>
-                        </a>
-                        <a href="{{ route('password.change') }}" class="user-menu__link">
-                            <span class="material-symbols-outlined">settings</span>
-                            <span>Settings</span>
                         </a>
                         <hr style="border: 0; border-top: 1px solid var(--app-border); margin: 4px 0;">
                         <form method="POST" action="{{ route('logout') }}">

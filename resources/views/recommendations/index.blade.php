@@ -31,7 +31,17 @@
                             @if ($topic->post_type === 'question')
                                 <span class="badge badge-secondary" style="font-size: 0.7rem;">Question</span>
                             @endif
+                            @if (!is_null($topic->relevance_score))
+                                <span class="badge badge-primary" style="font-size: 0.7rem;">
+                                    {{ $topic->relevance_score }}% match
+                                </span>
+                            @endif
                         </div>
+                        @if ($topic->recommendation_reason)
+                            <p style="margin: 0; color: rgba(88, 103, 75, 0.6); font-size: 0.75rem; font-style: italic;">
+                                {{ $topic->recommendation_reason }}
+                            </p>
+                        @endif
                         <p style="margin: 0.25rem 0 0; color: rgba(88, 103, 75, 0.8); font-size: 0.875rem;">
                             {{ Str::limit($topic->description, 150) }}
                         </p>

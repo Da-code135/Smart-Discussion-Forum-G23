@@ -52,7 +52,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Welcome to Smart Discussion Forum!</h1>
+            <h1>Welcome to {{ config('app.name') }}!</h1>
         </div>
 
         <div class="content">
@@ -79,11 +79,11 @@
 
             <p>If you have any questions, feel free to reach out to our support team.</p>
 
-            <p>Best regards,<br>The Smart Discussion Forum Team</p>
+            <p>Best regards,<br>The {{ config('app.name') }} Team</p>
         </div>
 
         <div class="footer">
-            <p>&copy; {{ date('Y') }} Smart Discussion Forum. All rights reserved.</p>
+            <p>&copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.</p>
         </div>
     </div>
 </body>

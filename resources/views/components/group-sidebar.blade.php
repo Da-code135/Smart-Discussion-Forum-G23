@@ -10,7 +10,7 @@
     </div>
 
     <p style="font-size: 13px; margin-top: 8px; line-height: 1.5;">
-        {{ $group->description ?? 'This academic group uses Studdit for calm, structured discussion.' }}
+        {{ $group->description ?? 'This academic group uses '.config('app.name').' for calm, structured discussion.' }}
     </p>
 
     <div class="group-stats">

@@ -102,7 +102,7 @@
                 <span class="material-symbols-outlined">folder</span>
                 <h2>{{ $user->isSystemAdmin() ? 'All Groups' : $group->group_name }}</h2>
             </div>
-            <p>{{ $user->isSystemAdmin() ? 'Browse discussions across all groups on the platform.' : ($group->description ?: 'This academic group uses Studdit for calm, structured discussion.') }}</p>
+            <p>{{ $user->isSystemAdmin() ? 'Browse discussions across all groups on the platform.' : ($group->description ?: 'This academic group uses '.config('app.name').' for calm, structured discussion.') }}</p>
             <div class="sidebar-stats">
                 <span>{{ $topics->total() }} {{ $user->isSystemAdmin() ? 'topics across all groups' : 'topics' }}</span>
             </div>

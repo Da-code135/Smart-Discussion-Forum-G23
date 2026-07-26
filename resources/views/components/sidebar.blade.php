@@ -23,6 +23,12 @@
                     <span class="material-symbols-outlined sidebar-icon">quiz</span>
                     <span class="sidebar-label">Quizzes</span>
                 </a>
+                @if ($user->isAdmin() || $user->role?->role_name === 'Lecturer')
+                    <a href="{{ route('participation.students') }}" class="sidebar-link {{ $activeNav === 'participation' ? 'is-active' : '' }}" title="Participation">
+                        <span class="material-symbols-outlined sidebar-icon">military_tech</span>
+                        <span class="sidebar-label">Participation</span>
+                    </a>
+                @endif
                 <a href="{{ route('conversations.index') }}" class="sidebar-link {{ $activeNav === 'conversations' ? 'is-active' : '' }}" title="Messages" style="position: relative;">
                     <span class="material-symbols-outlined sidebar-icon">chat</span>
                     <span class="sidebar-label">Messages</span>
@@ -37,10 +43,6 @@
                 <a href="{{ route('profile.edit') }}" class="sidebar-link {{ $activeNav === 'profile' ? 'is-active' : '' }}" title="Profile">
                     <span class="material-symbols-outlined sidebar-icon">person</span>
                     <span class="sidebar-label">Profile</span>
-                </a>
-                <a href="{{ route('password.change') }}" class="sidebar-link {{ $activeNav === 'settings' ? 'is-active' : '' }}" title="Settings">
-                    <span class="material-symbols-outlined sidebar-icon">settings</span>
-                    <span class="sidebar-label">Settings</span>
                 </a>
             </div>
 

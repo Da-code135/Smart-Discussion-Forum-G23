@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="description" content="@yield('meta-description', 'Studdit academic discussion platform')">
-    <title>@yield('title', 'Dashboard') - Studdit</title>
+    <meta name="description" content="@yield('meta-description', config('app.name').' academic discussion platform')">
+    <title>@yield('title', 'Dashboard') - {{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
 </head>

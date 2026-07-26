@@ -432,6 +432,7 @@ body.app-layout {
 .privacy-notice,
 .account-status-card,
 .profile-sidebar-card,
+.participation-card,
 .profile-form-card,
 .discussion-item,
 .topic-card,
@@ -459,6 +460,7 @@ body.app-layout {
 .privacy-notice,
 .account-status-card,
 .profile-sidebar-card,
+.participation-card,
 .profile-form-card,
 .sidebar-card,
 .admin-header,
@@ -1023,6 +1025,60 @@ textarea:focus {
     color: inherit;
 }
 
+.participation-card {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.participation-total {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.participation-total__value {
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--app-accent);
+    line-height: 1;
+}
+
+.participation-total__label {
+    color: var(--app-text-muted);
+    font-size: 13px;
+}
+
+.participation-breakdown {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+}
+
+.participation-breakdown li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: 10px 0;
+    font-size: 14px;
+}
+
+.participation-breakdown li + li {
+    border-top: 1px solid var(--app-border);
+}
+
+.participation-breakdown__meta {
+    color: var(--app-text-muted);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.participation-breakdown__points {
+    font-weight: 600;
+    color: var(--app-text-primary);
+}
+
 .topic-list,
 .topics-list,
 .discussions-section,
@@ -1102,6 +1158,87 @@ textarea:focus {
 .share-menu__links {
     display: grid;
     gap: 8px;
+}
+
+button.action-menu-toggle {
+    min-height: 36px;
+    width: 36px;
+    padding: 6px;
+    border: 1px solid var(--app-border);
+    border-radius: var(--radius-button);
+    background: transparent;
+    color: var(--app-text-secondary);
+}
+
+button.action-menu-toggle:hover,
+button.action-menu-toggle[aria-expanded="true"] {
+    background: var(--app-locked-soft);
+    color: var(--app-text-primary);
+}
+
+.action-menu {
+    position: fixed;
+    display: none;
+    z-index: 60;
+    min-width: 220px;
+    padding: 8px;
+    border: 1px solid var(--app-border);
+    border-radius: var(--radius-card);
+    background: var(--app-card-bg);
+    box-shadow: var(--shadow-card);
+}
+
+.action-menu.is-open {
+    display: grid;
+    gap: 2px;
+}
+
+.action-menu form {
+    display: grid;
+}
+
+.action-menu .action-menu__item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: calc(var(--radius-card) - 6px);
+    background: transparent;
+    color: var(--app-text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    text-align: left;
+    text-decoration: none;
+}
+
+.action-menu .action-menu__item:hover {
+    background: var(--app-locked-soft);
+    color: var(--app-text-primary);
+    transform: none;
+}
+
+.action-menu .action-menu__item--danger {
+    color: var(--app-danger);
+}
+
+.action-menu .action-menu__item--danger:hover {
+    background: var(--app-danger-soft);
+    color: var(--app-danger);
+}
+
+.action-menu__divider {
+    height: 1px;
+    margin: 6px 4px;
+    background: var(--app-border);
+}
+
+.action-menu__role-form {
+    gap: 8px;
+    padding: 8px 12px 4px;
 }
 
 .table-container {

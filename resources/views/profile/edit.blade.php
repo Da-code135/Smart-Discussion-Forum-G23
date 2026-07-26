@@ -126,6 +126,29 @@
             <a href="{{ route('profile.picture') }}" class="btn btn-secondary btn-block">Change picture</a>
         </section>
 
+        <section class="participation-card" aria-label="Participation score">
+            <div>
+                <h2>Participation score</h2>
+                <p class="meta-text">Earned through quizzes, posts, replies and daily activity.</p>
+            </div>
+
+            <div class="participation-total">
+                <span class="participation-total__value">{{ $participationTotal + 0 }}</span>
+                <span class="participation-total__label">points</span>
+            </div>
+
+            <ul class="participation-breakdown">
+                @foreach ($participationBreakdown as $row)
+                    <li>
+                        <span>{{ $row['label'] }}</span>
+                        <span class="participation-breakdown__meta">
+                            {{ $row['count'] }} &middot; <span class="participation-breakdown__points">{{ $row['points'] + 0 }} pts</span>
+                        </span>
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+
         <section class="privacy-notice">
             <span class="material-symbols-outlined">report</span>
             <div>
