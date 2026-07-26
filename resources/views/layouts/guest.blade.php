@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta name="description" content="@yield('meta-description', 'Studdit - a calm academic discussion platform')">
-    <title>@yield('title', 'Welcome') - Studdit</title>
+    <meta name="description" content="@yield('meta-description', 'Smart Discussion Forum - a calm academic discussion platform')">
+    <title>@yield('title', 'Welcome') - Smart Discussion Forum</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
 </head>
@@ -13,7 +13,7 @@
     <main class="guest-shell">
         <section class="guest-main @yield('main-class')">
             <div class="brand-mark">
-                <div class="brand-mark__name">Studdit</div>
+                <div class="brand-mark__name">Smart Discussion Forum</div>
                 <p class="brand-mark__tagline">A calm place for academic discussion</p>
             </div>
 

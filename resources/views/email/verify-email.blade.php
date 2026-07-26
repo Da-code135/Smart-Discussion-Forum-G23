@@ -52,7 +52,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Welcome to Studdit!</h1>
+            <h1>Welcome to Smart Discussion Forum!</h1>
         </div>
 
         <div class="content">
@@ -74,11 +74,11 @@
                 If you didn't create this account, you can safely ignore this email.
             </div>
 
-            <p>Best regards,<br>The Studdit Team</p>
+            <p>Best regards,<br>The Smart Discussion Forum Team</p>
         </div>
 
         <div class="footer">
-            <p>&copy; 2026 Studdit. All rights reserved.</p>
+            <p>&copy; 2026 Smart Discussion Forum. All rights reserved.</p>
         </div>
     </div>
 </body>

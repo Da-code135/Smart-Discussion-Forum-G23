@@ -15,7 +15,7 @@
 
         <div class="app-brand">
             <div class="app-brand__meta">
-                <a href="{{ route('dashboard') }}" class="app-brand__title">Studdit</a>
+                <a href="{{ route('dashboard') }}" class="app-brand__title">Smart Discussion Forum</a>
                 <span class="app-brand__group">{{ $groupName }}</span>
             </div>
         </div>
@@ -23,7 +23,7 @@
         {{-- Search bar --}}
         <form method="GET" action="{{ route('forum.search') }}" class="topbar-search">
             <span class="material-symbols-outlined">search</span>
-            <input type="text" name="q" placeholder="Search Studdit..." aria-label="Search topics">
+            <input type="text" name="q" placeholder="Search topics..." aria-label="Search topics">
         </form>
 
         <div class="app-topbar-actions">

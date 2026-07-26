@@ -6,7 +6,7 @@
 <div class="login-card">
     <div class="card-header-custom">
         <h1>Create your account</h1>
-        <p class="card-subtitle">Join Studdit and access your academic discussion group.</p>
+        <p class="card-subtitle">Create an account to access your academic discussion group.</p>
     </div>
 
     <form class="login-form" method="POST" action="{{ route('register.store') }}">

@@ -64,7 +64,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Studdit — Password Reset</h1>
+            <h1>Smart Discussion Forum — Password Reset</h1>
         </div>
 
         <div class="body">
@@ -86,7 +86,7 @@
         </div>
 
         <div class="footer">
-            &copy; {{ date('Y') }} Studdit. This is an automated message — please do not reply.
+            &copy; {{ date('Y') }} Smart Discussion Forum. This is an automated message — please do not reply.
         </div>
     </div>
 </body>
