@@ -7,6 +7,7 @@ use App\Mail\VerifyEmailMailable;
 use App\Models\EmailVerificationToken;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -85,7 +86,17 @@ class EmailVerificationController extends Controller
             'expires_at' => now()->addHours(24),
         ]);
 
-        Mail::to($user->email)->queue(new VerifyEmailMailable($user, $token));
+        // Fail-soft: with a sync queue a mail provider rejection would
+        // otherwise surface as a 500 instead of a clean API error.
+        try {
+            Mail::to($user->email)->queue(new VerifyEmailMailable($user, $token));
+        } catch (\Throwable $e) {
+            Log::warning('Verification email could not be sent to '.$user->email.': '.$e->getMessage());
+
+            return response()->json([
+                'message' => 'We could not send the verification email right now. Please try again later.',
+            ], 502);
+        }
 
         return response()->json([
             'message' => 'Verification email sent',

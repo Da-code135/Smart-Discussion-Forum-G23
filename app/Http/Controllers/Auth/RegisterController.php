@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -176,8 +177,13 @@ class RegisterController extends Controller
         // Fire registered event (for email verification, etc.)
         event(new Registered($user));
 
-        // Send welcome notification email (SDD 5.1.1)
-        Mail::to($user->email)->send(new WelcomeMailable($user));
+        // Send welcome notification email (SDD 5.1.1) — fail-soft: a mail
+        // provider rejection must never break a successful registration.
+        try {
+            Mail::to($user->email)->send(new WelcomeMailable($user));
+        } catch (\Throwable $e) {
+            Log::warning('Welcome email could not be sent to '.$user->email.': '.$e->getMessage());
+        }
 
         // Redirect to dashboard with success message
         return redirect()->route('dashboard')
