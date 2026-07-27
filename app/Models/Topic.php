@@ -38,6 +38,8 @@ class Topic extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'is_answered' => 'boolean',
+        'is_pinned' => 'boolean',
         'classification_needs_review' => 'boolean',
     ];
 
@@ -110,6 +112,23 @@ class Topic extends Model
     public function scopeByType($query, string $type)
     {
         return $query->where('post_type', $type);
+    }
+
+    /**
+     * Scope: question topics that have been marked as answered.
+     */
+    public function scopeAnswered($query)
+    {
+        return $query->where('is_answered', true);
+    }
+
+    /**
+     * Scope: question topics still waiting for an answer.
+     */
+    public function scopeUnanswered($query)
+    {
+        return $query->where('post_type', 'question')
+            ->where('is_answered', false);
     }
 
     /**

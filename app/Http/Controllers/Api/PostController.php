@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Topic;
 use App\Services\AuditLogService;
+use App\Services\NotificationService;
 use App\Services\ParticipationService;
 use Illuminate\Http\Request;
 
@@ -74,11 +74,7 @@ class PostController extends Controller
             $topic->post_type === 'question' &&
             $topic->created_by !== $user->id
         ) {
-            Notification::create([
-                'user_id' => $topic->created_by,
-                'type' => 'question_answered',
-                'data' => ['topic_id' => $topic->id, 'post_id' => $post->id],
-            ]);
+            app(NotificationService::class)->sendQuestionReplyNotification($topic, $post, $user);
         }
 
         // Auto-mark question as answered

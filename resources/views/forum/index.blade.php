@@ -24,12 +24,24 @@
 
         {{-- Sort Tabs --}}
         <div class="sort-tabs">
-            <a href="{{ route('forum.index', ['sort' => 'hot']) }}"
+            <a href="{{ route('forum.index', ['sort' => 'hot', 'filter' => $filter]) }}"
                class="sort-tab {{ $sort === 'hot' ? 'is-active' : '' }}">Hot</a>
-            <a href="{{ route('forum.index', ['sort' => 'new']) }}"
+            <a href="{{ route('forum.index', ['sort' => 'new', 'filter' => $filter]) }}"
                class="sort-tab {{ $sort === 'new' ? 'is-active' : '' }}">New</a>
-            <a href="{{ route('forum.index', ['sort' => 'top']) }}"
+            <a href="{{ route('forum.index', ['sort' => 'top', 'filter' => $filter]) }}"
                class="sort-tab {{ $sort === 'top' ? 'is-active' : '' }}">Top</a>
+        </div>
+
+        {{-- Filter Tabs (findability for question askers) --}}
+        <div class="sort-tabs">
+            <a href="{{ route('forum.index', ['sort' => $sort, 'filter' => 'all']) }}"
+               class="sort-tab {{ $filter === 'all' ? 'is-active' : '' }}">All</a>
+            <a href="{{ route('forum.index', ['sort' => $sort, 'filter' => 'questions']) }}"
+               class="sort-tab {{ $filter === 'questions' ? 'is-active' : '' }}">Questions</a>
+            <a href="{{ route('forum.index', ['sort' => $sort, 'filter' => 'unanswered']) }}"
+               class="sort-tab {{ $filter === 'unanswered' ? 'is-active' : '' }}">Unanswered</a>
+            <a href="{{ route('forum.index', ['sort' => $sort, 'filter' => 'mine']) }}"
+               class="sort-tab {{ $filter === 'mine' ? 'is-active' : '' }}">My Posts</a>
         </div>
 
         {{-- Create Post Card --}}
@@ -66,6 +78,9 @@
                                 {{ $topic->created_at->diffForHumans() }}
                                 @if ($topic->post_type === 'question')
                                     <span class="badge badge-secondary">Question</span>
+                                    @if ($topic->is_answered)
+                                        <span class="badge badge-success">✓ Answered</span>
+                                    @endif
                                 @endif
                             </div>
                             <p class="post-excerpt">{{ Str::limit($topic->description, 150) }}</p>
@@ -82,8 +97,8 @@
             @empty
                 <div class="empty-state">
                     <span class="material-symbols-outlined" style="font-size: 40px;">forum</span>
-                    <h2>No topics yet</h2>
-                    <p>Start the first discussion for this group.</p>
+                    <h2>{{ $filter === 'unanswered' ? 'No unanswered questions' : 'No topics yet' }}</h2>
+                    <p>{{ $filter === 'unanswered' ? 'Every question has been answered — nice work!' : 'Start the first discussion for this group.' }}</p>
                     <a href="{{ route('forum.create') }}" class="btn btn-primary">Create topic</a>
                 </div>
             @endforelse

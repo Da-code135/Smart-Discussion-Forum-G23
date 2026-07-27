@@ -26,12 +26,32 @@ class TopicController extends Controller
     {
         $user = $request->user();
         $sort = $request->query('sort', 'new');
+        $filter = $request->query('filter', 'all');
 
         $query = Topic::with('creator')->withCount('posts');
 
         // System admins see all topics; others see only accessible groups
         if (! $user->isSystemAdmin()) {
             $query->whereIn('group_id', $user->accessibleGroupIds());
+        }
+
+        // Apply the selected filter (mirrors web ForumController::index)
+        switch ($filter) {
+            case 'questions':
+                $query->byType('question');
+                break;
+
+            case 'unanswered':
+                $query->unanswered();
+                break;
+
+            case 'mine':
+                $query->where('created_by', $user->id);
+                break;
+
+            case 'all':
+            default:
+                break;
         }
 
         // Apply sorting based on the selected tab
@@ -106,7 +126,10 @@ class TopicController extends Controller
                         'description' => $topic->description,
                         'status' => $topic->status,
                         'post_type' => $topic->post_type,
+                        'is_answered' => $topic->is_answered,
+                        'is_pinned' => $topic->is_pinned,
                         'group_id' => $topic->group_id,
+                        'created_by' => $topic->created_by,
                         'creator' => $topic->creator
                             ? [
                                 'id' => $topic->creator->id,

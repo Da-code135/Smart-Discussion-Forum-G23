@@ -32,6 +32,9 @@
                     @if ($topic->post_type !== 'discussion')
                         <span class="post-meta-sep">·</span>
                         <span class="badge badge-secondary">{{ ucfirst($topic->post_type) }}</span>
+                        @if ($topic->post_type === 'question' && $topic->is_answered)
+                            <span class="badge badge-success">✓ Answered</span>
+                        @endif
                     @endif
                 </div>
                 <h1 class="post-title post-title--expanded">{{ $topic->title }}</h1>
@@ -47,6 +50,15 @@
                             <span class="material-symbols-outlined">edit</span>
                             Edit
                         </a>
+                    @endif
+                    @if ($topic->post_type === 'question' && ($topic->created_by === auth()->id() || auth()->user()->isAdmin()))
+                        <form method="POST" action="{{ route('forum.toggle-answered', $topic->id) }}" style="display: inline;">
+                            @csrf
+                            <button type="submit" class="post-action-btn" style="border: 0; background: none; cursor: pointer;">
+                                <span class="material-symbols-outlined">{{ $topic->is_answered ? 'remove_done' : 'check_circle' }}</span>
+                                {{ $topic->is_answered ? 'Mark Unanswered' : 'Mark Answered' }}
+                            </button>
+                        </form>
                     @endif
                     <a href="{{ route('forum.export-pdf', $topic->id) }}" class="post-action-btn">
                         <span class="material-symbols-outlined">download</span>

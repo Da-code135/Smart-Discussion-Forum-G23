@@ -47,6 +47,24 @@ try {
     console.error('[Echo] real-time disabled:', error.message);
 }
 
+// ========== Live unread-notification badge (navbar bell) ==========
+// Listens on the user's private channel and bumps the badge whenever a
+// notification is created (e.g. someone answered their question).
+const notifBell = document.querySelector('[data-notif-bell]');
+if (window.Echo && notifBell) {
+    const badge = notifBell.querySelector('[data-notif-badge]');
+    window.Echo.private(`user.${notifBell.dataset.userId}`).listen(
+        'NotificationCreated',
+        () => {
+            if (!badge) return;
+            const count = (parseInt(badge.dataset.count, 10) || 0) + 1;
+            badge.dataset.count = count;
+            badge.textContent = Math.min(count, 99);
+            badge.style.display = 'flex';
+        },
+    );
+}
+
 document.addEventListener("click", (event) => {
     document.querySelectorAll("[data-user-menu]").forEach((menu) => {
         const trigger = menu.querySelector("[data-menu-toggle]");

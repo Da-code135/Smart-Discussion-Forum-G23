@@ -27,3 +27,8 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
 
     return $query->exists();
 });
+
+Broadcast::channel('user.{userId}', function ($user, $userId) {
+    // Personal channel: only the recipient may listen (unread badge updates).
+    return (int) $user->id === (int) $userId;
+});
