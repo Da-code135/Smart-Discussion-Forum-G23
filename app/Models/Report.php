@@ -19,6 +19,15 @@ class Report extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Alias of user() — the user who filed this report.
+     * Used by the admin moderation API (eager-loaded as 'reporter').
+     */
+    public function reporter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function reportable(): MorphTo
     {
         return $this->morphTo();

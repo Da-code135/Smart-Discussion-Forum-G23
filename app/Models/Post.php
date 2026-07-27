@@ -43,6 +43,15 @@ class Post extends Model
     }
 
     /**
+     * Alias of user() — the author of this post.
+     * Used by the admin moderation API (eager-loaded as 'creator').
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
      * The ML category assigned to this post (nullable until classified).
      */
     public function category()

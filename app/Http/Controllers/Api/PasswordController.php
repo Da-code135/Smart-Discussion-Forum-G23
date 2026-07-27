@@ -10,6 +10,7 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -76,9 +77,16 @@ class PasswordController extends Controller
             'expires_at' => now()->addMinutes(10),
         ]);
 
-        // Queue the email — $plainOtp is passed once, hashed version is in DB
+        // Queue the email — $plainOtp is passed once, hashed version is in DB.
+        // Fail-soft: a mail provider rejection must not leak a 500; the generic
+        // success response below also avoids confirming whether the email exists.
         $user = User::where('email', $email)->first();
-        Mail::queue(new PasswordResetOtpMailable($user, $plainOtp));
+
+        try {
+            Mail::queue(new PasswordResetOtpMailable($user, $plainOtp));
+        } catch (\Throwable $e) {
+            Log::warning('Password reset OTP email could not be sent to '.$email.': '.$e->getMessage());
+        }
 
         return response()->json([
             'message' => 'A 6-digit reset code has been sent to your email. It expires in 10 minutes.',

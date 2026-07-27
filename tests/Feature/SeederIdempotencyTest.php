@@ -51,19 +51,20 @@ class SeederIdempotencyTest extends TestCase
         $this->assertSame($firstRunCounts, $this->tableCounts());
         $this->assertSame(3, DB::table('groups')->count());
         $this->assertSame(1, DB::table('quizzes')->where('title', 'Laravel Basics Quiz')->count());
+        $this->assertSame(1, DB::table('quizzes')->where('title', 'PHP Fundamentals Quiz')->count());
+        $this->assertSame(1, DB::table('topics')->where('title', 'What is the derivative of x²?')->count());
     }
 
-    public function test_demo_data_seeder_is_idempotent(): void
+    public function test_demo_data_seeder_is_idempotent_on_its_own(): void
     {
         $this->seed(DatabaseSeeder::class);
-
-        $this->seed(DemoDataSeeder::class);
         $firstRunCounts = $this->tableCounts();
 
         $this->seed(DemoDataSeeder::class);
 
         $this->assertSame($firstRunCounts, $this->tableCounts());
-        $this->assertSame(1, DB::table('topics')->where('title', 'What is the derivative of x²?')->count());
+        $this->assertSame(1, DB::table('users')->where('email', 'lecturer@example.com')->count());
+        $this->assertSame(3, DB::table('statistics')->count());
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Mail\VerifyEmailMailable;
 use App\Models\EmailVerificationToken;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -43,8 +44,14 @@ class ProfileUpdateUtility
                 'expires_at' => now()->addHours(24),
             ]);
 
-            Mail::queue(new VerifyEmailMailable($user, $token));
-            $verificationSent = true;
+            // Fail-soft: the profile update (and re-verification requirement)
+            // must go through even if the mail provider rejects the send.
+            try {
+                Mail::queue(new VerifyEmailMailable($user, $token));
+                $verificationSent = true;
+            } catch (\Throwable $e) {
+                Log::warning('Verification email could not be sent to '.$email.': '.$e->getMessage());
+            }
         }
 
         $user->update([
@@ -77,7 +84,7 @@ class ProfileUpdateUtility
     {
         // Delete old picture if exists
         if ($user->profile_picture) {
-            Storage::disk('public')->delete($user->profile_picture);//this deletes the old profile picture from the public disk if it exists, ensuring that we don't leave orphaned files in storage.
+            Storage::disk('public')->delete($user->profile_picture); // this deletes the old profile picture from the public disk if it exists, ensuring that we don't leave orphaned files in storage.
         }
 
         // Store new picture
