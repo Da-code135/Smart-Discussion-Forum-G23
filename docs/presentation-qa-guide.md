@@ -141,7 +141,8 @@ Key: Posts ARE the replies — there is no separate "replies" table. The comment
 - **Student Answer** (`student_answers`): Records which answer the student picked.
 - **Grade** (`grades`): Calculated score (total_score, max_score, percentage, final_grade).
 
-One Quiz has many Questions. One Question has many Answers (for MCQ, only one is marked `is_correct = true`).
+One Quiz has many Questions. One Question has many Answers (for MCQ, only one is marked `is_correct = true`).['
+]d]
 
 ### Q13: What does `onDelete('cascade')` mean?
 **A:** It means: "When the parent record is deleted, automatically delete all child records too." Example: If a topic is deleted, `$table->foreignId('topic_id')->constrained()->onDelete('cascade')` means all posts in that topic are also deleted. This prevents orphaned records.

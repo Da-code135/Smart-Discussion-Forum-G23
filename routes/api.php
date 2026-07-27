@@ -61,6 +61,12 @@ Route::prefix($API_VERSION)->group(function () {
         // ============================================
 
         /**
+         * GET /api/v1/register/groups
+         * Public list of student groups available during registration
+         */
+        Route::get('/register/groups', [AuthController::class, 'registrationGroups']);
+
+        /**
          * POST /api/v1/register
          * Register new user and return API token
          */

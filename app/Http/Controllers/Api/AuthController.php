@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\WelcomeMailable;
 use App\Models\BlacklistRecord;
 use App\Models\Group;
+use App\Models\OnboardingAgreement;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Warning;
@@ -12,50 +14,104 @@ use App\Services\ParticipationService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 
 class AuthController extends Controller
 {
     /**
+     * Return the list of student groups available during registration.
+     *
+     * GET /api/v1/register/groups
+     */
+    public function registrationGroups(): JsonResponse
+    {
+        $groups = Group::query()
+            ->where('group_type', 'student')
+            ->orderBy('group_name')
+            ->get(['id', 'group_name', 'description']);
+
+        return response()->json([
+            'data' => $groups,
+        ], 200);
+    }
+
+    /**
      * API Registration endpoint for desktop client.
      *
      * POST /api/v1/register
+     *
+     * Mirrors the web onboarding flow more closely than the old desktop
+     * shortcut: the caller must choose a student group and explicitly agree
+     * to the platform rules before the user is created.
      *
      * @return JsonResponse
      */
     public function register(Request $request)
     {
-        // Validate input
         $validated = $request->validate([
             'full_name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
+            'group_id' => 'required|integer|exists:groups,id',
+            'agreed' => 'required|boolean',
+            'agreement_version' => 'nullable|string|max:20',
         ]);
 
-        // Look up role and group by name
-        $role = Role::where('role_name', 'Member')->first();
-        $group = Group::where('group_name', 'General')->first();
-
-        if (! $role || ! $group) {
+        if (! $validated['agreed']) {
             return response()->json([
-                'message' => 'Required role or group not found in database. Please contact administrator.',
+                'message' => 'You must agree to the platform rules before registering.',
+            ], 422);
+        }
+
+        $role = Role::where('role_name', 'Member')->first();
+
+        if (! $role) {
+            return response()->json([
+                'message' => 'Required role not found in database. Please contact administrator.',
             ], 500);
         }
 
-        // Create user
-        $user = User::create([
-            'full_name' => $validated['full_name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role_id' => $role->id,
-            'group_id' => $group->id,
-        ]);
+        $group = Group::query()
+            ->where('id', $validated['group_id'])
+            ->where('group_type', 'student')
+            ->first();
 
-        // Send verification email
+        if (! $group) {
+            return response()->json([
+                'message' => 'Please select a valid student group.',
+            ], 422);
+        }
+
+        $agreementVersion = $validated['agreement_version'] ?? config('app.agreement_version', '1.0');
+
+        $user = DB::transaction(function () use ($validated, $role, $group, $request, $agreementVersion) {
+            $user = User::create([
+                'full_name' => $validated['full_name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'role_id' => $role->id,
+                'group_id' => $group->id,
+            ]);
+
+            OnboardingAgreement::create([
+                'user_id' => $user->id,
+                'agreed' => true,
+                'ip_address' => $request->ip(),
+                'agreement_version' => $agreementVersion,
+                'agreed_at' => now(),
+            ]);
+
+            $group->autoPromoteFirstStudent($user);
+
+            return $user;
+        });
+
         event(new Registered($user));
+        Mail::to($user->email)->send(new WelcomeMailable($user));
 
-        // Generate API token
         $token = $user->createToken('desktop-client')->plainTextToken;
 
         return response()->json([
