@@ -47,16 +47,20 @@
 
                         $link = '#';
                         $quizId = $notification->data['quiz_id'] ?? null;
+                        $topicId = $notification->data['topic_id'] ?? null;
                         if ($notification->type === 'quiz_live' && $quizId) {
                             $link = route('quizzes.attempt', $quizId);
                         } elseif (in_array($notification->type, ['quiz_announcement', 'quiz_reminder']) && $quizId) {
                             $link = route('quizzes.announcement', $quizId);
+                        } elseif ($notification->type === 'question_answered' && $topicId) {
+                            $link = route('forum.show', $topicId);
                         }
 
                         $icon = match ($notification->type) {
                             'quiz_announcement' => 'campaign',
                             'quiz_live' => 'play_circle',
                             'quiz_reminder' => 'alarm',
+                            'question_answered' => 'question_answer',
                             'warning' => 'warning',
                             'recommendation' => 'recommend',
                             'alert' => 'notifications_active',

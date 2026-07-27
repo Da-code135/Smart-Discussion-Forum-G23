@@ -30,9 +30,9 @@ use App\Http\Controllers\SharedTopicController;
 use App\Http\Controllers\StudentQuizController;
 use App\Models\Topic;
 use App\Utilities\StatisticsUtility;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Artisan;
 
 // ============================================
 // GUEST ROUTES (No authentication needed)
@@ -129,6 +129,12 @@ Route::middleware('auth')->group(function () {
             ])
                 ->middleware('throttle.posts:reply')
                 ->name('reply.store');
+
+            // Mark a question topic as answered/unanswered (creator or admin)
+            Route::post('/{topic}/toggle-answered', [
+                ForumController::class,
+                'toggleAnswered',
+            ])->name('toggle-answered');
 
             // Task 6.27: Edit & update topic
             Route::get('/{topic}/edit', [
@@ -951,12 +957,12 @@ Route::prefix('admin')
         });
     });
 
-    Route::get('/cron/run-scheduler/{token}', function ($token) {
+Route::get('/cron/run-scheduler/{token}', function ($token) {
     if ($token !== env('CRON_SECRET', 'change-this')) {
         abort(403);
     }
 
     Artisan::call('schedule:run');
-    return 'Scheduler ran at ' . now();
-});
 
+    return 'Scheduler ran at '.now();
+});

@@ -10,6 +10,7 @@ use App\Models\PostVisibility;
 use App\Models\Topic;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\NotificationService;
 use App\Services\ParticipationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -33,6 +34,7 @@ class ForumController extends Controller
     {
         $user = Auth::user();
         $sort = $request->query('sort', 'new');  // Default: newest first
+        $filter = $request->query('filter', 'all');  // all | questions | unanswered | mine
 
         // Build the query: active topics only
         $query = Topic::where('status', 'active')
@@ -42,6 +44,27 @@ class ForumController extends Controller
         // others (including Lecturers with cross-group access) see only accessible groups
         if (! $user->isSystemAdmin()) {
             $query->whereIn('group_id', $user->accessibleGroupIds());
+        }
+
+        // Apply the selected filter chip
+        switch ($filter) {
+            case 'questions':
+                $query->byType('question');
+                break;
+
+            case 'unanswered':
+                // Questions still waiting for an answer
+                $query->unanswered();
+                break;
+
+            case 'mine':
+                // The user's own topics, so askers can track their questions
+                $query->where('created_by', $user->id);
+                break;
+
+            case 'all':
+            default:
+                break;
         }
 
         // Apply sorting based on the selected tab
@@ -68,7 +91,7 @@ class ForumController extends Controller
                 break;
         }
 
-        $topics = $query->paginate(10)->appends(['sort' => $sort]);
+        $topics = $query->paginate(10)->appends(['sort' => $sort, 'filter' => $filter]);
 
         // System Admins may have null group_id — pass the first accessible group
         // for display purposes, or null if truly group-agnostic.
@@ -76,7 +99,7 @@ class ForumController extends Controller
             ? Group::orderBy('id')->first()
             : $user->group;
 
-        return view('forum.index', compact('topics', 'group', 'sort'));
+        return view('forum.index', compact('topics', 'group', 'sort', 'filter'));
     }
 
     /**
@@ -342,11 +365,7 @@ class ForumController extends Controller
             $topic->post_type === 'question' &&
             $topic->created_by !== $replyAuthor->id
         ) {
-            Notification::create([
-                'user_id' => $topic->created_by,
-                'type' => 'question_answered',
-                'data' => ['topic_id' => $topic->id, 'post_id' => $post->id],
-            ]);
+            app(NotificationService::class)->sendQuestionReplyNotification($topic, $post, $replyAuthor);
         }
 
         // Auto-mark question as answered
@@ -357,6 +376,40 @@ class ForumController extends Controller
         return redirect()
             ->route('forum.show', $topic->id)
             ->with('success', 'Reply posted successfully!');
+    }
+
+    /**
+     * ============================================
+     * Toggle the Answered Status of a Question (Web)
+     * ============================================
+     *
+     * Mirrors Api\TopicController::toggleAnswered so the web UI has
+     * feature parity with the desktop app.
+     *
+     * Security:
+     *   1. Group isolation check (SysAdmin bypass)
+     *   2. Question-type topics only
+     *   3. Only the topic creator or an admin can toggle
+     */
+    public function toggleAnswered(Topic $topic)
+    {
+        if (! Auth::user()->canAccessGroup($topic->group_id)) {
+            abort(403, 'You do not have access to this topic.');
+        }
+
+        if ($topic->post_type !== 'question') {
+            return back()->with('error', 'Only question topics can be marked as answered.');
+        }
+
+        if ($topic->created_by !== Auth::id() && ! Auth::user()->isAdmin()) {
+            abort(403, 'You are not authorized to toggle answered status.');
+        }
+
+        $topic->update(['is_answered' => ! $topic->is_answered]);
+
+        $status = $topic->is_answered ? 'answered' : 'unanswered';
+
+        return back()->with('success', "Question marked as {$status}.");
     }
 
     /**

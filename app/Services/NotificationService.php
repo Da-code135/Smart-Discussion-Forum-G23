@@ -2,8 +2,11 @@
 
 namespace App\Services;
 
+use App\Events\NotificationCreated;
 use App\Models\Group;
 use App\Models\Notification;
+use App\Models\Post;
+use App\Models\Topic;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -23,7 +26,7 @@ class NotificationService
             'message' => $message,
         ], $extraData);
 
-        return Notification::create([
+        $notification = Notification::create([
             'user_id' => $user->id,
             'group_id' => $user->group_id,
             'type' => $type,
@@ -31,6 +34,16 @@ class NotificationService
             'message' => $message,
             'data' => $data,
         ]);
+
+        // Fail-soft broadcast so the recipient's open sessions update their
+        // unread badge in real time (same pattern as MessageEventManager).
+        try {
+            broadcast(new NotificationCreated($notification));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $notification;
     }
 
     /**
@@ -92,6 +105,29 @@ class NotificationService
             "We think you might be interested in: {$topicTitle}",
             'recommendation',
             $extraData,
+        );
+    }
+
+    /**
+     * Notify a question author that a new reply (potential answer) was posted.
+     *
+     * Populates title/message/group_id so the notification renders correctly
+     * in both the web notifications page and the desktop NotificationListView.
+     */
+    public function sendQuestionReplyNotification(Topic $topic, Post $post, User $replier): ?Notification
+    {
+        $asker = $topic->creator;
+
+        if (! $asker) {
+            return null;
+        }
+
+        return $this->sendToUser(
+            $asker,
+            'New answer to your question',
+            "{$replier->full_name} replied to your question \"{$topic->title}\".",
+            'question_answered',
+            ['topic_id' => $topic->id, 'post_id' => $post->id],
         );
     }
 
